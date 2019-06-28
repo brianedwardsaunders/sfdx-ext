@@ -17,7 +17,7 @@ export interface Params {
     command: string;
 }
 
-export class RetrieveUtility {
+export class SourceRetrieveUtility {
 
     constructor(
         protected orgAlias: string,
@@ -26,7 +26,8 @@ export class RetrieveUtility {
         protected sfdxDirectory: string,
         protected ignoreBackup: boolean,
         protected ignoreManaged: boolean,
-        protected ignoreNamespaces: boolean) {
+        protected ignoreNamespaces: boolean,
+        protected manifestOnly: boolean) {
         // noop
     }// end constructor
 
@@ -640,38 +641,43 @@ export class RetrieveUtility {
     protected async retrieveMetadataFiles(): Promise<any> {
 
         return new Promise((resolve, reject) => {
-
-            chdir(this.projectDirectoryPath);
-            console.info('changing directory: ' + this.projectDirectoryPath);
-            console.info(cwd());
-
-            console.info('checking existing for clean: ' + this.stageOrgAliasDirectory);
-            if (existsSync(this.stageOrgAliasDirectory)) {
-                removeSync(this.stageOrgAliasDirectory);
-                console.info('sfdx source directory cleaned.');
-            }// end if
-
-            var retrieveCommand = 'sfdx force:source:retrieve -x ./manifest/package.xml -u ' + this.orgAlias;
-            console.info(retrieveCommand);
-            console.info('retrieving source from org, please standby this may take a few minutes ...');
-
-            this.command(retrieveCommand).then((result: any) => {
-
-                console.info(result);
-                // reset back to relative dir (destination)
-                process.chdir('../../..');
-                console.info(process.cwd());
-
-                console.log('creating backup ...');
-                this.createBackup();
-
-                console.info('setup and retrieve stage [' + this.projectDirectory + '] complete.');
+            if (this.manifestOnly) {
+                console.info('only created manifest/package.xml, process completed.');
                 resolve();
+            }
+            else {
+                chdir(this.projectDirectoryPath);
+                console.info('changing directory: ' + this.projectDirectoryPath);
+                console.info(cwd());
 
-            }, (error: any) => {
-                console.error(error);
-                reject(error);
-            });
+                console.info('checking existing for clean: ' + this.stageOrgAliasDirectory);
+                if (existsSync(this.stageOrgAliasDirectory)) {
+                    removeSync(this.stageOrgAliasDirectory);
+                    console.info('sfdx source directory cleaned.');
+                }// end if
+
+                var retrieveCommand = 'sfdx force:source:retrieve -x ./manifest/package.xml -u ' + this.orgAlias;
+                console.info(retrieveCommand);
+                console.info('retrieving source from org, please standby this may take a few minutes ...');
+
+                this.command(retrieveCommand).then((result: any) => {
+
+                    console.info(result);
+                    // reset back to relative dir (destination)
+                    process.chdir('../../..');
+                    console.info(process.cwd());
+
+                    console.log('creating backup ...');
+                    this.createBackup();
+
+                    console.info('setup and retrieve stage [' + this.projectDirectory + '] complete.');
+                    resolve();
+
+                }, (error: any) => {
+                    console.error(error);
+                    reject(error);
+                });
+            }
         });
 
     }// end method

@@ -1,0 +1,7 @@
+{
+  "commandDescription": "Generates a change set by comparing differences between two sfdx projects",
+  "sourceusernameFlagDescription": "(Required) source org username or alias",
+  "projectdirectoryFlagDescription": "(Required) source project directory name",
+  "sfdxdirectoryFlagDescription": "sfdx project folder name (default: force-app)",
+  "errorProjectDirectoryRequired": "project directory name parameter is required"
+}

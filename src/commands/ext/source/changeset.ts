@@ -1,6 +1,6 @@
 import { SfdxCommand, flags } from '@salesforce/command';
-import { Messages } from '@salesforce/core';
-import { RetrieveUtility } from '../../../scripts/retrieve-utility';
+import { Messages, SfdxError } from '@salesforce/core';
+import { SourceRetrieveUtility } from '../../../scripts/source-retrieve-utility';
 
 Messages.importMessagesDirectory(__dirname);
 
@@ -12,7 +12,7 @@ export default class Retrieve extends SfdxCommand {
 
   public static examples = [
     `
-    $ sfdx ext:source:retrieve --projectdirectory MyProject --sfdxdirectory force-app --targetusername user@example.com --apiversion 46.0 --ignorebackup --ignoremanaged --ignorenamespaces
+    $ sfdx ext:source:retrieve --projectdirectory MyProject --sfdxdirectory force-app --targetusername user@example.com --apiversion 46.0 --ignorebackup --ignoremanaged --ignorenamespaces --manifestonly
     `,
     `
     $ sfdx ext:source:retrieve --projectdirectory MyProject --targetusername user@example.com
@@ -24,7 +24,8 @@ export default class Retrieve extends SfdxCommand {
     sfdxdirectory: flags.string({ char: 'd', description: messages.getMessage('sfdxdirectoryFlagDescription') }),
     ignorebackup: flags.boolean({ char: 'b', description: messages.getMessage('ignorebackupFlagDescription') }),
     ignoremanaged: flags.boolean({ char: 'm', description: messages.getMessage('ignoremanagedFlagDescription') }),
-    ignorenamespaces: flags.boolean({ char: 'n', description: messages.getMessage('ignorenamespacesFlagDescription') })
+    ignorenamespaces: flags.boolean({ char: 'n', description: messages.getMessage('ignorenamespacesFlagDescription') }),
+    manifestonly: flags.boolean({ char: 'x', description: messages.getMessage('manifestonlyFlagDescription') })
   };
 
   // requires user alias
@@ -43,8 +44,11 @@ export default class Retrieve extends SfdxCommand {
     let ignorebackup: boolean = this.flags.ignorebackup || false;
     let ignoremanaged: boolean = this.flags.ignoremanaged || false;
     let ignorenamespaces: boolean = this.flags.ignorenamespaces || false;
+    let manifestonly: boolean = this.flags.manifestonly || false;
 
-    // throw new SfdxError(messages.getMessage('errorNoOrgResults', [this.org.getOrgId()]));
+    if (projectDirectory === undefined) {
+      throw new SfdxError(messages.getMessage('errorProjectDirectoryRequired', []));
+    }
 
     console.log("-----------------------------");
     console.log("sfdx ext:source:retrieve");
@@ -56,16 +60,18 @@ export default class Retrieve extends SfdxCommand {
     console.log("ignorebackup     : " + ignorebackup);
     console.log("ignoremanaged    : " + ignoremanaged);
     console.log("ignorenamespaces : " + ignorenamespaces);
+    console.log("manifestonly     : " + manifestonly);
     console.log("-----------------------------");
 
-    let retrieveUtil = new RetrieveUtility(
+    let retrieveUtil = new SourceRetrieveUtility(
       username,
       apiversion,
       projectDirectory,
       sfdxDirectory,
       ignorebackup,
       ignoremanaged,
-      ignorenamespaces);
+      ignorenamespaces,
+      manifestonly);
 
     retrieveUtil.process().then(() => {
       this.ux.log('success');
