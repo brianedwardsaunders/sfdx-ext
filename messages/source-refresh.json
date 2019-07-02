@@ -1,5 +1,5 @@
 {
-  "commandDescription": "Query and retrieve all org metadata and create complete package.xml",
+  "commandDescription": "Refresh org metadata",
   "projectdirectoryFlagDescription": "(Required) project directory name",
   "sfdxdirectoryFlagDescription": "sfdx project folder name (default: force-app)",
   "ignorebackupFlagDescription": "flag to ignore creating a local backup of retrieved files",

@@ -11,6 +11,8 @@ const messages = Messages.loadMessages('sfdx-ext', 'org');
 
 export default class Org extends SfdxCommand {
 
+  //https://jsforce.github.io/document/#read-metadata
+
   public static description = messages.getMessage('commandDescription');
 
   public static examples = [

@@ -1,21 +1,21 @@
 import { SfdxCommand, flags } from '@salesforce/command';
 import { Messages, SfdxError } from '@salesforce/core';
-import { SourceRetrieveUtility } from '../../../scripts/source-retrieve-utility';
+import { SourceRefreshUtility } from '../../../scripts/source-refresh-utility';
 
 Messages.importMessagesDirectory(__dirname);
 
-const messages = Messages.loadMessages('sfdx-ext', 'source-retrieve');
+const messages = Messages.loadMessages('sfdx-ext', 'source-refresh');
 
-export default class Retrieve extends SfdxCommand {
+export default class Refresh extends SfdxCommand {
 
   public static description = messages.getMessage('commandDescription');
 
   public static examples = [
     `
-    $ sfdx ext:source:retrieve --projectdirectory MyProject --sfdxdirectory force-app --targetusername user@example.com --apiversion 46.0 --ignorebackup --ignoremanaged --ignorenamespaces --manifestonly
+    $ sfdx ext:source:refresh --projectdirectory MyProject --sfdxdirectory force-app --targetusername user@example.com --apiversion 46.0 --ignorebackup --ignoremanaged --ignorenamespaces --manifestonly
     `,
     `
-    $ sfdx ext:source:retrieve --projectdirectory MyProject --targetusername user@example.com
+    $ sfdx ext:source:refresh --projectdirectory MyProject --targetusername user@example.com
     `
   ];
 
@@ -51,7 +51,7 @@ export default class Retrieve extends SfdxCommand {
     }
 
     console.log("-----------------------------");
-    console.log("sfdx ext:source:retrieve");
+    console.log("sfdx ext:source:refresh");
     console.log("-----------------------------");
     console.log("targetusername   : " + username);
     console.log("apiversion       : " + apiversion);
@@ -63,8 +63,7 @@ export default class Retrieve extends SfdxCommand {
     console.log("manifestonly     : " + manifestonly);
     console.log("-----------------------------");
 
-    let retrieveUtil = new SourceRetrieveUtility(
-      this.org,
+    let refreshUtil = new SourceRefreshUtility(
       username,
       apiversion,
       projectDirectory,
@@ -74,7 +73,7 @@ export default class Retrieve extends SfdxCommand {
       ignorenamespaces,
       manifestonly);
 
-    retrieveUtil.process().then(() => {
+      refreshUtil.process().then(() => {
       this.ux.log('success');
       return { "status": 'success' };
     }, (error: any) => {
