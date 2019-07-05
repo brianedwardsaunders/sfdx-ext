@@ -1,5 +1,6 @@
 {
   "commandDescription": "Generates a changeset by comparing differences between two mdapi source directories",
   "sourceusernameFlagDescription": "(Required) source org username or alias",
+  "ignorecommentsFlagDescription": "Ignore compare differences comments in deployment package.xml",
   "errorSourceusernameRequired": "Source org username is required"
 }

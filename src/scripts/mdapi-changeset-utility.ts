@@ -1,4 +1,7 @@
-import { existsSync, mkdirSync, removeSync, copySync, readdirSync, statSync, writeFileSync, readFileSync, unlinkSync } from "fs-extra";
+import {
+    existsSync, mkdirSync, removeSync, copySync, readdirSync,
+    statSync, writeFileSync, readFileSync, unlinkSync, copyFileSync
+} from "fs-extra";
 import { DescribeMetadataResult, MetadataObject } from "jsforce";
 import { Org } from "@salesforce/core";
 import path = require('path');
@@ -20,20 +23,24 @@ export class MdapiChangesetUtility {
     protected targetRetrieveDir: string;
     protected sourceDeployDir: string;
     protected sourceDeployDirTarget: string;
+    protected sourceDeployDirTargetSource: string;
+    protected emptyPackageXml: string;
     protected filePackageXml: string;
+    protected deploymentFilePackageXml: string;
     protected fileDestructiveChangesXml: string;
 
     protected UTF8 = 'utf8';
     protected convertOptions: Object = { compact: true, spaces: 2 };
     protected bufferOptions: Object = { maxBuffer: 10 * 1024 * 1024 };
 
-    protected StaticResource: string = 'StaticResource';
-
     protected Report: string = 'Report';
     protected DashboardFolder: string = 'DashboardFolder';
     protected DocumentFolder: string = 'DocumentFolder';
     protected EmailFolder: string = 'EmailFolder';
     protected ReportFolder: string = 'ReportFolder';
+
+    // special case e.g. static resources
+    protected metaSuffix: string = "-meta.xml";
 
     /** SPECIFIC DIR CONSTANTS*/
     protected aura: string = "aura";
@@ -43,8 +50,6 @@ export class MdapiChangesetUtility {
     protected email: string = "email";
     protected reports: string = "reports";
     protected documents: string = "documents";
-    protected objectTranslations: string = "objectTranslations";
-    protected staticresources: string = "staticresources";
 
     protected metaDefinitions: Array<MetadataObject> = [];
     protected metaTypeLookupFromSfdxFolder: Object = {};
@@ -64,10 +69,6 @@ export class MdapiChangesetUtility {
     protected DiffTypeMatch: string = "MATCH";
     protected DiffTypeDiff: string = "DIFF";
     protected DiffTypeUnprocessed: string = "UNPROCESSED";
-
-    //protected sortedMetadataTypes: Array<string> = [];
-    //protected metadataTypesLookup: Object = {};
-    //protected metadataTypesListMap: Object = {};
 
     protected metadataFoldersLookup: Object = {
         "Dashboard": this.DashboardFolder,
@@ -96,14 +97,16 @@ export class MdapiChangesetUtility {
 
     protected fileExcludes = [
         "jsconfig",
-        "eslintrc"
+        "eslintrc",
+        "package.xml"
     ];
 
     constructor(
         protected org: Org,
         protected sourceOrgAlias: string, // left
         protected targetOrgAlias: string, // right
-        protected apiVersion: string) {
+        protected apiVersion: string,
+        protected ignoreComments: boolean) {
         // noop
     }// end constructor
 
@@ -124,7 +127,7 @@ export class MdapiChangesetUtility {
     }// end method
 
     // because diff is left sfdx destructive return left to original state
-    protected checkLocalBackupAndRestore() {
+    protected checkLocalBackupAndRestore(): void {
         console.log('checking for local backup [' + this.sourceRetrieveDirBackup + '] ...');
         if (!existsSync(this.sourceRetrieveDirBackup)) { // first time
             mkdirSync(this.sourceRetrieveDirBackup);
@@ -138,7 +141,7 @@ export class MdapiChangesetUtility {
             copySync(this.sourceRetrieveDirBackup, this.sourceRetrieveDir);
             console.log('backup [' + this.sourceRetrieveDir + '] restored.');
         }
-    }
+    }// end method
 
     protected setupFolders(): void {
 
@@ -163,6 +166,9 @@ export class MdapiChangesetUtility {
         // e.g. stage/DevOrg/deploy/ReleaseOrg
         this.sourceDeployDirTarget = (this.sourceDeployDir + '/' + this.targetOrgAlias);
 
+        // e.g. stage/DevOrg/deploy/ReleaseOrg/src
+        this.sourceDeployDirTargetSource = (this.sourceDeployDirTarget + '/' + this.sourceDir);
+
         // check deploy exists else create
         if (!existsSync(this.sourceDeployDir)) {
             mkdirSync(this.sourceDeployDir);
@@ -178,8 +184,10 @@ export class MdapiChangesetUtility {
         mkdirSync(this.sourceDeployDirTarget);
         console.info(this.sourceDeployDirTarget + ' directory created.');
 
-        this.filePackageXml = (this.sourceDeployDirTarget + '/' + "package.xml");
+        this.emptyPackageXml = (this.sourceDeployDirTarget + '/' + "package.xml");
+        this.filePackageXml = (this.sourceDeployDirTarget + '/' + "package.manifest");
         this.fileDestructiveChangesXml = (this.sourceDeployDirTarget + '/' + "destructiveChanges.xml");
+        this.deploymentFilePackageXml = (this.sourceDeployDirTargetSource + '/' + "package.xml");
 
     }// end method
 
@@ -217,7 +225,7 @@ export class MdapiChangesetUtility {
     }// end method
 
     // checksum file hash number
-    protected hashCode(input: any) {
+    protected hashCode(input: any): number {
         let hash = 0;
         if (input.length === 0) return hash;
         for (var i = 0; i < input.length; i++) {
@@ -228,13 +236,12 @@ export class MdapiChangesetUtility {
         return hash;
     }// end method
 
-    public isolateLeafNode(pdir?: any) {
-        console.log('isolateLeafNode => ', pdir);
-        var items = pdir.split(path.sep);
+    protected isolateLeafNode(parentDir: any): string {
+        var items = parentDir.split(path.sep);
         return items[items.length - 1];
     }// end method
 
-    protected isolateMetaName(fileName: string) {
+    protected isolateMetaName(fileName: string): string {
 
         var items = fileName.split(".");
         let returned = items[0];
@@ -254,17 +261,17 @@ export class MdapiChangesetUtility {
         return returned;
     }// end method
 
-    protected getMetaNameFromParentDirectory(parentDir: string) {
+    protected getMetaNameFromParentDirectory(parentDir: string): string {
         let segments = parentDir.split(path.sep);
         return segments[segments.length - 2]; // step two up
     }// end method
 
-    protected getMetaNameFromCurrentDirectory(parentDir: string) {
+    protected getMetaNameFromCurrentDirectory(parentDir: string): string {
         let segments = parentDir.split(path.sep);
         return segments[segments.length - 1]; // step one up
     }// end method
 
-    protected async initMetaDefinitions(): Promise<any> {
+    protected async initMetaDefinitions(): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
@@ -289,29 +296,31 @@ export class MdapiChangesetUtility {
 
     }// end method
 
-    protected setupMetaDefinitionLookups() {
+    protected setupMetaDefinitionLookups(): void {
 
-        this.metaDefinitions.forEach(element => {
-
+        for (var x = 0; x < this.metaDefinitions.length; x++) {
+            let element = this.metaDefinitions[x];
             var key = element.directoryName;
             var lookupArray = this.metaTypeLookupFromSfdxFolder[key];
             if ((lookupArray === undefined) || (lookupArray === null)) {
                 lookupArray = []; //init array
             }
+            element["extension"] = (element.suffix + this.metaSuffix);
             lookupArray.push(element);
             this.metaTypeLookupFromSfdxFolder[key] = lookupArray;
             this.metaTypes.push(element.xmlName);
-        });
+        }// end for
 
     }// end method
 
-    protected initDiffResults(diffResults: Object) {
+    protected initDiffResults(diffResults: Object): void {
         this.metaTypes.forEach(metaTypeKey => {
             diffResults[metaTypeKey] = [];
         });
     }// end method
 
     protected setupDiffResults(): void {
+
         console.log('-----------------------------');
         console.log('SETUP DIFF RESULTS');
         console.log('-----------------------------');
@@ -328,7 +337,7 @@ export class MdapiChangesetUtility {
 
     }// end method
 
-    protected getMetaTypeLookupFromSfdxFolderName(typeFolder: string, metaTypeFile?: string) {
+    protected getMetaTypeLookupFromSfdxFolderName(typeFolder: string, metaTypeFile?: string): MetadataObject {
 
         const lookup = this.metaTypeLookupFromSfdxFolder[typeFolder];
 
@@ -336,67 +345,68 @@ export class MdapiChangesetUtility {
             // noop fall through
             if (lookup.length == 1) {
                 return lookup[0]; // if one only return one
-            }
+            }// end if
             for (var x = 0; x < lookup.length; x++) {
                 const metaDefinition = lookup[x];
-                if (metaTypeFile.endsWith(metaDefinition.extension)) { // e.g. for moderation different types
+                if (metaTypeFile.endsWith(metaDefinition.suffix) || metaTypeFile.endsWith(metaDefinition.extension)) { // e.g. for moderation different types
                     return metaDefinition;
-                }
+                }// end if
             }// end for
-        }
-        // console.info("No metaDefinition found likely due to non-standard sfdx-directory ["
-        // + typeFolder + "] containing file [" + metaTypeFile + "]. Will try to resolve ...");
-        return null;
+        }// end if
+        return null; // try to resolve as next step
     }// end method
 
-    protected inspectFile(filePath: any, metaRegister: Object, parentDir: any) {
+    protected inspectFile(instance: MdapiChangesetUtility, filePath: string, metaRegister: Object, parentDir: string): void {
 
-        console.log('inspectFile: ' + filePath + ' parentDir: ' + parentDir + ' metaRegister: ' + metaRegister);
+        // console.log('inspectFile: ' + filePath + ' parentDir: ' + parentDir + ' metaRegister: ' + metaRegister);
 
-        let typeFile = this.isolateLeafNode(filePath); // Account.meta-object.xml
-        let typeFileName = this.isolateMetaName(typeFile); //Account
-        let typeFolder = this.isolateLeafNode(parentDir); //objects
+        let typeFile = instance.isolateLeafNode(filePath); // Account.meta-object.xml
+        let typeFileName = instance.isolateMetaName(typeFile); //Account
+        let typeFolder = instance.isolateLeafNode(parentDir); //objects
         let isFolderDefinition = false;
         let keyAnchor = ""; // init empty but not null or undefined 
 
         // don't process top level directories (from excluded list)
-        if (this.isExcludedDirectory(typeFolder)) {
-            console.log("Ignoring sfdx folder: " + typeFolder);
+        if (instance.isExcludedDirectory(typeFolder)) {
+            console.log("Ignoring folder: " + typeFolder);
             return;
         }
+        else if (instance.isExcludedFile(typeFile)) {
+            console.log("Ignoring file: " + typeFile);
+            return;
+        }// end else if
 
-        let metaTypeElement = this.getMetaTypeLookupFromSfdxFolderName(typeFolder, typeFile);
+        let metaTypeElement = instance.getMetaTypeLookupFromSfdxFolderName(typeFolder, typeFile);
 
-        if (typeFolder === this.dashboards ||
-            typeFolder === this.email ||
-            typeFolder === this.reports ||
-            typeFolder === this.documents) {
+        if (typeFolder === instance.dashboards ||
+            typeFolder === instance.email ||
+            typeFolder === instance.reports ||
+            typeFolder === instance.documents) {
             isFolderDefinition = true; // indicator for later usage
-        }
+        }// end if
 
         if ((metaTypeElement === undefined) || (metaTypeElement === null)) {
 
-            let metaParentName = this.getMetaNameFromParentDirectory(parentDir);
+            let metaParentName = instance.getMetaNameFromParentDirectory(parentDir);
 
             // special handle for object name folder (handle for fields etc.)
-            if (metaParentName === this.objects) {
-                metaTypeElement = this.getMetaTypeLookupFromSfdxFolderName(metaParentName);
+            if (metaParentName === instance.objects) {
+                metaTypeElement = instance.getMetaTypeLookupFromSfdxFolderName(metaParentName);
             }// end if
             // special handle for aura and lwc 
-            else if ((metaParentName === this.aura) ||
-                (metaParentName === this.lwc) ||
-                (metaParentName === this.objectTranslations)) {
-                metaTypeElement = this.getMetaTypeLookupFromSfdxFolderName(metaParentName);
-                let folder = this.getMetaNameFromCurrentDirectory(parentDir);
+            else if ((metaParentName === instance.aura) ||
+                (metaParentName === instance.lwc)) {
+                metaTypeElement = instance.getMetaTypeLookupFromSfdxFolderName(metaParentName);
+                let folder = instance.getMetaNameFromCurrentDirectory(parentDir);
                 typeFileName = folder;
             }// end else if
             // special handle for folder types
-            else if (metaParentName === this.dashboards ||
-                metaParentName === this.email ||
-                metaParentName === this.reports ||
-                metaParentName === this.documents) {
-                metaTypeElement = this.getMetaTypeLookupFromSfdxFolderName(metaParentName);
-                let folder = this.getMetaNameFromCurrentDirectory(parentDir);
+            else if (metaParentName === instance.dashboards ||
+                metaParentName === instance.email ||
+                metaParentName === instance.reports ||
+                metaParentName === instance.documents) {
+                metaTypeElement = instance.getMetaTypeLookupFromSfdxFolderName(metaParentName);
+                let folder = instance.getMetaNameFromCurrentDirectory(parentDir);
                 keyAnchor = (folder + "/");
                 typeFileName = (keyAnchor + typeFileName);
             } // end else if
@@ -405,28 +415,7 @@ export class MdapiChangesetUtility {
                     + '] Check Meta Definitions are up to date. Unresolved Error FilePath: ' + filePath);
                 throw parentDir; // terminate 
             }// end else
-
-            //console.info(typeFolder + " folder item [" + typeFile + "] resolved.");
-
-        } else { // metaTypeElement is not null (so found)
-            // handle deep [object] specific items
-            /* if ((typeFolder === compactLayouts) ||
-                (typeFolder === fields) ||
-                (typeFolder === listViews) ||
-                (typeFolder === fieldSets) ||
-                (typeFolder === recordTypes) ||
-                (typeFolder === validationRules) ||
-                (typeFolder === webLinks) ||
-                (typeFolder === businessProcesses) ||
-                (typeFolder === indexes) ||
-                (typeFolder === sharingReasons)) {
-                let objectName = getMetaNameFromParentDirectory(parentDir);
-                keyAnchor = (objectName + "/");
-                typeFileName = (objectName + "." + typeFileName); // convention in package.xml
-            }// end if 
-            */
-
-        }// end if
+        }
 
         // contruct a unique relatively comparable key so left and be matched to right
         let registerKey = (typeFolder + "/" + keyAnchor + typeFile); // with extension so unique
@@ -445,7 +434,7 @@ export class MdapiChangesetUtility {
             throw 'Unresolved diffResult';
         }// end if
 
-        const fileContents = readFileSync(filePath, this.UTF8);
+        const fileContents = readFileSync(filePath, instance.UTF8);
         const stats = statSync(filePath);
 
         let diffResult = {
@@ -454,13 +443,13 @@ export class MdapiChangesetUtility {
             "keyAnchor": keyAnchor,
             "filePath": filePath,
             "parentDirectory": parentDir,
-            "fileContents": this.hashCode(fileContents), // only hash as contents is large
+            "fileContents": instance.hashCode(fileContents), // only hash as contents is large
             "directory": typeFolder, // sfdx directory e.g. triggers
             "isFolderDefinition": isFolderDefinition,
             "metaTypeDefinition": metaTypeElement,
             "metaType": metaTypeElement.xmlName, // e.g. ApexTrigger
             "metaName": typeFileName, // e.g. Account
-            "diffType": this.DiffTypeUnprocessed,
+            "diffType": instance.DiffTypeUnprocessed,
             "lastModified": stats.mtime,
             "fileSize": stats.size,
             "diffSize": 0 // init
@@ -472,20 +461,24 @@ export class MdapiChangesetUtility {
     }// end method
 
     // recursive walk directory function
-    protected walkDir(dir: any, metaRegister: Object, callback: any) {
+    protected walkDir(dir: string, metaRegister: Object, callback: any): void {
 
-        readdirSync(dir).forEach((fileItem: any) => {
+        const fileItems: Array<string> = readdirSync(dir);
 
-            let dirPath = path.join(dir, fileItem);
-            let isDirectory = statSync(dirPath).isDirectory();
+        for (var x = 0; x < fileItems.length; x++) {
+
+            let fileItem: string = fileItems[x];
+            let dirPath: string = path.join(dir, fileItem);
+            let isDirectory: boolean = statSync(dirPath).isDirectory();
 
             if (isDirectory) {
                 this.walkDir(dirPath, metaRegister, callback);
             }
             else {
-                callback(path.join(dir, fileItem), metaRegister, dir);
+                callback(this, path.join(dir, fileItem), metaRegister, dir);
             }
-        });
+        }// end for
+
     }// end method
 
     protected walkDirectories(): void {
@@ -504,7 +497,7 @@ export class MdapiChangesetUtility {
 
     }// end method
 
-    protected compareSourceAndTarget() {
+    protected compareSourceAndTarget(): void {
 
         console.log('-----------------------------');
         console.log('COMPARE SOURCE WITH TARGET ');
@@ -567,7 +560,7 @@ export class MdapiChangesetUtility {
     }// end method
 
     // console.log(destructiveDiffResults);
-    protected sortDiffResultsTypes(diffResults: Object) {
+    protected sortDiffResultsTypes(diffResults: Object): Array<string> {
 
         var metaTypes: Array<string> = [];
 
@@ -654,7 +647,8 @@ export class MdapiChangesetUtility {
 
             }// end if
 
-            xmlContent += comments + '\n';
+            if (!this.ignoreComments) { xmlContent += comments + '\n'; }
+
         }// end for
 
         xmlContent += '  <version>' + this.apiVersion + '</version>\n';
@@ -666,6 +660,22 @@ export class MdapiChangesetUtility {
         }
 
         writeFileSync(packageFile, xmlContent);
+    }// end method
+
+    protected createEmptyPackageFile(): void {
+
+        var xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';
+        xmlContent += '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
+
+        xmlContent += '  <version>' + this.apiVersion + '</version>\n';
+        xmlContent += '</Package>\n';
+
+        if (!existsSync(this.sourceDeployDirTarget)) {
+            mkdirSync(this.sourceDeployDirTarget);
+            console.info(this.sourceDeployDirTarget + ' directory created.');
+        }
+
+        writeFileSync(this.emptyPackageXml, xmlContent);
     }// end method
 
     protected createPackageXmls(): void {
@@ -683,8 +693,10 @@ export class MdapiChangesetUtility {
         this.createPackageFile(this.fileDestructiveChangesXml, this.destructiveDiffResults, true);
 
         console.log('-----------------------------');
-        console.log('DIFF PROCESS FINISHING UP ... ');
+        console.log('DIFF PROCESS COMPLETED  ');
         console.log('-----------------------------');
+
+        this.createEmptyPackageFile();
 
     }// end method
 
@@ -736,7 +748,23 @@ export class MdapiChangesetUtility {
 
     }// end method
 
-    public async process(): Promise<any> {
+    protected copyDeploymentFiles(): void {
+
+        copySync(this.sourceRetrieveDir, this.sourceDeployDirTargetSource);
+        console.log(this.sourceRetrieveDir + ' moved to [' + this.sourceDeployDirTargetSource + '].');
+        removeSync(this.sourceRetrieveDir);
+
+        copyFileSync(this.filePackageXml, this.deploymentFilePackageXml);
+        console.log(this.deploymentFilePackageXml + ' file created.');
+        unlinkSync(this.filePackageXml);
+
+        console.log('-----------------------------');
+        console.log('CHANGESET PROCESS COMPLETED  ');
+        console.log('-----------------------------');
+
+    }// end process
+
+    public async process(): Promise<void> {
 
         this.setupFolders();
 
@@ -755,6 +783,8 @@ export class MdapiChangesetUtility {
         this.preparePackageDirectory();
 
         this.createPackageXmls();
+
+        this.copyDeploymentFiles();
 
     }// end process
 };

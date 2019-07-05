@@ -62,14 +62,14 @@ export class MdapiRefreshUtility {
     protected EmailFolder: string = 'EmailFolder';
     protected ReportFolder: string = 'ReportFolder';
 
-    /* protected metaObjectExcludes: Array<string> = [
+    protected metaObjectExcludes: Array<string> = [
         // "AnimationRule",
         // "Audience",
         // "Bot",
-        // "FlowDefinition",
+        // "FlowDefinition", (rather exclude in the diff ignores)
         // "OauthCustomScope",
         // "Prompt"
-    ]; */
+    ];
 
     protected metadataFoldersOther: Array<string> = [
         "BrandingSet",
@@ -192,6 +192,22 @@ export class MdapiRefreshUtility {
 
     }// end method
 
+    protected isExcludedMetaType(metaObject: string): boolean {
+
+        let isExcluded: boolean = false;
+
+        this.metaObjectExcludes.forEach(element => {
+            if (element === metaObject) {
+                console.log("excluding meta type: " + metaObject);
+                isExcluded = true;
+                return;
+            }
+        });
+
+        return isExcluded;
+
+    }// end method 
+
     protected describeMetadataOthers(): void {
 
         this.metadataFoldersOther.forEach(metadata => {
@@ -264,6 +280,8 @@ export class MdapiRefreshUtility {
 
                         let metadataObject: Object = metadataObjects[x];
                         let lookupKey: string = metadataObject["xmlName"];
+
+                        if (this.isExcludedMetaType(lookupKey)) continue;
 
                         if (this.metadataObjectsLookup[lookupKey] === undefined) {
                             this.metadataObjectsLookup[lookupKey] = [];
@@ -655,6 +673,7 @@ export class MdapiRefreshUtility {
                 zipfile.readEntry();
 
                 zipfile.once("close", () => {
+                    console.log('unzipping complete');
                     resolve();
                 });
 
@@ -675,6 +694,7 @@ export class MdapiRefreshUtility {
                             }
                             readStream.pipe(createWriteStream(outputFile));
                             readStream.on("end", () => {
+                                // console.log('unzipping end');
                                 zipfile.readEntry();
                             });
                         });
@@ -750,7 +770,7 @@ export class MdapiRefreshUtility {
 
             if (existsSync(targetDirectorySource)) {
                 removeSync(targetDirectorySource);
-            }
+            }// end if
 
             this.unzipUnpackaged().then(() => {
 
@@ -785,7 +805,7 @@ export class MdapiRefreshUtility {
         // sync calls
         this.setStandardValueSets();
         // create package.xml
-        this.packageFile(); 
+        this.packageFile();
         // retrieve payload (payload)
 
         if (!this.manifestOnly) {

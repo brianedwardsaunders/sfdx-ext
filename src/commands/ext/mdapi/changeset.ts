@@ -12,7 +12,7 @@ export default class Changeset extends SfdxCommand {
 
   public static examples = [
     `
-    $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --apiversion 46.0
+    $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --apiversion 46.0 --ignorecomments
     `,
     `
     $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com
@@ -20,7 +20,8 @@ export default class Changeset extends SfdxCommand {
   ];
 
   protected static flagsConfig = {
-    sourceusername: flags.string({ char: 's', description: messages.getMessage('sourceusernameFlagDescription') })
+    sourceusername: flags.string({ char: 's', description: messages.getMessage('sourceusernameFlagDescription') }),
+    ignorecomments: flags.boolean({ char: 'x', description: messages.getMessage('ignorecommentsFlagDescription') })
   };
 
   // requires user alias
@@ -30,6 +31,7 @@ export default class Changeset extends SfdxCommand {
   public async run(): Promise<any> {
 
     let defaultApiVersion: string = '46.0';
+    let ignorecomments: boolean = this.flags.ignorecomments || false;
     let sourceusername: string = this.flags.sourceusername;
     let targetusername: string = this.flags.targetusername;
     let apiversion: string = this.flags.apiversion || defaultApiVersion;
@@ -44,13 +46,15 @@ export default class Changeset extends SfdxCommand {
     console.log("sourceusername   : " + sourceusername);
     console.log("targetusername   : " + targetusername);
     console.log("apiversion       : " + apiversion);
+    console.log("ignorecomments   : " + ignorecomments);
     console.log("-----------------------------");
 
     let util = new MdapiChangesetUtility(
       this.org,
       sourceusername,
       targetusername,
-      apiversion);
+      apiversion,
+      ignorecomments);
 
     util.process().then(() => {
       this.ux.log('success');
