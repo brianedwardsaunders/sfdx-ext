@@ -1,0 +1,5 @@
+{
+  "commandDescription": "Generates a changeset by comparing differences between two mdapi source directories",
+  "sourceusernameFlagDescription": "(Required) source org username or alias",
+  "errorSourceusernameRequired": "Source org username is required"
+}

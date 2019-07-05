@@ -1,5 +1,7 @@
-import { existsSync, writeFile, mkdirSync, copySync, removeSync } from 'fs-extra';
+import { existsSync, mkdirSync, removeSync, unlinkSync, mkdirp, createWriteStream, writeFileSync, copyFileSync, renameSync } from 'fs-extra';
 import { chdir, cwd } from 'process';
+import path = require('path');
+import yauzl = require('yauzl');
 const exec = require('child_process').exec;
 
 export interface Result {
@@ -17,13 +19,11 @@ export interface Params {
     command: string;
 }
 
-export class SourceRefreshUtility {
+export class MdapiRefreshUtility {
 
     constructor(
         protected orgAlias: string,
         protected apiVersion: string,
-        protected projectDirectory: string,
-        protected sfdxDirectory: string,
         protected ignoreBackup: boolean,
         protected ignoreManaged: boolean,
         protected ignoreNamespaces: boolean,
@@ -32,10 +32,14 @@ export class SourceRefreshUtility {
     }// end constructor
 
     protected bufferOptions: Object = { maxBuffer: 10 * 1024 * 1024 };
-    protected MetadataListBatchSize = 20;
+    protected MetadataListBatchSize = 50;
 
     protected stageRoot: string = 'stage';
     protected backupRoot: string = 'backup';
+    protected retrieveRoot: string = 'retrieve';
+    protected unpackagedRoot: string = 'unpackaged';
+    protected retrieveSource: string = 'src';
+    protected unpackagedZip: string = 'unpackaged.zip';
     protected manifest: string = 'manifest';
     protected filePackageXml: string = 'package.xml';
 
@@ -58,14 +62,14 @@ export class SourceRefreshUtility {
     protected EmailFolder: string = 'EmailFolder';
     protected ReportFolder: string = 'ReportFolder';
 
-    protected metaObjectExcludes: Array<string> = [
-        "AnimationRule",
-        "Audience",
-        "Bot",
-        "FlowDefinition",
-        "OauthCustomScope",
-        "Prompt"
-    ];
+    /* protected metaObjectExcludes: Array<string> = [
+        // "AnimationRule",
+        // "Audience",
+        // "Bot",
+        // "FlowDefinition",
+        // "OauthCustomScope",
+        // "Prompt"
+    ]; */
 
     protected metadataFoldersOther: Array<string> = [
         "BrandingSet",
@@ -78,17 +82,19 @@ export class SourceRefreshUtility {
         "LeadConvertSettings",
         "ListView",
         "MatchingRule",
+        "Index",
         "RecordType",
+        "SharingReason",
         "StandardValueSet",
         "ValidationRule",
         "WebLink",
-        "WorkflowAlert",
         "WorkflowFieldUpdate",
-        "WorkflowRule",
+        "WorkflowKnowledgePublish",
         "WorkflowTask",
+        "WorkflowAlert",
         "WorkflowSend",
         "WorkflowOutboundMessage",
-        "WorkflowKnowledgePublish"
+        "WorkflowRule"
     ];
 
     protected standardValueSets: Array<string> = [
@@ -110,28 +116,46 @@ export class SourceRefreshUtility {
         "ContactRole",
         "ContractContactRole",
         "ContractStatus",
+        "EntitlementType",
         "EventSubject",
         "EventType",
+        "FiscalYearPeriodName",
+        "FiscalYearPeriodPrefix",
+        "FiscalYearQuarterName",
+        "FiscalYearQuarterPrefix",
+        "IdeaCategory1",
         "IdeaMultiCategory",
         "IdeaStatus",
+        "IdeaThemeStatus",
         "Industry",
         "LeadSource",
         "LeadStatus",
         "OpportunityCompetitor",
         "OpportunityStage",
         "OpportunityType",
+        "OrderStatus",
         "OrderType",
         "PartnerRole",
         "Product2Family",
+        "QuestionOrigin1",
         "QuickTextCategory",
         "QuickTextChannel",
         "QuoteStatus",
+        "RoleInTerritory2",
+        "SalesTeamRole",
         "Salutation",
+        "ServiceContractApprovalStatus",
+        "SocialPostClassification",
+        "SocialPostEngagementLevel",
+        "SocialPostReviewedStatus",
         "SolutionStatus",
         "TaskPriority",
         "TaskStatus",
         "TaskSubject",
-        "TaskType"
+        "TaskType",
+        "WorkOrderLineItemStatus",
+        "WorkOrderPriority",
+        "WorkOrderStatus"
     ];
 
     protected metadataFolders: Array<string> = [
@@ -150,9 +174,7 @@ export class SourceRefreshUtility {
         };
 
     // define working folders
-    protected stageOrgAliasDirectory = (this.sfdxDirectory + '/main/default');
     protected stageOrgAliasDirectoryPath = (this.stageRoot + '/' + this.orgAlias);
-    protected projectDirectoryPath = (this.stageOrgAliasDirectoryPath + '/' + this.projectDirectory);
 
     protected command(cmd: string): Promise<any> {
 
@@ -167,21 +189,6 @@ export class SourceRefreshUtility {
                 }// end else
             });
         });
-
-    }// end method
-
-    protected isExcludedMetaType(metaObject: string): boolean {
-
-        let excluded: boolean = false;
-
-        this.metaObjectExcludes.forEach(element => {
-            if (element === metaObject) {
-                excluded = true;
-                return;
-            }// end if
-        });
-
-        return excluded;
 
     }// end method
 
@@ -258,26 +265,16 @@ export class SourceRefreshUtility {
                         let metadataObject: Object = metadataObjects[x];
                         let lookupKey: string = metadataObject["xmlName"];
 
-                        if (this.isExcludedMetaType(lookupKey)) {
+                        if (this.metadataObjectsLookup[lookupKey] === undefined) {
+                            this.metadataObjectsLookup[lookupKey] = [];
+                        }// end if
 
-                            console.log('Ignoring unsupported meta object type: ' + lookupKey);
-                            metadataObjects.splice(x, 1);
-                            continue;
+                        if (this.metadataObjectsListMap[lookupKey] === undefined) {
+                            this.metadataObjectsListMap[lookupKey] = [];
+                        }// end if
 
-                        } else {
-
-                            if (this.metadataObjectsLookup[lookupKey] === undefined) {
-                                this.metadataObjectsLookup[lookupKey] = [];
-                            }// end if
-
-                            if (this.metadataObjectsListMap[lookupKey] === undefined) {
-                                this.metadataObjectsListMap[lookupKey] = [];
-                            }// end if
-
-                            this.sortedMetadataTypes.push(lookupKey);
-                            this.metadataObjectsLookup[lookupKey].push(metadataObject);
-
-                        }// end else
+                        this.sortedMetadataTypes.push(lookupKey);
+                        this.metadataObjectsLookup[lookupKey].push(metadataObject);
 
                     }// end for
 
@@ -308,7 +305,6 @@ export class SourceRefreshUtility {
         else if (!(metaItem["namespacePrefix"] === undefined ||
             metaItem["namespacePrefix"] === null ||
             metaItem["namespacePrefix"] === "")) { // pi or Finserv
-            // console.log('ignoring namespaced item: ' + metaItem["fullName"] + ' namespacePrefix: ' + metaItem["namespacePrefix"]);
             return true;
         }
         return false;
@@ -323,7 +319,6 @@ export class SourceRefreshUtility {
         else if (!(metaItem["manageableState"] === undefined ||
             metaItem["manageableState"] === null) &&
             !(metaItem["manageableState"] === "unmanaged")) { // installed
-            // console.log('ignoring managed item: ' + metaItem["fullName"] + ' manageableState: ' + metaItem["manageableState"]);
             return true;
         }
         return false;
@@ -518,7 +513,7 @@ export class SourceRefreshUtility {
         let found = false;
         for (var x = 0; x < this.retainedMetadataTypes.length; x++) {
             if (this.retainedMetadataTypes[x] === this.Settings) {
-                this.retainedMetadataTypes.slice(x, 1);
+                this.retainedMetadataTypes.splice(x, 1);
                 found = true;
                 break;
             }// end if
@@ -585,112 +580,203 @@ export class SourceRefreshUtility {
 
             uniqueMetaItems.sort();
 
-            xmlContent += '\t<types>\n';
+            xmlContent += '  <types>\n';
 
             for (var y = 0; y < uniqueMetaItems.length; y++) {
                 let item = uniqueMetaItems[y];
-                xmlContent += '\t\t<members>' + item + '</members>\n';
+                xmlContent += '    <members>' + item + '</members>\n';
             }// end for
 
-            xmlContent += '\t\t<name>' + metaType + '</name>\n';
-            xmlContent += '\t</types>\n';
+            xmlContent += '    <name>' + metaType + '</name>\n';
+            xmlContent += '  </types>\n';
         }// end for
 
-        xmlContent += '\t<version>' + this.apiVersion + '</version>\n';
+        xmlContent += '  <version>' + this.apiVersion + '</version>\n';
         xmlContent += '</Package>\n';
 
         console.log(xmlContent);
 
-        writeFile(packageFile, xmlContent, function (error: any) {
-            if (error) { throw error; }
-            console.log(packageFile + ' file successfully saved.');
-        });
+        writeFileSync(packageFile, xmlContent);
+        console.log(packageFile + ' file successfully saved.');
 
     }// end function
 
     // create backup of retrieve meta in-case needed later
     protected createBackup(): void {
 
-        if (this.ignoreBackup) {
-            console.log('ignoring backup.');
-            return;
-        }
-
         let iso = new Date().toISOString();
         iso = iso.replace(/:/g, '-').split('.')[0];
 
         let backupFolder = (this.backupRoot + '/' + this.orgAlias); // e.g. backup/DevOrg
-        // console.log('backupFolder: ' + backupFolder);
+        let backupOrgFolder = (backupFolder + '/' + iso); // e.g. backup/DevOrg/2000-00-00T11-11-11
+        let backupProjectFile = (backupOrgFolder + '/' + this.unpackagedZip);
+        let sourceProjectFile = (this.stageOrgAliasDirectoryPath + '/' + this.retrieveRoot + '/' + this.unpackagedZip);
+
+        if (this.ignoreBackup) {
+            console.log('ignoring backup.');
+            unlinkSync(sourceProjectFile);
+            console.log('deleting temp file: ' + sourceProjectFile);
+            return;
+        }
+
         if (!existsSync(backupFolder)) {
             mkdirSync(backupFolder);
         }
 
-        let backupOrgFolder = (backupFolder + '/' + this.projectDirectory + '_' + iso);
-        // console.log('backupOrgFolder: ' + backupOrgFolder);
-        mkdirSync(backupOrgFolder);
+        if (!existsSync(backupOrgFolder)) {
+            mkdirSync(backupOrgFolder);
+        }
 
-        let backupProjectFolder = backupOrgFolder;
-        let sourceProjectFolder = (this.stageOrgAliasDirectoryPath + '/' + this.projectDirectory);
-        console.log('backing up from: ' + sourceProjectFolder + ' to: ' + backupProjectFolder);
+        console.log('backing up from: ' + sourceProjectFile + ' to: ' + backupProjectFile);
 
-        copySync(sourceProjectFolder, backupProjectFolder);
-        console.log('backup finished to folder: ' + backupProjectFolder);
+        copyFileSync(sourceProjectFile, backupProjectFile);
+        console.log('backup finished to file: ' + backupProjectFile);
+
+        unlinkSync(sourceProjectFile);
+        console.log('deleting temp file: ' + sourceProjectFile);
+
+    }// end method
+
+    protected async unzipUnpackaged(): Promise<any> {
+
+        return new Promise((resolve, reject) => {
+
+            let zipFilename: string = (this.retrieveRoot + '/' + this.unpackagedZip);
+            let targetDirectory: string = (this.retrieveRoot + '/' + this.unpackagedRoot);
+
+            console.log('unzipping ' + zipFilename);
+
+            yauzl.open(zipFilename, { lazyEntries: true }, (openErr, zipfile) => {
+
+                if (openErr) {
+                    return reject(openErr);
+                }// end if
+
+                zipfile.readEntry();
+
+                zipfile.once("close", () => {
+                    resolve();
+                });
+
+                zipfile.on("entry", (entry: any) => {
+                    zipfile.openReadStream(entry, (unzipErr, readStream) => {
+                        if (unzipErr) {
+                            return reject(unzipErr);
+                        }
+                        else if (/\/$/.test(entry.fileName)) { // read directory
+                            zipfile.readEntry();
+                            return;
+                        }
+                        let outputDir = path.join(targetDirectory, path.dirname(entry.fileName));
+                        let outputFile = path.join(targetDirectory, entry.fileName);
+                        mkdirp(outputDir, (mkdirErr: any) => {
+                            if (mkdirErr) {
+                                return reject(mkdirErr);
+                            }
+                            readStream.pipe(createWriteStream(outputFile));
+                            readStream.on("end", () => {
+                                zipfile.readEntry();
+                            });
+                        });
+                    });
+                });
+            });
+        });
 
     }// end method
 
     protected async retrieveMetadataFiles(): Promise<any> {
 
+        chdir(this.stageOrgAliasDirectoryPath);
+        console.info('changing directory: ' + this.stageOrgAliasDirectoryPath);
+        console.info(cwd());
+
         return new Promise((resolve, reject) => {
-            if (this.manifestOnly) {
-                console.info('only created manifest/package.xml, process completed.');
+
+            console.info('checking existing for clean: ' + this.retrieveRoot);
+            if (existsSync(this.retrieveRoot)) {
+                removeSync(this.retrieveRoot);
+            }// end if
+            mkdirSync(this.retrieveRoot);
+            console.info('Retrieve source directory cleaned.');
+
+            var retrieveCommand = ('sfdx force:mdapi:retrieve -s -k manifest/package.xml -r ' + this.retrieveRoot + ' -u ' + this.orgAlias);
+            console.info(retrieveCommand);
+            console.info('retrieving source from org, please standby this may take a few minutes ...');
+
+            this.command(retrieveCommand).then((result: any) => {
+
+                console.info(result);
+
                 resolve();
-            }
-            else {
-                chdir(this.projectDirectoryPath);
-                console.info('changing directory: ' + this.projectDirectoryPath);
-                console.info(cwd());
 
-                console.info('checking existing for clean: ' + this.stageOrgAliasDirectory);
-                if (existsSync(this.stageOrgAliasDirectory)) {
-                    removeSync(this.stageOrgAliasDirectory);
-                    console.info('sfdx source directory cleaned.');
-                }// end if
-
-                var retrieveCommand = 'sfdx force:source:retrieve -x ./manifest/package.xml -u ' + this.orgAlias;
-                console.info(retrieveCommand);
-                console.info('retrieving source from org, please standby this may take a few minutes ...');
-
-                this.command(retrieveCommand).then((result: any) => {
-
-                    console.info(result);
-                    // reset back to relative dir (destination)
-                    process.chdir('../../..');
-                    console.info(process.cwd());
-
-                    console.log('creating backup ...');
-                    this.createBackup();
-
-                    console.info('setup and retrieve stage [' + this.projectDirectory + '] complete.');
-                    resolve();
-
-                }, (error: any) => {
-                    console.error(error);
-                    reject(error);
-                });
-            }
+            }, (error: any) => {
+                console.error(error);
+                reject(error);
+            });
         });
 
     }// end method
 
     protected packageFile(): void {
 
-        const filePackageXmlPath = (this.projectDirectoryPath + '/' + this.manifest + '/' + this.filePackageXml);
+        const manifestDirectory = (this.stageOrgAliasDirectoryPath + '/' + this.manifest);
+        const filePackageXmlPath = (manifestDirectory + '/' + this.filePackageXml);
+
+        if (!existsSync(manifestDirectory)) {
+            mkdirSync(manifestDirectory);
+            console.info('Created manifest directory [' + manifestDirectory + '].');
+        }// end if
         this.createPackageFile(filePackageXmlPath);
 
     }// end method
 
+    protected init(): void {
+
+        // check if working directory exists
+        if (!existsSync(this.stageOrgAliasDirectoryPath)) {
+            mkdirSync(this.stageOrgAliasDirectoryPath);
+            console.info('Staging alias [' + this.stageOrgAliasDirectoryPath + '] directory created.');
+        }// end if
+
+    }// end method
+
+    protected async unzipAndBackup(): Promise<any> {
+
+        return new Promise((resolve, reject) => {
+
+            let targetDirectoryUnpackaged: string = (this.retrieveRoot + '/' + this.unpackagedRoot);
+            let targetDirectorySource: string = (this.retrieveRoot + '/' + this.retrieveSource);
+
+            if (existsSync(targetDirectorySource)) {
+                removeSync(targetDirectorySource);
+            }
+
+            this.unzipUnpackaged().then(() => {
+
+                // rename unmanaged to src
+                renameSync(targetDirectoryUnpackaged, targetDirectorySource);
+
+                // reset back to relative dir (destination)
+                process.chdir('../..');
+                console.info(process.cwd());
+
+                console.log('creating backup ...');
+                this.createBackup();
+
+                console.info('setup and retrieve stage [' + this.stageOrgAliasDirectoryPath + '] complete.');
+                resolve();
+
+            }, (error: any) => {
+                console.error(error);
+                reject(error);
+            });
+        });
+    }// end method
+
     public async process(): Promise<any> {
 
+        this.init();
         // async calls
         await this.describeMetadata();
         await this.retrieveMetadataLists();
@@ -699,9 +785,17 @@ export class SourceRefreshUtility {
         // sync calls
         this.setStandardValueSets();
         // create package.xml
-        this.packageFile();
+        this.packageFile(); 
         // retrieve payload (payload)
-        await this.retrieveMetadataFiles();
+
+        if (!this.manifestOnly) {
+            await this.retrieveMetadataFiles();
+            // unzip retrieve and backup zip
+            await this.unzipAndBackup();
+        }
+        else {
+            console.info('only created manifest/package.xml, process completed.');
+        }// end else
 
     }// end process
 

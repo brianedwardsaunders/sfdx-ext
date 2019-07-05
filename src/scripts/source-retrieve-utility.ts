@@ -5,6 +5,7 @@ import {
     FileProperties, DescribeSObjectResult, RecordTypeInfo, Field
 } from 'jsforce';
 import { existsSync, writeFile, mkdirSync, copySync, removeSync } from 'fs-extra';
+
 const exec = require('child_process').exec;
 
 export interface Result {
@@ -116,13 +117,13 @@ export class SourceRetrieveUtility {
             "joinChar": this.DOT,
             "toolingApi": true
         },
-        {
+        /* {
             "metaType": this.BusinessProcess,
             "queryFields": [this.Name, this.ManageableState, this.NamespacePrefix],
             "filter": null,
             "joinChar": null,
             "toolingApi": true
-        },
+        }, */
         {
             "metaType": this.CompactLayout,
             "queryFields": [this.DeveloperName, this.ManageableState, this.NamespacePrefix, this.SobjectType],
@@ -130,13 +131,13 @@ export class SourceRetrieveUtility {
             "joinChar": this.DOT,
             "toolingApi": true
         },
-        {
+        /* {
             "metaType": this.FieldSet,
             "queryFields": [this.DeveloperName, this.ManageableState, this.NamespacePrefix],
             "filter": null,
             "joinChar": null,
             "toolingApi": true
-        },
+        }, */
         {
             "metaType": this.Layout,
             "queryFields": [this.Name, this.ManageableState, this.NamespacePrefix, this.TableEnumOrId, this.LayoutType],
@@ -158,7 +159,7 @@ export class SourceRetrieveUtility {
             "joinChar": this.DOT,
             "toolingApi": true
         },
-        {
+        /* {
             "metaType": this.ValidationRule,
             "queryFields": [this.ValidationName, this.ManageableState, this.NamespacePrefix],
             "filter": null,
@@ -171,7 +172,7 @@ export class SourceRetrieveUtility {
             "filter": null,
             "joinChar": null,
             "toolingApi": true
-        }
+        } */
     ];
 
     // NEED TO QUERY QUERY OBJECT AS WELL, BUSINESSPROCESS, FIELDS, RECORD TYPES, FIELDSET, QUERY MATCHING RULE.
@@ -646,7 +647,7 @@ export class SourceRetrieveUtility {
     protected async runRetrieveCustomObjectListViews(objectName: string): Promise<any> {
 
         const conn = this.org.getConnection();
-        const result = await conn.query("SELECT Id, Name, DeveloperName, SobjectType, NamespacePrefix" +
+        const result = await conn.queryAll("SELECT Id, Name, DeveloperName, SobjectType, NamespacePrefix" +
             " FROM ListView WHERE SobjectType IN ('" + objectName + "')");
 
         if (result.records) {
@@ -1075,7 +1076,13 @@ export class SourceRetrieveUtility {
     public async process(): Promise<any> {
 
         // async calls
-        await this.describeMetadata();
+
+        const result = await this.org.getConnection().tooling.query('SELECT ValidationRule FROM CustomObject');
+
+        console.log(result);
+
+
+       /* await this.describeMetadata();
 
         await this.retrieveMetadataLists();
 
@@ -1085,14 +1092,13 @@ export class SourceRetrieveUtility {
 
         await this.resolvePersonAccountRecordTypes();
 
-        // sync calls
         this.injectStandardValueSets();
 
-        // create package.xml
         this.packageFile();
 
         // retrieve payload (payload) FIXME
         // await this.retrieveMetadataFiles();
+        */
 
     }// end process
 

@@ -160,6 +160,11 @@ export class PackageSyncUtility {
         });
     }// end method
 
+    /* export default extends Command {
+      async run() {
+        await packageInstalledList.run()
+      }
+    } */
     // process compareSyncPackages
     protected async compareSyncPackages(): Promise<any> {
 
@@ -170,6 +175,8 @@ export class PackageSyncUtility {
             //commandSfdxLeftPackageList 
             console.info('retrieving installed packages from ' + this.sourceOrgAlias + ' please standby ...');
             console.info(commandSfdxLeftPackageList);
+
+            // packageInstalledList.run(); 
 
             this.command(commandSfdxLeftPackageList).then((result: any) => {
 
