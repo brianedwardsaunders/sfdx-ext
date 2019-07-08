@@ -13,6 +13,7 @@
     "@types/fs-extra": "^7.0.0",
     "@types/yauzl": "^2.9.1",
     "tslib": "^1",
+    "xml-js": "^1.6.11",
     "yauzl": "^2.10.0"
   },
   "devDependencies": {

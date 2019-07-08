@@ -1,12 +1,16 @@
-import { existsSync, mkdirSync, removeSync, unlinkSync, mkdirp, createWriteStream, writeFileSync, copyFileSync, renameSync } from 'fs-extra';
+import {
+    existsSync, mkdirSync, removeSync, unlinkSync, mkdirp,
+    createWriteStream, writeFileSync, copyFileSync, renameSync
+} from 'fs-extra';
+import {
+    QueryResult, ListMetadataQuery, FileProperties,
+    DescribeMetadataResult, MetadataObject
+} from 'jsforce';
 import { chdir, cwd } from 'process';
 import path = require('path');
 import yauzl = require('yauzl');
+import { Org } from '@salesforce/core';
 const exec = require('child_process').exec;
-
-export interface Result {
-    result: Object;
-}
 
 export interface BatchCtrl {
     counter: number;
@@ -16,12 +20,13 @@ export interface BatchCtrl {
 
 export interface Params {
     metaType: string;
-    command: string;
+    folder?: string;
 }
 
-export class MdapiRefreshUtility {
+export class MdapiRetrieveUtility {
 
     constructor(
+        protected org: Org,
         protected orgAlias: string,
         protected apiVersion: string,
         protected ignoreBackup: boolean,
@@ -32,7 +37,7 @@ export class MdapiRefreshUtility {
     }// end constructor
 
     protected bufferOptions: Object = { maxBuffer: 10 * 1024 * 1024 };
-    protected MetadataListBatchSize = 50;
+    protected MetadataListBatchSize = 30;
 
     protected stageRoot: string = 'stage';
     protected backupRoot: string = 'backup';
@@ -266,20 +271,14 @@ export class MdapiRefreshUtility {
 
             try {
 
-                let describeMetadataCommand: string = ('sfdx force:mdapi:describemetadata -a '
-                    + this.apiVersion + ' -u ' + this.orgAlias + ' --json');
+                this.org.getConnection().metadata.describe(this.apiVersion).then((result: DescribeMetadataResult) => {
 
-                console.log('Running command: ' + describeMetadataCommand);
-
-                this.command(describeMetadataCommand).then((result: any) => {
-
-                    let jsonObject: Result = JSON.parse(result);
-                    let metadataObjects: Array<Object> = jsonObject.result["metadataObjects"];
+                    let metadataObjects: Array<MetadataObject> = result.metadataObjects;
 
                     for (var x = 0; x < metadataObjects.length; x++) {
 
-                        let metadataObject: Object = metadataObjects[x];
-                        let lookupKey: string = metadataObject["xmlName"];
+                        let metadataObject: MetadataObject = metadataObjects[x];
+                        let lookupKey: string = metadataObject.xmlName;
 
                         if (this.isExcludedMetaType(lookupKey)) continue;
 
@@ -315,146 +314,36 @@ export class MdapiRefreshUtility {
 
     }// end method
 
-    protected checkIgnoreNamespaces(metaItem: Object): boolean {
+    protected checkIgnoreNamespaces(metaItem: FileProperties): boolean {
 
         if (!this.ignoreNamespaces) {
             return false;
         }
-        else if (!(metaItem["namespacePrefix"] === undefined ||
-            metaItem["namespacePrefix"] === null ||
-            metaItem["namespacePrefix"] === "")) { // pi or Finserv
+        else if (!(metaItem.namespacePrefix === undefined ||
+            metaItem.namespacePrefix === null ||
+            metaItem.namespacePrefix === "")) { // pi or Finserv
             return true;
         }
         return false;
 
     }// end method 
 
-    protected checkIgnoreManaged(metaItem: Object): boolean {
+    protected checkIgnoreManaged(metaItem: FileProperties): boolean {
 
         if (!this.ignoreManaged) {
             return false;
         }
-        else if (!(metaItem["manageableState"] === undefined ||
-            metaItem["manageableState"] === null) &&
-            !(metaItem["manageableState"] === "unmanaged")) { // installed
+        else if (!(metaItem.manageableState === undefined ||
+            metaItem.manageableState === null) &&
+            !(metaItem.manageableState === "unmanaged")) { // installed
             return true;
         }
         return false;
 
     }// end method 
 
-    protected runRetrieveMetadataListCommand(params: Params, batchCtrl: BatchCtrl): void {
-
-        const metaType = params.metaType;
-
-        this.command(params.command).then((result: any) => {
-
-            try {
-
-                let jsonResult: Result = JSON.parse(result);
-                let included: number = 0;
-
-                if ((jsonResult.result === undefined) || (jsonResult.result === null)) { // check for nill result
-
-                    console.log('Retrieved [' + metaType + '] empty (0) result');
-
-                } else {
-                    // check if array first
-                    if (jsonResult.result instanceof Array) {
-
-                        jsonResult.result.forEach(metaItem => {
-                            if (!this.checkIgnoreManaged(metaItem) &&
-                                !this.checkIgnoreNamespaces(metaItem)) {
-                                included++;
-                                this.metadataObjectsListMap[metaType].push(metaItem["fullName"]);
-                            }// end if
-                        });
-
-                        console.log('Retrieved [' + metaType + '] with (' + included + ' of ' + jsonResult.result.length + ') results');
-
-                    } else if (jsonResult.result instanceof Object) {
-                        // check for single result
-                        let metaItem: Object = jsonResult.result;
-                        if (!this.checkIgnoreManaged(metaItem) &&
-                            !this.checkIgnoreNamespaces(metaItem)) {
-                            included++;
-                            this.metadataObjectsListMap[metaType].push(metaItem["fullName"]);
-                        }// end if
-
-                        console.log('Retrieved [' + metaType + '] with (' + included + ' of 1) result');
-
-                    } else {
-                        console.log('Unexpected type result: ', jsonResult);
-                        throw jsonResult;
-                    }// end else
-                }// end else
-
-                if (--batchCtrl.counter <= 0) {
-                    batchCtrl.resolve(this.metadataObjectsListMap);
-                }// end if
-            }
-            catch (error) {
-                batchCtrl.reject(error);
-            }// end catch
-
-        }, (error) => {
-            batchCtrl.reject(error);
-        });// end command
-
-    }// end method
-
-    // retrieveMetadataListBatch
-    protected retrieveMetadataListBatch(): Promise<any> {
-
-        return new Promise((resolve, reject) => {
-
-            try {
-
-                let counter = 0;
-
-                let batchCtrl = <BatchCtrl>{
-                    "counter": counter,
-                    "resolve": resolve,
-                    "reject": reject
-                };
-
-                for (var x = 0; x < this.MetadataListBatchSize; x++) {
-
-                    let metaType = this.sortedMetadataTypes.pop();
-
-                    if ((metaType === undefined) || (metaType === null)) {
-                        if (batchCtrl.counter <= 0) {
-                            resolve(this.metadataObjectsListMap);
-                            return;
-                        } else { continue; }
-                    }// end if
-
-                    this.retainedMetadataTypes.push(metaType);
-
-                    let command = ('sfdx force:mdapi:listmetadata -m ' + metaType + ' -u ' + this.orgAlias + ' --json');
-                    console.log('Running listmetadata command: ' + command);
-
-                    batchCtrl.counter = ++counter;
-
-                    let params = <Params>{
-                        "command": command,
-                        "metaType": metaType
-                    };
-
-                    this.runRetrieveMetadataListCommand(params, batchCtrl);
-
-                }// end for
-
-            } catch (exception) {
-                reject(exception);
-            }// catch exception
-
-        });// end promse
-
-    }// end method
-
-    // retrieveMetadataFolderBatch
-    protected retrieveMetadataFolderBatch(metaType: string): Promise<any> {
+    // listMetadataFolderBatch
+    protected listMetadataFolderBatch(metaType: string): Promise<any> {
 
         return new Promise((resolve, reject) => {
 
@@ -475,21 +364,18 @@ export class MdapiRefreshUtility {
 
                     const folder = folderArray[x];
 
-                    let command = ('sfdx force:mdapi:listmetadata -m ' + metaType + ' --folder '
-                        + folder + ' -u ' + this.orgAlias + ' --json');
-
-                    console.log('Running command: ' + command);
+                    // console.log('Running conn.metadata.list [' + metaType + '] folder: [' + folder + ']');
 
                     var params = <Params>{
-                        "command": command,
-                        "metaType": metaType
+                        "metaType": metaType,
+                        "folder": folder
                     };
 
                     batchCtrl.counter = ++counter;
 
                     // inject the folder before
                     this.metadataObjectsListMap[metaType].push(folder);
-                    this.runRetrieveMetadataListCommand(params, batchCtrl);
+                    this.queryListMetadata(params, batchCtrl);
 
                 }// end for
 
@@ -501,14 +387,6 @@ export class MdapiRefreshUtility {
 
     }// end method
 
-    protected async retrieveMetadataLists() {
-
-        while (this.sortedMetadataTypes.length > 0) {
-            await this.retrieveMetadataListBatch();
-        }// end while
-
-    }// end method
-
     protected setStandardValueSets(): void {
 
         this.standardValueSets.forEach(element => {
@@ -516,15 +394,6 @@ export class MdapiRefreshUtility {
         });
 
     }// end function
-
-    protected async retrieveMetadataFolders() {
-
-        await this.retrieveMetadataFolderBatch(this.Dashboard);
-        await this.retrieveMetadataFolderBatch(this.Document);
-        await this.retrieveMetadataFolderBatch(this.EmailTemplate);
-        await this.retrieveMetadataFolderBatch(this.Report);
-
-    }// end method
 
     protected repositionSettings(): void {
 
@@ -546,32 +415,23 @@ export class MdapiRefreshUtility {
 
         return new Promise((resolve, reject) => {
 
-            let retrieveCommand = 'sfdx force:schema:sobject:describe -s Account -u ' + this.orgAlias + ' --json';
-            console.info(retrieveCommand + ' resolving possible missing PersonAccount recordtypes.');
+            const RecordType = this.RecordType;
 
-            this.command(retrieveCommand).then((result: any) => {
-
-                try {
-
-                    let jsonResult: Result = JSON.parse(result);
-                    const recordTypeInfos: Array<any> = jsonResult.result["recordTypeInfos"];
-
-                    recordTypeInfos.forEach(recordTypeInfo => {
-                        var personRecordType = (this.PersonAccount + '.' + recordTypeInfo.developerName);
-                        this.metadataObjectsListMap[this.RecordType].push(personRecordType);
-                    });
-
+            this.org.getConnection().query("SELECT DeveloperName, SobjectType, IsPersonType FROM RecordType " +
+                " WHERE SobjectType = 'Account' AND IsPersonType = true")
+                .then((result: QueryResult<any>) => {
+                    if (result.records) {
+                        for (var x = 0; x < result.records.length; x++) {
+                            let record = result.records[x];
+                            let personRecordType: string = (this.PersonAccount + '.' + record.DeveloperName);
+                            this.metadataObjectsListMap[RecordType].push(personRecordType);
+                        }// end for
+                    }// end if
                     resolve();
-
-                } catch (exception) {
-                    console.error(exception);
-                    reject(exception);
-                }
-            }, (error: any) => {
-                console.error(error);
-                reject(error);
-            });
-        });
+                }, (error: any) => {
+                    reject(error);
+                });
+        });// end promise
 
     }// end method
 
@@ -612,7 +472,7 @@ export class MdapiRefreshUtility {
         xmlContent += '  <version>' + this.apiVersion + '</version>\n';
         xmlContent += '</Package>\n';
 
-        console.log(xmlContent);
+        // console.log(xmlContent);
 
         writeFileSync(packageFile, xmlContent);
         console.log(packageFile + ' file successfully saved.');
@@ -705,7 +565,7 @@ export class MdapiRefreshUtility {
 
     }// end method
 
-    protected async retrieveMetadataFiles(): Promise<any> {
+    protected async retrieveMetadata(): Promise<any> {
 
         chdir(this.stageOrgAliasDirectoryPath);
         console.info('changing directory: ' + this.stageOrgAliasDirectoryPath);
@@ -720,9 +580,11 @@ export class MdapiRefreshUtility {
             mkdirSync(this.retrieveRoot);
             console.info('Retrieve source directory cleaned.');
 
-            var retrieveCommand = ('sfdx force:mdapi:retrieve -s -k manifest/package.xml -r ' + this.retrieveRoot + ' -u ' + this.orgAlias);
+            var retrieveCommand = ('sfdx force:mdapi:retrieve -s -k manifest/package.xml -r ' + this.retrieveRoot + ' -w -1 -u ' + this.orgAlias);
             console.info(retrieveCommand);
-            console.info('retrieving source from org, please standby this may take a few minutes ...');
+            console.info('retrieving source, please standby this may take a few minutes ...');
+
+            this.org.getConnection().metadata.retrieve
 
             this.command(retrieveCommand).then((result: any) => {
 
@@ -794,23 +656,165 @@ export class MdapiRefreshUtility {
         });
     }// end method
 
+    protected queryListMetadata(params: Params, batchCtrl: BatchCtrl): void {
+
+        var metaQueries: Array<ListMetadataQuery>;
+
+        const metaType: string = params.metaType;
+        const folder: string = params.folder;
+
+        if (folder) {
+            metaQueries = [{ "type": metaType, "folder": folder }];
+        }
+        else {
+            metaQueries = [{ "type": metaType }];
+        }
+
+        this.org.getConnection().metadata.list(metaQueries, this.apiVersion).then((result: Array<FileProperties>) => {
+
+            try {
+
+                // let included: number = 0;
+
+                if (result) {
+                    // check if array first
+                    if (result instanceof Array) {
+
+                        for (var x = 0; x < result.length; x++) {
+                            let metaItem: FileProperties = result[x];
+                            if (!this.checkIgnoreManaged(metaItem) &&
+                                !this.checkIgnoreNamespaces(metaItem)) {
+                                // included++;
+                                this.metadataObjectsListMap[metaType].push(metaItem.fullName);
+                            }// end if
+                        }// end for
+
+                        // console.log('Retrieved [' + metaType + '] with (' + included + ' of ' + result.length + ') results');
+
+                    } else {
+                        // check for single result
+                        let metaItem: FileProperties = result;
+                        if (!this.checkIgnoreManaged(metaItem) &&
+                            !this.checkIgnoreNamespaces(metaItem)) {
+                            // included++;
+                            this.metadataObjectsListMap[metaType].push(metaItem.fullName);
+                        }// end if
+
+                        // console.log('Retrieved [' + metaType + '] with (' + included + ' of 1) result');
+                    }
+                }// end else
+                else {
+                    // noop
+                    // console.debug('Retrieved [' + metaType + '] with (0) results');
+                }
+
+                if (--batchCtrl.counter <= 0) {
+                    batchCtrl.resolve(this.metadataObjectsListMap);
+                }// end if
+            }
+            catch (error) {
+                batchCtrl.reject(error);
+            }// end catch
+
+        }, (error: any) => {
+            batchCtrl.reject(error);
+        });// end promise
+
+    }// end method
+
+    protected listMetadataBatch(): Promise<any> {
+
+        return new Promise((resolve, reject) => {
+
+            try {
+
+                let counter = 0;
+
+                let batchCtrl = <BatchCtrl>{
+                    "counter": counter,
+                    "resolve": resolve,
+                    "reject": reject
+                };
+
+                for (var x = 0; x < this.MetadataListBatchSize; x++) {
+
+                    let metaType = this.sortedMetadataTypes.pop();
+
+                    if ((metaType === undefined) || (metaType === null)) {
+                        if (batchCtrl.counter <= 0) {
+                            resolve(this.metadataObjectsListMap);
+                            return;
+                        } else { continue; }
+                    }// end if
+
+                    this.retainedMetadataTypes.push(metaType);
+
+                    batchCtrl.counter = ++counter;
+
+                    let params = <Params>{
+                        "metaType": metaType
+                    };
+
+                    this.queryListMetadata(params, batchCtrl);
+
+                }// end for
+
+            } catch (exception) {
+                reject(exception);
+            }// catch exception
+
+        });// end promse
+
+    }// end method
+
+    protected async listMetadata(): Promise<any> {
+
+        while (this.sortedMetadataTypes.length > 0) {
+            await this.listMetadataBatch();
+        }// end while
+
+    }// end method
+
+    protected async listMetadataFolders() {
+
+        await this.listMetadataFolderBatch(this.Dashboard);
+        await this.listMetadataFolderBatch(this.Document);
+        await this.listMetadataFolderBatch(this.EmailTemplate);
+        await this.listMetadataFolderBatch(this.Report);
+
+    }// end method
+
     public async process(): Promise<any> {
 
         this.init();
+
         // async calls
+        console.log('describeMetadata ...');
         await this.describeMetadata();
-        await this.retrieveMetadataLists();
-        await this.retrieveMetadataFolders();
+
+        console.log('listMetadata ...');
+        await this.listMetadata();
+
+        console.log('listMetadataFolders ...');
+        await this.listMetadataFolders();
+
+        console.log('resolvePersonAccountRecordTypes ...');
         await this.resolvePersonAccountRecordTypes();
+
         // sync calls
+        console.log('setStandardValueSets ...');
         this.setStandardValueSets();
+
         // create package.xml
+        console.log('packageFile ...');
         this.packageFile();
-        // retrieve payload (payload)
 
         if (!this.manifestOnly) {
-            await this.retrieveMetadataFiles();
+            // retrieve payload (payload)
+            console.log('retrieveMetadata ...');
+            await this.retrieveMetadata();
             // unzip retrieve and backup zip
+            console.log('unzipAndBackup ...');
             await this.unzipAndBackup();
         }
         else {
