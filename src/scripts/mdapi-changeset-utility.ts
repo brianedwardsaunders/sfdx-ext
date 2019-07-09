@@ -28,7 +28,7 @@ export interface DiffResult {
 
 export class MdapiChangesetUtility {
 
-    protected stageRoot: string = 'stage';
+    // protected stageRoot: string = 'stage'; // param
     protected retrieveDir: string = 'retrieve';
     protected sourceDir: string = 'src';
     protected deployDir: string = 'deploy';
@@ -76,6 +76,7 @@ export class MdapiChangesetUtility {
     protected bots: string = 'bots';
     protected Bot: string = 'Bot';
     protected BotVersion: string = 'BotVersion';
+    protected botVersions: string = 'botVersions';
 
     /** META TYPES */
     protected Profile: string = "Profile";
@@ -189,8 +190,8 @@ export class MdapiChangesetUtility {
         "CustomObjectTranslation": ["*"],
         "Flow": ["*"],
         "FlowDefinition": ["*"],
-        "CustomObject": ["ActiveScratchOrg", "NamespaceRegistry", "ScratchOrgInfo"],
-        "CustomApplication": ["standard__LightningInstrumentation"]
+        "CustomObject": ["ActiveScratchOrg", "NamespaceRegistry", "ScratchOrgInfo"], // prod specific 
+        "CustomApplication": ["standard__LightningInstrumentation"] // prod specific 
     };
 
     protected dirExcludes = [
@@ -208,7 +209,7 @@ export class MdapiChangesetUtility {
         "/profilePasswordPolicies", // get all kinds of issues with this org specific
         "/profileSessionSettings", // get all kinds of issues with this org specific
         "/animationRules", // cannot deploy
-        "/flowDefinitions"
+        "/flowDefinitions" // not required
     ];
 
     // SFDC WONT ALLOW THE MIGRATION OF THESE FILES (FIELDS PART OF MANAGED PACKAGE)
@@ -310,7 +311,6 @@ export class MdapiChangesetUtility {
         "/userCriteria/testcommunity.Customer_Members.userCriteria",
         "/userCriteria/testcommunity.Members_without_contribution.userCriteria",
         "/userCriteria/testcommunity.Partner_and_Customer_members.userCriteria"
-
         /* 
         // default pathAssistant has domain hard coded and can't migrate this thing
         "/pathAssistants/Default_Opportunity.pathAssistant-meta.xml", 
@@ -325,6 +325,7 @@ export class MdapiChangesetUtility {
         protected org: Org,
         protected sourceOrgAlias: string, // left
         protected targetOrgAlias: string, // right
+        protected stageRoot: string,
         protected apiVersion: string,
         protected ignoreComments: boolean) {
         // noop
@@ -364,6 +365,10 @@ export class MdapiChangesetUtility {
     }// end method
 
     protected setupFolders(): void {
+
+        if (!existsSync(this.stageRoot)) {
+            throw "stageRoot folder provided doesn't exist - cannot compare (retrieved) contents";
+        }// end if
 
         // e.g. stage/DevOrg
         this.sourceBaseDir = (this.stageRoot + '/' + this.sourceOrgAlias);
@@ -430,10 +435,12 @@ export class MdapiChangesetUtility {
                 }// end for
             }// end else
         }// end if
+
         return exception;
+
     }// end method
 
-    protected isGlobalDestructiveException(metaType: string) {
+    protected isGlobalDestructiveException(metaType: string): boolean {
         if (this.destructiveExceptions[metaType] &&
             (this.destructiveExceptions[metaType][0] === "*")) {
             return true;
@@ -614,7 +621,7 @@ export class MdapiChangesetUtility {
 
     }// end method
 
-    protected getMetaTypeLookupFromSfdxFolderName(typeFolder: string, metaTypeFile?: string): MetadataObject {
+    protected getMetaTypeLookupFromFolderName(typeFolder: string, metaTypeFile?: string): MetadataObject {
 
         const lookup = this.metaTypeLookupFromSfdxFolder[typeFolder];
 
@@ -651,7 +658,7 @@ export class MdapiChangesetUtility {
             return;
         }// end else if
 
-        let metaTypeElement = instance.getMetaTypeLookupFromSfdxFolderName(typeFolder, typeFile);
+        let metaTypeElement = instance.getMetaTypeLookupFromFolderName(typeFolder, typeFile);
 
         if (typeFolder === instance.dashboards ||
             typeFolder === instance.email ||
@@ -668,12 +675,12 @@ export class MdapiChangesetUtility {
 
             // special handle for object name folder (handle for fields etc.)
             if (metaParentName === instance.objects) {
-                metaTypeElement = instance.getMetaTypeLookupFromSfdxFolderName(metaParentName);
+                metaTypeElement = instance.getMetaTypeLookupFromFolderName(metaParentName);
             }// end if
             // special handle for aura and lwc 
             else if ((metaParentName === instance.aura) ||
                 (metaParentName === instance.lwc)) {
-                metaTypeElement = instance.getMetaTypeLookupFromSfdxFolderName(metaParentName);
+                metaTypeElement = instance.getMetaTypeLookupFromFolderName(metaParentName);
                 let folder = instance.getMetaNameFromCurrentDirectory(parentDir);
                 typeFileName = folder;
             }// end else if
@@ -682,7 +689,7 @@ export class MdapiChangesetUtility {
                 metaParentName === instance.email ||
                 metaParentName === instance.reports ||
                 metaParentName === instance.documents) {
-                metaTypeElement = instance.getMetaTypeLookupFromSfdxFolderName(metaParentName);
+                metaTypeElement = instance.getMetaTypeLookupFromFolderName(metaParentName);
                 let folder = instance.getMetaNameFromCurrentDirectory(parentDir);
                 keyAnchor = (folder + "/");
                 typeFileName = (keyAnchor + typeFileName);
@@ -871,7 +878,7 @@ export class MdapiChangesetUtility {
                     "metaName": typeFileName, // e.g. Account.Name
                     "diffType": this.DiffTypeUnprocessed,
                     "lastModified": leftItem.lastModified,
-                    "fileSize": leftString.length,
+                    "fileSize": leftSize,
                     "diffSize": (leftSize - rightSize) // init
                 };
 
@@ -959,7 +966,7 @@ export class MdapiChangesetUtility {
                     "metaName": typeFileName, // e.g. Account.Name
                     "diffType": this.DiffTypeUnprocessed,
                     "lastModified": rightItem.lastModified,
-                    "fileSize": rightString.length,
+                    "fileSize": rightSize,
                     "diffSize": (rightSize - leftSize) // init
                 };
 
@@ -972,7 +979,7 @@ export class MdapiChangesetUtility {
                     throw "unexpected scenario checksum failure";
                 }// end if
 
-                if (!found) {
+                if (found === false) {
                     diffResult.diffType = this.DiffTypeRight;
                     this.destructiveDiffResults[diffResult.metaType].push(diffResult);
                 }// end if
@@ -995,27 +1002,109 @@ export class MdapiChangesetUtility {
 
     }// end method
 
-    // bot version is required for distribution
-    injectBotVersion (leftItem: DiffResult) {
+    // bot version is required for deploy
+    protected injectBotVersion(leftItem: DiffResult, rightItem?: DiffResult) {
 
-        //let leftObject: Object = JSON.parse(convert.xml2json(
-        //   readFileSync(leftItem.filePath, this.UTF8), this.convertOptions));
+        let leftObject: Object = JSON.parse(convert.xml2json(
+            readFileSync(leftItem.filePath, this.UTF8), this.convertOptions));
 
-        /* <!-- <layoutAssignments>
-        <layout>PersonAccount-AW_MasterAccountLayout</layout>
-        <recordType>PersonAccount.PersonAccount</recordType>
-    </layoutAssignments> -->
-    <!-- <layoutAssignments>
-        <layout>PersonAccount-AW_PersonAccountLayout</layout>
-        <recordType>PersonAccount.AW_MasterAccount</recordType>
-    </layoutAssignments> --> */
+        let rightObject: Object;
 
-    /**
-     *   <types>
-    <name>BotVersion</name>
-    <members>Liberty_bot.v1</members>
-  </types>
-     */
+        if (rightItem) {
+            rightObject = JSON.parse(convert.xml2json(readFileSync(leftItem.filePath, this.UTF8), this.convertOptions));
+        }// end if
+
+        let leftChildren: Array<Object> = this.objectToArray(leftObject[this.Bot].botVersions);
+
+        let leftFullName: string = null;
+        let leftCheckSum: number = 0;
+        let leftSize: number = 0;
+        let leftChanged: boolean = false;
+
+        let rightFullName: string = null;
+        let rightSize: number = 0;
+        let rightChanged: boolean = false;
+
+        for (var left: number = 0; left < leftChildren.length; left++) {
+
+            let leftChild: Object = leftChildren[left];
+            let compareName: string = leftChild[this.fullName]._text;
+
+            if (leftFullName === null) {
+                leftFullName = compareName; // e.g. v1
+                leftChanged = true;
+            }// end if
+            else if (leftFullName.localeCompare(compareName) < 0) {
+                leftFullName = compareName;
+                leftChanged = true;
+            }// end else if
+            // check if change
+            if (leftChanged) {
+                let leftString = JSON.stringify(leftChild);
+                leftCheckSum = this.hashCode(leftString);
+                leftSize = leftString.length;
+                leftChanged = false; // reset
+            }// end if
+
+        }// end for
+
+        if (rightObject) { // if was previous version check right against left for compare info
+
+            let rightChildren: Array<Object> = this.objectToArray(rightObject[this.Bot].botVersions);
+
+            for (var right: number = 0; right < rightChildren.length; right++) {
+
+                let rightChild: Object = rightChildren[right];
+                let compareName: string = rightChild[this.fullName]._text;
+
+                if (rightFullName === null) {
+                    rightFullName = compareName; // e.g. v1
+                    rightChanged = true;
+                }// end if
+                else if (rightFullName.localeCompare(compareName) < 0) {
+                    rightFullName = compareName;
+                    rightChanged = true;
+                }// end else if
+
+                // check if change
+                if (rightChanged) {
+                    let rightString: string = JSON.stringify(rightChild);
+                    rightSize = rightString.length;
+                    rightChanged = false; // reset
+                }// end if
+
+                if (rightFullName === leftFullName) {
+                    break; // found a match to diff size otherwise biggest (old) one 
+                }// end if
+
+            }// end for
+
+        }// end if
+
+        let typeFileName: string = (leftItem.metaName + "." + leftFullName); // convention in package.xml
+        let registerKey: string = (this.botVersions + "/" + leftItem.metaName + "/" + typeFileName); // with extension so unique
+        let diffType: string = (rightItem) ? this.DiffTypeDiff : this.DiffTypeLeft;
+
+        let diffResult: DiffResult = {
+            "registerKey": registerKey,
+            "checkKey": registerKey,
+            "keyAnchor": leftItem.metaName,
+            "filePath": (leftItem.filePath + '\\' + this.botVersions + '\\' + leftFullName), // dummy file name
+            "parentDirectory": this.objects,
+            "fileContents": leftCheckSum, // only hash as contents is large
+            "directory": this.botVersions, // directory e.g. objects
+            "isFolderDefinition": false,
+            "metaTypeDefinition": null, // todo
+            "metaType": this.BotVersion, // e.g. ApexTrigger
+            "metaName": typeFileName, // e.g. Account.Name
+            "diffType": diffType,
+            "lastModified": leftItem.lastModified,
+            "fileSize": leftSize,
+            "diffSize": (leftSize - rightSize) // init
+        };
+
+        this.packageDiffResults[diffResult.metaType].push(diffResult);
+        this.packageCombinedResults[diffResult.metaType].push(diffResult);
 
     }// end method
 
@@ -1036,7 +1125,7 @@ export class MdapiChangesetUtility {
                 leftItem.diffSize = leftItem.fileSize;
                 this.packageDiffResults[leftItem.metaType].push(leftItem);
                 if (leftItem.metaType === this.Bot) {
-                    this.injectBotVersion (leftItem);
+                    this.injectBotVersion(leftItem);
                 }// end if
             }// end if
             else if (leftItem.fileContents !== rightItem.fileContents) {
@@ -1047,7 +1136,7 @@ export class MdapiChangesetUtility {
                     this.compareObjects(leftItem, rightItem); // more detailed diff required
                 }// end if
                 else if (leftItem.metaType === this.Bot) {
-                    this.injectBotVersion (leftItem);
+                    this.injectBotVersion(leftItem, rightItem);
                 }// end else if
             }// end if
             else if (leftItem.fileContents === rightItem.fileContents) {

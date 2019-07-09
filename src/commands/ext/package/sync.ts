@@ -45,7 +45,7 @@ export default class Sync extends SfdxCommand {
 
     if (sourceusername === undefined) {
       throw new SfdxError(messages.getMessage('errorSourceusernameRequired'));
-    }
+    }// end else
 
     console.log("-----------------------------");
     console.log("sfdx ext:package:sync");

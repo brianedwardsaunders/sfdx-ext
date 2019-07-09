@@ -15,11 +15,15 @@ export default class Retrieve extends SfdxCommand {
     $ sfdx ext:mdapi:retrieve --targetusername user@example.com --apiversion 46.0 --ignorebackup --ignoremanaged --ignorenamespaces --manifestonly
     `,
     `
+    $ sfdx ext:mdapi:retrieve --targetusername user@example.com --stagedirectory .
+    `,
+    `
     $ sfdx ext:mdapi:retrieve --targetusername user@example.com
     `
   ];
 
   protected static flagsConfig = {
+    stagedirectory: flags.string({ char: 'd', description: messages.getMessage('stageDirectoryFlagDescription') }),
     ignorebackup: flags.boolean({ char: 'b', description: messages.getMessage('ignorebackupFlagDescription') }),
     ignoremanaged: flags.boolean({ char: 'm', description: messages.getMessage('ignoremanagedFlagDescription') }),
     ignorenamespaces: flags.boolean({ char: 'n', description: messages.getMessage('ignorenamespacesFlagDescription') }),
@@ -28,27 +32,25 @@ export default class Retrieve extends SfdxCommand {
 
   // requires user alias
   protected static requiresUsername = true;
-  protected static supportsDevhubUsername = false;
   protected static requiresProject = false;
 
   public async run(): Promise<any> {
 
-    let default_api_version: string = '46.0';
+    let defaultApiVersion: string = '46.0';
+    let defaultStageDirectory: string = 'stage';
     let username: string = this.flags.targetusername;
-    let apiversion: string = this.flags.apiversion || default_api_version;
+    let apiversion: string = this.flags.apiversion || defaultApiVersion;
     let ignorebackup: boolean = this.flags.ignorebackup || false;
     let ignoremanaged: boolean = this.flags.ignoremanaged || false;
     let ignorenamespaces: boolean = this.flags.ignorenamespaces || false;
     let manifestonly: boolean = this.flags.manifestonly || false;
-
-    /* if (projectDirectory === undefined) {
-      throw new SfdxError(messages.getMessage('errorProjectDirectoryRequired', []));
-    } */
+    let stagedirectory: string = this.flags.stagedirectory || defaultStageDirectory;
 
     console.log("-----------------------------");
     console.log("sfdx ext:mdapi:retrieve");
     console.log("-----------------------------");
     console.log("targetusername   : " + username);
+    console.log("stagedirectory   : " + stagedirectory);
     console.log("apiversion       : " + apiversion);
     console.log("ignorebackup     : " + ignorebackup);
     console.log("ignoremanaged    : " + ignoremanaged);
@@ -59,13 +61,14 @@ export default class Retrieve extends SfdxCommand {
     let util = new MdapiRetrieveUtility(
       this.org,
       username,
+      stagedirectory,
       apiversion,
       ignorebackup,
       ignoremanaged,
       ignorenamespaces,
       manifestonly);
 
-      util.process().then(() => {
+    util.process().then(() => {
       this.ux.log('success');
       return { "status": 'success' };
     }, (error: any) => {

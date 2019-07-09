@@ -15,12 +15,16 @@ export default class Changeset extends SfdxCommand {
     $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --apiversion 46.0 --ignorecomments
     `,
     `
+    $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --stagedirectory .
+    `,
+    `
     $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com
     `
   ];
 
   protected static flagsConfig = {
     sourceusername: flags.string({ char: 's', description: messages.getMessage('sourceusernameFlagDescription') }),
+    stagedirectory: flags.string({ char: 'd', description: messages.getMessage('stageDirectoryFlagDescription') }),
     ignorecomments: flags.boolean({ char: 'x', description: messages.getMessage('ignorecommentsFlagDescription') })
   };
 
@@ -31,20 +35,23 @@ export default class Changeset extends SfdxCommand {
   public async run(): Promise<any> {
 
     let defaultApiVersion: string = '46.0';
+    let defaultStageDirectory: string = 'stage';
     let ignorecomments: boolean = this.flags.ignorecomments || false;
     let sourceusername: string = this.flags.sourceusername;
     let targetusername: string = this.flags.targetusername;
     let apiversion: string = this.flags.apiversion || defaultApiVersion;
+    let stagedirectory: string = this.flags.stagedirectory || defaultStageDirectory;
 
     if (sourceusername === undefined) {
       throw new SfdxError(messages.getMessage('errorSourceusernameRequired'));
-    }
+    }// end if
 
     console.log("-----------------------------");
     console.log("sfdx ext:mdapi:changeset");
     console.log("-----------------------------");
     console.log("sourceusername   : " + sourceusername);
     console.log("targetusername   : " + targetusername);
+    console.log("stagedirectory   : " + stagedirectory);
     console.log("apiversion       : " + apiversion);
     console.log("ignorecomments   : " + ignorecomments);
     console.log("-----------------------------");
@@ -53,6 +60,7 @@ export default class Changeset extends SfdxCommand {
       this.org,
       sourceusername,
       targetusername,
+      stagedirectory,
       apiversion,
       ignorecomments);
 

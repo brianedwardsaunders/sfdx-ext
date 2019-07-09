@@ -28,6 +28,7 @@ export class MdapiRetrieveUtility {
     constructor(
         protected org: Org,
         protected orgAlias: string,
+        protected stageRoot: string,
         protected apiVersion: string,
         protected ignoreBackup: boolean,
         protected ignoreManaged: boolean,
@@ -39,9 +40,9 @@ export class MdapiRetrieveUtility {
     protected bufferOptions: Object = { maxBuffer: 10 * 1024 * 1024 };
     protected MetadataListBatchSize = 30;
 
-    protected stageRoot: string = 'stage';
-    protected backupRoot: string = 'backup';
-    protected retrieveRoot: string = 'retrieve';
+    // protected stageRoot: string = 'stage'; // param
+    protected backupRoot: string = 'backup'; // default
+    protected retrieveRoot: string = 'retrieve'; // default
     protected unpackagedRoot: string = 'unpackaged';
     protected retrieveSource: string = 'src';
     protected unpackagedZip: string = 'unpackaged.zip';
@@ -170,13 +171,12 @@ export class MdapiRetrieveUtility {
         this.ReportFolder
     ];
 
-    protected metadataFoldersLookup: Object =
-        {
-            "Dashboard": this.DashboardFolder,
-            "Document": this.DocumentFolder,
-            "EmailTemplate": this.EmailFolder,
-            "Report": this.ReportFolder
-        };
+    protected metadataFoldersLookup: Object = {
+        "Dashboard": this.DashboardFolder,
+        "Document": this.DocumentFolder,
+        "EmailTemplate": this.EmailFolder,
+        "Report": this.ReportFolder
+    };
 
     // define working folders
     protected stageOrgAliasDirectoryPath = (this.stageRoot + '/' + this.orgAlias);
@@ -497,6 +497,10 @@ export class MdapiRetrieveUtility {
             return;
         }
 
+        if (!existsSync(this.backupRoot)) {
+            mkdirSync(this.backupRoot);
+        }
+
         if (!existsSync(backupFolder)) {
             mkdirSync(backupFolder);
         }
@@ -615,10 +619,15 @@ export class MdapiRetrieveUtility {
 
     protected init(): void {
 
+        if (!existsSync(this.stageRoot)) {
+            mkdirSync(this.stageRoot);
+            console.info('Staging  [' + this.stageRoot + '] directory created.');
+        }// end if
+
         // check if working directory exists
         if (!existsSync(this.stageOrgAliasDirectoryPath)) {
             mkdirSync(this.stageOrgAliasDirectoryPath);
-            console.info('Staging alias [' + this.stageOrgAliasDirectoryPath + '] directory created.');
+            console.info('Staging OrgAlias [' + this.stageOrgAliasDirectoryPath + '] directory created.');
         }// end if
 
     }// end method
