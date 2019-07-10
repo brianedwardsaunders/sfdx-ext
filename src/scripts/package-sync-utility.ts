@@ -1,3 +1,7 @@
+/**
+ * @author brianewardsaunders 
+ * @date 2019-07-10
+ */
 const exec = require('child_process').exec;
 
 export interface PackageVersion {

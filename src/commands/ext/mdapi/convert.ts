@@ -1,6 +1,10 @@
-import { SfdxCommand } from '@salesforce/command';
-import { Messages } from '@salesforce/core';
-// import { MdapiRetrieveUtility } from '../../../scripts/mdapi-retrieve-utility';
+/**
+ * @author brianewardsaunders 
+ * @date 2019-07-10
+ */
+import { SfdxCommand, flags } from '@salesforce/command';
+import { Messages, SfdxError } from '@salesforce/core';
+import { MdapiConvertUtility } from '../../../scripts/mdapi-convert-utility';
 
 Messages.importMessagesDirectory(__dirname);
 
@@ -12,44 +16,43 @@ export default class Convert extends SfdxCommand {
 
   public static examples = [
     `
-    $ sfdx ext:mdapi:convert --targetusername user@example.com --apiversion 46.0
-    `,
-    `
-    $ sfdx ext:mdapi:convert --targetusername user@example.com
+    $ sfdx ext:mdapi:convert --sourcedirectory mdapi/src --targetdirectory ../sfdx
     `
   ];
 
   protected static flagsConfig = {
+    sourcedirectory: flags.string({ char: 'r', description: messages.getMessage('sourcedirectoryFlagDescription') }),
+    targetdirectory: flags.string({ char: 'd', description: messages.getMessage('targetdirectoryFlagDescription') }),
   };
 
-  // requires user alias
   protected static requiresUsername = false;
   protected static requiresProject = false;
 
   public async run(): Promise<any> {
 
-    let default_api_version: string = '46.0';
-    let apiversion: string = this.flags.apiversion || default_api_version;
+    let sourcedirectory: string = this.flags.sourcedirectory;
+    let targetdirectory: string = this.flags.targetdirectory;
 
-    /* if (projectDirectory === undefined) {
-      throw new SfdxError(messages.getMessage('errorProjectDirectoryRequired', []));
-    } */
+    if (sourcedirectory === undefined) {
+      throw new SfdxError(messages.getMessage('errorSourceDirectoryRequired', []));
+    }// end if
+    else if (targetdirectory === undefined) {
+      throw new SfdxError(messages.getMessage('errorTargetDirectoryRequired', []));
+    }// end else if
 
     console.log("-----------------------------");
     console.log("sfdx ext:mdapi:convert");
     console.log("-----------------------------");
-    console.log("apiversion       : " + apiversion);
+    console.log("sourcedirectory  : " + sourcedirectory);
+    console.log("targetdirectory  : " + targetdirectory);
     console.log("-----------------------------");
 
-    /* let refreshUtil = new MdapiRefreshUtility(
-      username,
-      apiversion,
-      ignorebackup,
-      ignoremanaged,
-      ignorenamespaces,
-      manifestonly);
+    let util = new MdapiConvertUtility(
+      this.org,
+      sourcedirectory,
+      targetdirectory);
 
-    refreshUtil.process().then(() => {
+    util.process().then(() => {
       this.ux.log('success');
       return { "status": 'success' };
     }, (error: any) => {
@@ -58,6 +61,6 @@ export default class Convert extends SfdxCommand {
         "status": 'error',
         "error": error
       };
-    }); */
+    });
   }
 }

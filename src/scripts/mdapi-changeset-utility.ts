@@ -1,3 +1,7 @@
+/**
+ * @author brianewardsaunders 
+ * @date 2019-07-10
+ */
 import {
     existsSync, mkdirSync, removeSync, copySync, readdirSync, statSync, writeFileSync, readFileSync, unlinkSync, copyFileSync
 } from "fs-extra";
