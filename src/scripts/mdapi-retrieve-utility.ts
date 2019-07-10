@@ -1,12 +1,15 @@
+/**
+ * @author brianewardsaunders 
+ * @date 2019-07-10
+ * @acknowledgement force-dev-tool (author acknowledgement)
+ */
 import {
-    existsSync, mkdirSync, removeSync, unlinkSync, mkdirp,
-    createWriteStream, writeFileSync, copyFileSync, renameSync
+    existsSync, mkdirSync, removeSync, unlinkSync, mkdirp, createWriteStream, writeFileSync, copyFileSync, renameSync, copySync
 } from 'fs-extra';
 import {
-    QueryResult, ListMetadataQuery, FileProperties,
-    DescribeMetadataResult, MetadataObject
+    QueryResult, ListMetadataQuery, FileProperties, DescribeMetadataResult, MetadataObject
 } from 'jsforce';
-import { chdir, cwd } from 'process';
+
 import path = require('path');
 import yauzl = require('yauzl');
 import { Org } from '@salesforce/core';
@@ -28,26 +31,27 @@ export class MdapiRetrieveUtility {
     constructor(
         protected org: Org,
         protected orgAlias: string,
-        protected stageRoot: string,
         protected apiVersion: string,
         protected ignoreBackup: boolean,
         protected ignoreManaged: boolean,
         protected ignoreNamespaces: boolean,
-        protected manifestOnly: boolean) {
+        protected manifestOnly: boolean,
+        protected devMode: boolean) {
         // noop
     }// end constructor
 
     protected bufferOptions: Object = { maxBuffer: 10 * 1024 * 1024 };
     protected MetadataListBatchSize = 30;
 
-    // protected stageRoot: string = 'stage'; // param
-    protected backupRoot: string = 'backup'; // default
-    protected retrieveRoot: string = 'retrieve'; // default
+    // defaults
+    protected stageRoot: string = 'stage';
+    protected backupRoot: string = 'backup';
+    protected retrieveRoot: string = 'retrieve';
     protected unpackagedRoot: string = 'unpackaged';
-    protected retrieveSource: string = 'src';
+    protected srcFolder: string = 'src';
     protected unpackagedZip: string = 'unpackaged.zip';
     protected manifest: string = 'manifest';
-    protected filePackageXml: string = 'package.xml';
+    protected packageXml: string = 'package.xml';
 
     protected metadataObjects: Array<Object> = [];
     protected sortedMetadataTypes: Array<string> = [];
@@ -69,12 +73,7 @@ export class MdapiRetrieveUtility {
     protected ReportFolder: string = 'ReportFolder';
 
     protected metaObjectExcludes: Array<string> = [
-        // "AnimationRule",
-        // "Audience",
-        // "Bot",
-        // "FlowDefinition", (rather exclude in the diff ignores)
-        // "OauthCustomScope",
-        // "Prompt"
+        // placeholder
     ];
 
     protected metadataFoldersOther: Array<string> = [
@@ -179,7 +178,13 @@ export class MdapiRetrieveUtility {
     };
 
     // define working folders
-    protected stageOrgAliasDirectoryPath = (this.stageRoot + '/' + this.orgAlias);
+    protected stageOrgAliasDirectoryPath: string = (this.stageRoot + '/' + this.orgAlias);
+    protected retrievePath: string = (this.stageOrgAliasDirectoryPath + '/' + this.retrieveRoot);
+    protected zipFilePath: string = (this.retrievePath + '/' + this.unpackagedZip);
+    protected targetDirectoryUnpackaged: string = (this.retrievePath + '/' + this.unpackagedRoot);
+    protected targetDirectorySource: string = (this.retrievePath + '/' + this.srcFolder);
+    protected manifestDirectory: string = (this.stageOrgAliasDirectoryPath + '/' + this.manifest);
+    protected filePackageXmlPath = (this.manifestDirectory + '/' + this.packageXml);
 
     protected command(cmd: string): Promise<any> {
 
@@ -207,7 +212,7 @@ export class MdapiRetrieveUtility {
                 isExcluded = true;
                 return;
             }
-        });
+        }); // end foreach
 
         return isExcluded;
 
@@ -227,15 +232,14 @@ export class MdapiRetrieveUtility {
 
             this.sortedMetadataTypes.push(metadata);
 
-            this.metadataObjectsLookup[metadata].push(
-                {
-                    directoryName: null,
-                    inFolder: true,
-                    metaFile: false,
-                    suffix: null,
-                    xmlName: metadata
-                });
-        });
+            this.metadataObjectsLookup[metadata].push({
+                directoryName: null,
+                inFolder: true,
+                metaFile: false,
+                suffix: null,
+                xmlName: metadata
+            });
+        });// end foreach
 
     }// end method
 
@@ -253,15 +257,14 @@ export class MdapiRetrieveUtility {
 
             this.sortedMetadataTypes.push(metadata);
 
-            this.metadataObjectsLookup[metadata].push(
-                {
-                    directoryName: null,
-                    inFolder: true,
-                    metaFile: false,
-                    suffix: null,
-                    xmlName: metadata
-                });
-        });
+            this.metadataObjectsLookup[metadata].push({
+                directoryName: null,
+                inFolder: true,
+                metaFile: false,
+                suffix: null,
+                xmlName: metadata
+            });
+        });// end foreach
 
     }// end method
 
@@ -310,7 +313,8 @@ export class MdapiRetrieveUtility {
             } catch (exception) {
                 reject(exception);
             }// end catch
-        });
+
+        }); // end promise
 
     }// end method
 
@@ -318,12 +322,12 @@ export class MdapiRetrieveUtility {
 
         if (!this.ignoreNamespaces) {
             return false;
-        }
+        }// end if
         else if (!(metaItem.namespacePrefix === undefined ||
             metaItem.namespacePrefix === null ||
-            metaItem.namespacePrefix === "")) { // pi or Finserv
+            metaItem.namespacePrefix === "")) { // pi or Finserv etc.
             return true;
-        }
+        }// end else if
         return false;
 
     }// end method 
@@ -332,17 +336,16 @@ export class MdapiRetrieveUtility {
 
         if (!this.ignoreManaged) {
             return false;
-        }
+        }// end if
         else if (!(metaItem.manageableState === undefined ||
             metaItem.manageableState === null) &&
             !(metaItem.manageableState === "unmanaged")) { // installed
             return true;
-        }
+        }// end else if
         return false;
 
     }// end method 
 
-    // listMetadataFolderBatch
     protected listMetadataFolderBatch(metaType: string): Promise<any> {
 
         return new Promise((resolve, reject) => {
@@ -363,8 +366,6 @@ export class MdapiRetrieveUtility {
                 for (var x = 0; x < folderArray.length; x++) {
 
                     const folder = folderArray[x];
-
-                    // console.log('Running conn.metadata.list [' + metaType + '] folder: [' + folder + ']');
 
                     var params = <Params>{
                         "metaType": metaType,
@@ -391,7 +392,7 @@ export class MdapiRetrieveUtility {
 
         this.standardValueSets.forEach(element => {
             this.metadataObjectsListMap[this.StandardValueSet].push(element);
-        });
+        });// end foreach
 
     }// end function
 
@@ -407,7 +408,7 @@ export class MdapiRetrieveUtility {
         }// end if
         if (found) {
             this.retainedMetadataTypes.push(this.Settings);
-        }
+        }// end if
 
     }// end method
 
@@ -418,8 +419,7 @@ export class MdapiRetrieveUtility {
             const RecordType = this.RecordType;
 
             this.org.getConnection().query("SELECT DeveloperName, SobjectType, IsPersonType FROM RecordType " +
-                " WHERE SobjectType = 'Account' AND IsPersonType = true")
-                .then((result: QueryResult<any>) => {
+                " WHERE SobjectType = 'Account' AND IsPersonType = true").then((result: QueryResult<any>) => {
                     if (result.records) {
                         for (var x = 0; x < result.records.length; x++) {
                             let record = result.records[x];
@@ -431,6 +431,7 @@ export class MdapiRetrieveUtility {
                 }, (error: any) => {
                     reject(error);
                 });
+
         });// end promise
 
     }// end method
@@ -450,7 +451,7 @@ export class MdapiRetrieveUtility {
 
             if (this.metadataObjectsListMap[metaType].length === 0) {
                 continue;
-            }
+            }// end if
 
             let metaItems = this.metadataObjectsListMap[metaType];
 
@@ -467,12 +468,11 @@ export class MdapiRetrieveUtility {
 
             xmlContent += '    <name>' + metaType + '</name>\n';
             xmlContent += '  </types>\n';
+
         }// end for
 
         xmlContent += '  <version>' + this.apiVersion + '</version>\n';
         xmlContent += '</Package>\n';
-
-        // console.log(xmlContent);
 
         writeFileSync(packageFile, xmlContent);
         console.log(packageFile + ' file successfully saved.');
@@ -488,26 +488,26 @@ export class MdapiRetrieveUtility {
         let backupFolder = (this.backupRoot + '/' + this.orgAlias); // e.g. backup/DevOrg
         let backupOrgFolder = (backupFolder + '/' + iso); // e.g. backup/DevOrg/2000-00-00T11-11-11
         let backupProjectFile = (backupOrgFolder + '/' + this.unpackagedZip);
-        let sourceProjectFile = (this.stageOrgAliasDirectoryPath + '/' + this.retrieveRoot + '/' + this.unpackagedZip);
+        let sourceProjectFile = (this.retrievePath + '/' + this.unpackagedZip);
 
         if (this.ignoreBackup) {
             console.log('ignoring backup.');
             unlinkSync(sourceProjectFile);
             console.log('deleting temp file: ' + sourceProjectFile);
             return;
-        }
+        }// end if
 
         if (!existsSync(this.backupRoot)) {
             mkdirSync(this.backupRoot);
-        }
+        }// end if
 
         if (!existsSync(backupFolder)) {
             mkdirSync(backupFolder);
-        }
+        }// end if
 
         if (!existsSync(backupOrgFolder)) {
             mkdirSync(backupOrgFolder);
-        }
+        }// end if
 
         console.log('backing up from: ' + sourceProjectFile + ' to: ' + backupProjectFile);
 
@@ -523,12 +523,9 @@ export class MdapiRetrieveUtility {
 
         return new Promise((resolve, reject) => {
 
-            let zipFilename: string = (this.retrieveRoot + '/' + this.unpackagedZip);
-            let targetDirectory: string = (this.retrieveRoot + '/' + this.unpackagedRoot);
+            console.log('unzipping ' + this.zipFilePath);
 
-            console.log('unzipping ' + zipFilename);
-
-            yauzl.open(zipFilename, { lazyEntries: true }, (openErr, zipfile) => {
+            yauzl.open(this.zipFilePath, { lazyEntries: true }, (openErr, zipfile) => {
 
                 if (openErr) {
                     return reject(openErr);
@@ -539,81 +536,76 @@ export class MdapiRetrieveUtility {
                 zipfile.once("close", () => {
                     console.log('unzipping complete');
                     resolve();
-                });
+                });// end close
 
                 zipfile.on("entry", (entry: any) => {
                     zipfile.openReadStream(entry, (unzipErr, readStream) => {
                         if (unzipErr) {
                             return reject(unzipErr);
-                        }
+                        }// end if
                         else if (/\/$/.test(entry.fileName)) { // read directory
                             zipfile.readEntry();
                             return;
-                        }
-                        let outputDir = path.join(targetDirectory, path.dirname(entry.fileName));
-                        let outputFile = path.join(targetDirectory, entry.fileName);
+                        }// end else if
+                        let outputDir = path.join(this.targetDirectoryUnpackaged, path.dirname(entry.fileName));
+                        let outputFile = path.join(this.targetDirectoryUnpackaged, entry.fileName);
                         mkdirp(outputDir, (mkdirErr: any) => {
                             if (mkdirErr) {
                                 return reject(mkdirErr);
-                            }
+                            }// end if
                             readStream.pipe(createWriteStream(outputFile));
                             readStream.on("end", () => {
-                                // console.log('unzipping end');
                                 zipfile.readEntry();
                             });
-                        });
-                    });
-                });
-            });
-        });
+                        }); // end mkdirp
+                    }); // end open stream 
+                }); // end on
+            }); // end open
+        }); // end promise 
 
     }// end method
 
     protected async retrieveMetadata(): Promise<any> {
 
-        chdir(this.stageOrgAliasDirectoryPath);
-        console.info('changing directory: ' + this.stageOrgAliasDirectoryPath);
-        console.info(cwd());
+        console.info('retrieve directory: ' + this.retrievePath);
 
         return new Promise((resolve, reject) => {
 
-            console.info('checking existing for clean: ' + this.retrieveRoot);
-            if (existsSync(this.retrieveRoot)) {
-                removeSync(this.retrieveRoot);
-            }// end if
-            mkdirSync(this.retrieveRoot);
-            console.info('Retrieve source directory cleaned.');
+            console.info('checking existing for clean: ' + this.retrievePath);
 
-            var retrieveCommand = ('sfdx force:mdapi:retrieve -s -k manifest/package.xml -r ' + this.retrieveRoot + ' -w -1 -u ' + this.orgAlias);
+            if (existsSync(this.retrievePath)) {
+                removeSync(this.retrievePath);
+            }// end if
+
+            mkdirSync(this.retrievePath);
+            console.info('retrieve source directory cleaned.');
+
+            var retrieveCommand = ('sfdx force:mdapi:retrieve -s -k ' + this.filePackageXmlPath + ' -r ' + this.retrievePath + ' -w -1 -u ' + this.orgAlias);
             console.info(retrieveCommand);
             console.info('retrieving source, please standby this may take a few minutes ...');
-
-            this.org.getConnection().metadata.retrieve
 
             this.command(retrieveCommand).then((result: any) => {
 
                 console.info(result);
-
                 resolve();
 
             }, (error: any) => {
                 console.error(error);
                 reject(error);
             });
-        });
+
+        }); // end promise
 
     }// end method
 
     protected packageFile(): void {
 
-        const manifestDirectory = (this.stageOrgAliasDirectoryPath + '/' + this.manifest);
-        const filePackageXmlPath = (manifestDirectory + '/' + this.filePackageXml);
-
-        if (!existsSync(manifestDirectory)) {
-            mkdirSync(manifestDirectory);
-            console.info('Created manifest directory [' + manifestDirectory + '].');
+        if (!existsSync(this.manifestDirectory)) {
+            mkdirSync(this.manifestDirectory);
+            console.info('created manifest directory [' + this.manifestDirectory + '].');
         }// end if
-        this.createPackageFile(filePackageXmlPath);
+
+        this.createPackageFile(this.filePackageXmlPath);
 
     }// end method
 
@@ -621,13 +613,13 @@ export class MdapiRetrieveUtility {
 
         if (!existsSync(this.stageRoot)) {
             mkdirSync(this.stageRoot);
-            console.info('Staging  [' + this.stageRoot + '] directory created.');
+            console.info('staging [' + this.stageRoot + '] directory created.');
         }// end if
 
         // check if working directory exists
         if (!existsSync(this.stageOrgAliasDirectoryPath)) {
             mkdirSync(this.stageOrgAliasDirectoryPath);
-            console.info('Staging OrgAlias [' + this.stageOrgAliasDirectoryPath + '] directory created.');
+            console.info('staging alias [' + this.stageOrgAliasDirectoryPath + '] directory created.');
         }// end if
 
     }// end method
@@ -636,21 +628,14 @@ export class MdapiRetrieveUtility {
 
         return new Promise((resolve, reject) => {
 
-            let targetDirectoryUnpackaged: string = (this.retrieveRoot + '/' + this.unpackagedRoot);
-            let targetDirectorySource: string = (this.retrieveRoot + '/' + this.retrieveSource);
-
-            if (existsSync(targetDirectorySource)) {
-                removeSync(targetDirectorySource);
+            if (existsSync(this.targetDirectorySource)) {
+                removeSync(this.targetDirectorySource);
             }// end if
 
             this.unzipUnpackaged().then(() => {
 
                 // rename unmanaged to src
-                renameSync(targetDirectoryUnpackaged, targetDirectorySource);
-
-                // reset back to relative dir (destination)
-                process.chdir('../..');
-                console.info(process.cwd());
+                renameSync(this.targetDirectoryUnpackaged, this.targetDirectorySource);
 
                 console.log('creating backup ...');
                 this.createBackup();
@@ -661,8 +646,10 @@ export class MdapiRetrieveUtility {
             }, (error: any) => {
                 console.error(error);
                 reject(error);
-            });
-        });
+            });// end unzipUnpackaged
+
+        }); // end promise
+
     }// end method
 
     protected queryListMetadata(params: Params, batchCtrl: BatchCtrl): void {
@@ -672,58 +659,39 @@ export class MdapiRetrieveUtility {
         const metaType: string = params.metaType;
         const folder: string = params.folder;
 
-        if (folder) {
-            metaQueries = [{ "type": metaType, "folder": folder }];
-        }
-        else {
-            metaQueries = [{ "type": metaType }];
-        }
+        if (folder) { metaQueries = [{ "type": metaType, "folder": folder }]; }
+        else { metaQueries = [{ "type": metaType }]; }
 
         this.org.getConnection().metadata.list(metaQueries, this.apiVersion).then((result: Array<FileProperties>) => {
 
-            try {
+            if (result) {
 
-                // let included: number = 0;
+                // check if array first
+                if (result instanceof Array) {
 
-                if (result) {
-                    // check if array first
-                    if (result instanceof Array) {
-
-                        for (var x = 0; x < result.length; x++) {
-                            let metaItem: FileProperties = result[x];
-                            if (!this.checkIgnoreManaged(metaItem) &&
-                                !this.checkIgnoreNamespaces(metaItem)) {
-                                // included++;
-                                this.metadataObjectsListMap[metaType].push(metaItem.fullName);
-                            }// end if
-                        }// end for
-
-                        // console.log('Retrieved [' + metaType + '] with (' + included + ' of ' + result.length + ') results');
-
-                    } else {
-                        // check for single result
-                        let metaItem: FileProperties = result;
+                    for (var x = 0; x < result.length; x++) {
+                        let metaItem: FileProperties = result[x];
                         if (!this.checkIgnoreManaged(metaItem) &&
                             !this.checkIgnoreNamespaces(metaItem)) {
-                            // included++;
                             this.metadataObjectsListMap[metaType].push(metaItem.fullName);
                         }// end if
+                    }// end for
 
-                        // console.log('Retrieved [' + metaType + '] with (' + included + ' of 1) result');
-                    }
+                } else {
+
+                    // check for single result
+                    let metaItem: FileProperties = result;
+                    if (!this.checkIgnoreManaged(metaItem) &&
+                        !this.checkIgnoreNamespaces(metaItem)) {
+                        this.metadataObjectsListMap[metaType].push(metaItem.fullName);
+                    }// end if
+
                 }// end else
-                else {
-                    // noop
-                    // console.debug('Retrieved [' + metaType + '] with (0) results');
-                }
+            }// end else
 
-                if (--batchCtrl.counter <= 0) {
-                    batchCtrl.resolve(this.metadataObjectsListMap);
-                }// end if
-            }
-            catch (error) {
-                batchCtrl.reject(error);
-            }// end catch
+            if (--batchCtrl.counter <= 0) {
+                batchCtrl.resolve(this.metadataObjectsListMap);
+            }// end if
 
         }, (error: any) => {
             batchCtrl.reject(error);
@@ -735,42 +703,36 @@ export class MdapiRetrieveUtility {
 
         return new Promise((resolve, reject) => {
 
-            try {
+            let counter: number = 0;
 
-                let counter = 0;
+            let batchCtrl = <BatchCtrl>{
+                "counter": counter,
+                "resolve": resolve,
+                "reject": reject
+            };
 
-                let batchCtrl = <BatchCtrl>{
-                    "counter": counter,
-                    "resolve": resolve,
-                    "reject": reject
+            for (var x: number = 0; x < this.MetadataListBatchSize; x++) {
+
+                let metaType = this.sortedMetadataTypes.pop();
+
+                if ((metaType === undefined) || (metaType === null)) {
+                    if (batchCtrl.counter <= 0) {
+                        resolve(this.metadataObjectsListMap);
+                        return;
+                    } else { continue; }
+                }// end if
+
+                this.retainedMetadataTypes.push(metaType);
+
+                batchCtrl.counter = ++counter;
+
+                let params = <Params>{
+                    "metaType": metaType
                 };
 
-                for (var x = 0; x < this.MetadataListBatchSize; x++) {
+                this.queryListMetadata(params, batchCtrl);
 
-                    let metaType = this.sortedMetadataTypes.pop();
-
-                    if ((metaType === undefined) || (metaType === null)) {
-                        if (batchCtrl.counter <= 0) {
-                            resolve(this.metadataObjectsListMap);
-                            return;
-                        } else { continue; }
-                    }// end if
-
-                    this.retainedMetadataTypes.push(metaType);
-
-                    batchCtrl.counter = ++counter;
-
-                    let params = <Params>{
-                        "metaType": metaType
-                    };
-
-                    this.queryListMetadata(params, batchCtrl);
-
-                }// end for
-
-            } catch (exception) {
-                reject(exception);
-            }// catch exception
+            }// end for
 
         });// end promse
 
@@ -784,7 +746,7 @@ export class MdapiRetrieveUtility {
 
     }// end method
 
-    protected async listMetadataFolders() {
+    protected async listMetadataFolders(): Promise<void> {
 
         await this.listMetadataFolderBatch(this.Dashboard);
         await this.listMetadataFolderBatch(this.Document);
@@ -793,43 +755,96 @@ export class MdapiRetrieveUtility {
 
     }// end method
 
+    protected checkStageOrDevModePackageXml(): void {
+
+        if (this.devMode === true) {
+
+            copySync(this.filePackageXmlPath, this.packageXml);
+
+            console.log('copied ' + this.packageXml);
+
+        }// end if
+
+    }// end method
+
+    protected checkStageOrDevModeFiles(): void {
+
+        if (this.devMode === true) {
+
+            if (existsSync(this.srcFolder)) {
+                removeSync(this.srcFolder);
+            }// end if
+
+            mkdirSync(this.srcFolder);
+
+            copySync(this.targetDirectorySource, this.srcFolder);
+            console.log('copied ' + this.srcFolder);
+
+            if (existsSync(this.stageRoot)) {
+                removeSync(this.stageRoot);
+                console.log('deleted ' + this.stageRoot);
+            }// end if
+
+            removeSync(this.stageRoot);
+
+            if (existsSync(this.backupRoot)) {
+                removeSync(this.backupRoot);
+                console.log('deleted ' + this.backupRoot);
+            }// end if
+
+        }// end if
+
+    }// end method
+
     public async process(): Promise<any> {
 
+        // init
+        console.log('initialising ...');
         this.init();
 
         // async calls
-        console.log('describeMetadata ...');
+        console.log('describe metadata ...');
         await this.describeMetadata();
 
-        console.log('listMetadata ...');
+        console.log('list metadata ...');
         await this.listMetadata();
 
-        console.log('listMetadataFolders ...');
+        console.log('list metadata folders ...');
         await this.listMetadataFolders();
 
-        console.log('resolvePersonAccountRecordTypes ...');
+        console.log('resolve PersonAccount RecordTypes ...');
         await this.resolvePersonAccountRecordTypes();
 
         // sync calls
-        console.log('setStandardValueSets ...');
+        console.log('set StandardValueSets ...');
         this.setStandardValueSets();
 
         // create package.xml
-        console.log('packageFile ...');
+        console.log('package.xml file ...');
         this.packageFile();
 
+        console.log('check stage or dev mode package.xml ...');
+        this.checkStageOrDevModePackageXml();
+
         if (!this.manifestOnly) {
-            // retrieve payload (payload)
-            console.log('retrieveMetadata ...');
+
+            console.log('retrieve metadata files ...');
             await this.retrieveMetadata();
+
             // unzip retrieve and backup zip
-            console.log('unzipAndBackup ...');
+            console.log('unzip and backup zip ...');
             await this.unzipAndBackup();
-        }
-        else {
-            console.info('only created manifest/package.xml, process completed.');
+
+            // check if staging only or clean for src dev only
+            console.log('check stage or dev mode src files and cleanup ...');
+            this.checkStageOrDevModeFiles();
+            console.info('check process completed.');
+
+        } else {
+            // this.checkStageOrDevMode();
+            console.info('only created manifest package.xml, process completed.');
         }// end else
 
     }// end process
 
-};
+};// end class
