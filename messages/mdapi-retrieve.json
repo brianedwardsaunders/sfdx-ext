@@ -4,5 +4,6 @@
   "ignoremanagedFlagDescription": "flag to ignore retrieving managed package files",
   "ignorenamespacesFlagDescription": "flag to ignore retrieving namespace prefixed package files",
   "manifestonlyFlagDescription": "flag to only create manifest/package.xml and don't download meta data files",
-  "stageDirectoryFlagDescription": "staging root folder (default is stage)"
+  "stagedirectoryFlagDescription": "staging root folder (default is stage)",
+  "stagemodeFlagDescription": "stage mode (default is false) otherwise dev mode (default is true)"
 }

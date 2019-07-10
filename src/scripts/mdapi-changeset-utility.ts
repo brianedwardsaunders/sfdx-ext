@@ -1,6 +1,5 @@
 import {
-    existsSync, mkdirSync, removeSync, copySync, readdirSync,
-    statSync, writeFileSync, readFileSync, unlinkSync, copyFileSync
+    existsSync, mkdirSync, removeSync, copySync, readdirSync, statSync, writeFileSync, readFileSync, unlinkSync, copyFileSync
 } from "fs-extra";
 import { DescribeMetadataResult, MetadataObject } from "jsforce";
 import { Org } from "@salesforce/core";
@@ -28,7 +27,8 @@ export interface DiffResult {
 
 export class MdapiChangesetUtility {
 
-    // protected stageRoot: string = 'stage'; // param
+    // defaults
+    protected stageRoot: string = 'stage';
     protected retrieveDir: string = 'retrieve';
     protected sourceDir: string = 'src';
     protected deployDir: string = 'deploy';
@@ -325,7 +325,6 @@ export class MdapiChangesetUtility {
         protected org: Org,
         protected sourceOrgAlias: string, // left
         protected targetOrgAlias: string, // right
-        protected stageRoot: string,
         protected apiVersion: string,
         protected ignoreComments: boolean) {
         // noop
@@ -767,10 +766,11 @@ export class MdapiChangesetUtility {
 
             if (isDirectory) {
                 this.walkDir(dirPath, metaRegister, callback);
-            }
+            }// end if
             else {
                 callback(this, path.join(dir, fileItem), metaRegister, dir);
-            }
+            }// end else
+
         }// end for
 
     }// end method
@@ -1601,7 +1601,7 @@ export class MdapiChangesetUtility {
         this.postWalkDir(this.sourceDeployDirTargetSource, this.postInspectFile);
 
         console.log('-----------------------------');
-        console.log('POST SCREEN DEPLOY COMPLETE  ');
+        console.log('POST SCREENING COMPLETE  ');
         console.log('-----------------------------');
 
     }// end process
@@ -1686,4 +1686,4 @@ export class MdapiChangesetUtility {
 
     }// end process
 
-};
+};// end class
