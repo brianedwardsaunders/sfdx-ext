@@ -1,8 +1,10 @@
 /**
+ * @name MdapiRetrieveUtility
  * @author brianewardsaunders 
  * @date 2019-07-10
- * @acknowledgement force-dev-tool (author acknowledgement)
+ * @acknowledgement amtrack/force-dev-tool (author acknowledgement)
  */
+
 import {
     existsSync, mkdirSync, removeSync, unlinkSync, mkdirp, createWriteStream, writeFileSync, copyFileSync, renameSync, copySync
 } from 'fs-extra';
@@ -33,15 +35,21 @@ export class MdapiRetrieveUtility {
         protected orgAlias: string,
         protected apiVersion: string,
         protected ignoreBackup: boolean,
+        protected ignoreInstalled: boolean,
         protected ignoreManaged: boolean,
         protected ignoreNamespaces: boolean,
+        protected ignoreHidden: boolean,
+        protected ignoreFolders: boolean,
+        protected ignoreStaticResources: boolean,
         protected manifestOnly: boolean,
         protected devMode: boolean) {
         // noop
     }// end constructor
 
     protected bufferOptions: Object = { maxBuffer: 10 * 1024 * 1024 };
-    protected MetadataListBatchSize = 30;
+    protected MetadataListBatchSize: number = 30;
+    protected TWO_SPACE: string = '  ';
+    protected FOUR_SPACE: string = '    ';
 
     // defaults
     protected stageRoot: string = 'stage';
@@ -59,49 +67,46 @@ export class MdapiRetrieveUtility {
     protected metadataObjectsLookup: Object = {};
     protected metadataObjectsListMap: Object = {};
 
+    protected StaticResource: string = 'StaticResource';
     protected StandardValueSet: string = 'StandardValueSet';
     protected Settings: string = 'Settings';
     protected RecordType: string = 'RecordType';
     protected PersonAccount: string = 'PersonAccount';
     protected Dashboard: string = 'Dashboard';
     protected Document: string = 'Document';
+    protected Email: string = 'Email';
     protected EmailTemplate: string = 'EmailTemplate';
     protected Report: string = 'Report';
-    protected DashboardFolder: string = 'DashboardFolder';
-    protected DocumentFolder: string = 'DocumentFolder';
-    protected EmailFolder: string = 'EmailFolder';
-    protected ReportFolder: string = 'ReportFolder';
+    protected Folder: string = 'Folder';
+    // exception
+    protected ManagedTopic: string = 'ManagedTopic';
+    // hiddens if managed
+    protected ApexClass: string = 'ApexClass';
+    protected ApexComponent: string = 'ApexComponent';
+    protected ApexPage: string = 'ApexPage';
+    protected ApexTrigger: string = 'ApexTrigger';
+    protected LightningComponentBundle: string = 'LightningComponentBundle';
+    protected AuraDefinitionBundle: string = 'AuraDefinitionBundle';
 
-    protected metaObjectExcludes: Array<string> = [
-        // placeholder
-    ];
+    protected hiddenManagedMetaTypes = [
+        this.ApexClass,
+        this.ApexComponent,
+        this.ApexPage,
+        this.ApexTrigger,
+        this.AuraDefinitionBundle,
+        this.LightningComponentBundle];
 
-    protected metadataFoldersOther: Array<string> = [
-        "BrandingSet",
-        "BusinessProcess",
-        "CompactLayout",
-        "CustomField",
-        "CustomLabel",
-        "DataCategoryGroup",
-        "FieldSet",
-        "LeadConvertSettings",
-        "ListView",
-        "MatchingRule",
-        "Index",
-        "RecordType",
-        "SharingReason",
-        "StandardValueSet",
-        "ValidationRule",
-        "WebLink",
-        "WorkflowFieldUpdate",
-        "WorkflowKnowledgePublish",
-        "WorkflowTask",
-        "WorkflowAlert",
-        "WorkflowSend",
-        "WorkflowOutboundMessage",
-        "WorkflowRule"
-    ];
+    protected unsupportedMetadataTypes = [
+        this.ManagedTopic
+    ]; // cannot query listmetadata (error invalid parameter value) with api 46.0
 
+    protected metadataFolders: Array<string> = [];
+
+    protected metadataFoldersLookup: Object = {};
+
+    protected metadataTypeChildren: Array<string> = [];
+
+    // https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/standardvalueset_names.htm
     protected standardValueSets: Array<string> = [
         "AccountContactMultiRoles",
         "AccountContactRole",
@@ -163,20 +168,6 @@ export class MdapiRetrieveUtility {
         "WorkOrderStatus"
     ];
 
-    protected metadataFolders: Array<string> = [
-        this.DashboardFolder,
-        this.DocumentFolder,
-        this.EmailFolder,
-        this.ReportFolder
-    ];
-
-    protected metadataFoldersLookup: Object = {
-        "Dashboard": this.DashboardFolder,
-        "Document": this.DocumentFolder,
-        "EmailTemplate": this.EmailFolder,
-        "Report": this.ReportFolder
-    };
-
     // define working folders
     protected stageOrgAliasDirectoryPath: string = (this.stageRoot + '/' + this.orgAlias);
     protected retrievePath: string = (this.stageOrgAliasDirectoryPath + '/' + this.retrieveRoot);
@@ -202,69 +193,59 @@ export class MdapiRetrieveUtility {
 
     }// end method
 
-    protected isExcludedMetaType(metaObject: string): boolean {
+    protected isUnsupportedMetaType(metaType: string): boolean {
 
-        let isExcluded: boolean = false;
+        for (var x: number = 0; x < this.unsupportedMetadataTypes.length; x++) {
 
-        this.metaObjectExcludes.forEach(element => {
-            if (element === metaObject) {
-                console.log("excluding meta type: " + metaObject);
-                isExcluded = true;
-                return;
-            }
-        }); // end foreach
+            let unsupportedMetadataType: string = this.unsupportedMetadataTypes[x];
 
-        return isExcluded;
-
-    }// end method 
-
-    protected describeMetadataOthers(): void {
-
-        this.metadataFoldersOther.forEach(metadata => {
-
-            if (this.metadataObjectsLookup[metadata] === undefined) {
-                this.metadataObjectsLookup[metadata] = [];
+            if (unsupportedMetadataType === metaType) {
+                console.log("excluding unsupported metatype: " + metaType);
+                return true;
             }// end if
 
-            if (this.metadataObjectsListMap[metadata] === undefined) {
-                this.metadataObjectsListMap[metadata] = [];
-            }// end if
+        }// end for
 
-            this.sortedMetadataTypes.push(metadata);
+        return false;
 
-            this.metadataObjectsLookup[metadata].push({
-                directoryName: null,
-                inFolder: true,
-                metaFile: false,
-                suffix: null,
-                xmlName: metadata
-            });
-        });// end foreach
+    }// end method
+
+    protected describeMetadataChildren(): void {
+
+        this.describeMetadataArray(this.metadataTypeChildren);
 
     }// end method
 
     protected describeMetadataFolders(): void {
 
-        this.metadataFolders.forEach(metadata => {
+        this.describeMetadataArray(this.metadataFolders);
 
-            if (this.metadataObjectsLookup[metadata] === undefined) {
-                this.metadataObjectsLookup[metadata] = [];
+    }// end method
+
+    protected describeMetadataArray(metaTypeNameArray: Array<string>) {
+
+        for (var x: number = 0; x < metaTypeNameArray.length; x++) {
+
+            let metaTypeName: string = metaTypeNameArray[x];
+
+            if (this.metadataObjectsLookup[metaTypeName] === undefined) {
+                this.metadataObjectsLookup[metaTypeName] = [];
             }// end if
 
-            if (this.metadataObjectsListMap[metadata] === undefined) {
-                this.metadataObjectsListMap[metadata] = [];
+            if (this.metadataObjectsListMap[metaTypeName] === undefined) {
+                this.metadataObjectsListMap[metaTypeName] = [];
             }// end if
 
-            this.sortedMetadataTypes.push(metadata);
+            this.sortedMetadataTypes.push(metaTypeName);
 
-            this.metadataObjectsLookup[metadata].push({
+            this.metadataObjectsLookup[metaTypeName].push({
                 directoryName: null,
-                inFolder: true,
+                inFolder: false,
                 metaFile: false,
                 suffix: null,
-                xmlName: metadata
+                xmlName: metaTypeName
             });
-        });// end foreach
+        }// end for
 
     }// end method
 
@@ -272,47 +253,66 @@ export class MdapiRetrieveUtility {
 
         return new Promise((resolve, reject) => {
 
-            try {
+            this.org.getConnection().metadata.describe(this.apiVersion).then((result: DescribeMetadataResult) => {
 
-                this.org.getConnection().metadata.describe(this.apiVersion).then((result: DescribeMetadataResult) => {
+                let metadataObjects: Array<MetadataObject> = result.metadataObjects;
 
-                    let metadataObjects: Array<MetadataObject> = result.metadataObjects;
+                for (var x = 0; x < metadataObjects.length; x++) {
 
-                    for (var x = 0; x < metadataObjects.length; x++) {
+                    let metadataObject: MetadataObject = metadataObjects[x];
+                    let metaTypeName: string = metadataObject.xmlName;
 
-                        let metadataObject: MetadataObject = metadataObjects[x];
-                        let lookupKey: string = metadataObject.xmlName;
+                    if (this.isUnsupportedMetaType(metaTypeName)) { continue; }
 
-                        if (this.isExcludedMetaType(lookupKey)) continue;
+                    if (this.ignoreStaticResources && (metaTypeName === this.StaticResource)) {
+                        console.log('excluding static resources'); continue;
+                    }// end if
 
-                        if (this.metadataObjectsLookup[lookupKey] === undefined) {
-                            this.metadataObjectsLookup[lookupKey] = [];
-                        }// end if
+                    if (metadataObject.inFolder) {
+                        console.log('excluding folder ' + metaTypeName); continue;
+                    }// end if
 
-                        if (this.metadataObjectsListMap[lookupKey] === undefined) {
-                            this.metadataObjectsListMap[lookupKey] = [];
-                        }// end if
+                    if (this.metadataObjectsLookup[metaTypeName] === undefined) {
+                        this.metadataObjectsLookup[metaTypeName] = [];
+                    }// end if
 
-                        this.sortedMetadataTypes.push(lookupKey);
-                        this.metadataObjectsLookup[lookupKey].push(metadataObject);
+                    if (this.metadataObjectsListMap[metaTypeName] === undefined) {
+                        this.metadataObjectsListMap[metaTypeName] = [];
+                    }// end if
 
-                    }// end for
+                    this.sortedMetadataTypes.push(metaTypeName);
+                    this.metadataObjectsLookup[metaTypeName].push(metadataObject);
 
-                    this.describeMetadataFolders();
+                    if (metadataObject.inFolder) {
+                        let metaTypeFolderName = (metaTypeName + this.Folder);
+                        if (metaTypeName === this.EmailTemplate) { metaTypeFolderName = (this.Email + this.Folder); } // exception
+                        this.metadataFolders.push(metaTypeFolderName);
+                        this.metadataFoldersLookup[metaTypeName] = metaTypeFolderName;
+                    }// end if
 
-                    this.describeMetadataOthers();
+                    if (metadataObject.childXmlNames && (metadataObject.childXmlNames instanceof Array)) {
 
-                    this.sortedMetadataTypes.sort();
+                        for (var y = 0; y < metadataObject.childXmlNames.length; y++) {
+                            let childXmlName = metadataObject.childXmlNames[y];
+                            if (this.isUnsupportedMetaType(childXmlName)) { continue; }
+                            this.metadataTypeChildren.push(childXmlName);
+                        }// end for
 
-                    resolve(this.metadataObjectsLookup);
+                    }// end if
 
-                }, (error: any) => {
-                    reject(error);
-                });
+                }// end for
 
-            } catch (exception) {
-                reject(exception);
-            }// end catch
+                this.describeMetadataFolders();
+
+                this.describeMetadataChildren();
+
+                this.sortedMetadataTypes.sort();
+
+                resolve(this.metadataObjectsLookup);
+
+            }, (error: any) => {
+                reject(error);
+            });// end describe
 
         }); // end promise
 
@@ -332,57 +332,79 @@ export class MdapiRetrieveUtility {
 
     }// end method 
 
-    protected checkIgnoreManaged(metaItem: FileProperties): boolean {
+    protected checkIgnoreInstalled(metaItem: FileProperties): boolean {
 
-        if (!this.ignoreManaged) {
+        if (!this.ignoreInstalled) {
             return false;
         }// end if
-        else if (!(metaItem.manageableState === undefined ||
-            metaItem.manageableState === null) &&
-            !(metaItem.manageableState === "unmanaged")) { // installed
+        else if (!((metaItem.manageableState === undefined)
+            || (metaItem.manageableState === null)) &&
+            (metaItem.manageableState === "installed")) { //installed 
             return true;
         }// end else if
         return false;
 
     }// end method 
 
+    protected checkIgnoreManaged(metaItem: FileProperties): boolean {
+
+        if (!this.ignoreManaged) {
+            return false;
+        }// end if
+        else if (!((metaItem.manageableState === undefined)
+            || (metaItem.manageableState === null)) &&
+            (metaItem.manageableState === "managed")) { //managed 
+            return true;
+        }// end else if
+        return false;
+
+    }// end method 
+
+    protected checkIgnoreHidden(metaItem: FileProperties): boolean {
+
+        if (this.checkIgnoreManaged(metaItem)) {
+            for (var x = 0; x < this.hiddenManagedMetaTypes.length; x++) {
+                let hiddenMetaType: string = this.hiddenManagedMetaTypes[x];
+                if (hiddenMetaType === metaItem.type) {
+                    return true;
+                }// end if
+            }// end for
+        }// end if
+        return false;
+
+    }// end method
+
     protected listMetadataFolderBatch(metaType: string): Promise<any> {
 
         return new Promise((resolve, reject) => {
 
-            try {
+            let folderType: string = this.metadataFoldersLookup[metaType];
+            let folderArray: Array<string> = this.metadataObjectsListMap[folderType];
 
-                const folderType = this.metadataFoldersLookup[metaType];
-                const folderArray = this.metadataObjectsListMap[folderType];
+            let counter: number = 0;
 
-                let counter = 0;
+            let batchCtrl = <BatchCtrl>{
+                "counter": counter,
+                "resolve": resolve,
+                "reject": reject
+            };
 
-                let batchCtrl = <BatchCtrl>{
-                    "counter": counter,
-                    "resolve": resolve,
-                    "reject": reject
+            for (var x: number = 0; x < folderArray.length; x++) {
+
+                let folder: string = folderArray[x];
+
+                var params = <Params>{
+                    "metaType": metaType,
+                    "folder": folder
                 };
 
-                for (var x = 0; x < folderArray.length; x++) {
+                batchCtrl.counter = ++counter;
 
-                    const folder = folderArray[x];
+                // inject the folder before
+                this.metadataObjectsListMap[metaType].push(folder);
+                this.queryListMetadata(params, batchCtrl);
 
-                    var params = <Params>{
-                        "metaType": metaType,
-                        "folder": folder
-                    };
-
-                    batchCtrl.counter = ++counter;
-
-                    // inject the folder before
-                    this.metadataObjectsListMap[metaType].push(folder);
-                    this.queryListMetadata(params, batchCtrl);
-
-                }// end for
-
-            } catch (exception) {
-                reject(exception);
-            }// catch exception
+            }// end for
 
         });// end promse
 
@@ -390,16 +412,16 @@ export class MdapiRetrieveUtility {
 
     protected setStandardValueSets(): void {
 
-        this.standardValueSets.forEach(element => {
-            this.metadataObjectsListMap[this.StandardValueSet].push(element);
-        });// end foreach
+        for (var x: number = 0; x < this.standardValueSets.length; x++) {
+            this.metadataObjectsListMap[this.StandardValueSet].push(this.standardValueSets[x]);
+        }// end for
 
     }// end function
 
     protected repositionSettings(): void {
 
-        let found = false;
-        for (var x = 0; x < this.retainedMetadataTypes.length; x++) {
+        let found: boolean = false;
+        for (var x: number = 0; x < this.retainedMetadataTypes.length; x++) {
             if (this.retainedMetadataTypes[x] === this.Settings) {
                 this.retainedMetadataTypes.splice(x, 1);
                 found = true;
@@ -416,15 +438,13 @@ export class MdapiRetrieveUtility {
 
         return new Promise((resolve, reject) => {
 
-            const RecordType = this.RecordType;
-
             this.org.getConnection().query("SELECT DeveloperName, SobjectType, IsPersonType FROM RecordType " +
                 " WHERE SobjectType = 'Account' AND IsPersonType = true").then((result: QueryResult<any>) => {
                     if (result.records) {
-                        for (var x = 0; x < result.records.length; x++) {
-                            let record = result.records[x];
-                            let personRecordType: string = (this.PersonAccount + '.' + record.DeveloperName);
-                            this.metadataObjectsListMap[RecordType].push(personRecordType);
+                        for (var x: number = 0; x < result.records.length; x++) {
+                            let record: Object = result.records[x];
+                            let personRecordType: string = (this.PersonAccount + '.' + record["DeveloperName"]);
+                            this.metadataObjectsListMap[this.RecordType].push(personRecordType);
                         }// end for
                     }// end if
                     resolve();
@@ -436,16 +456,16 @@ export class MdapiRetrieveUtility {
 
     }// end method
 
-    protected createPackageFile(packageFile: string) {
+    protected createPackageFile(packageFile: string): void {
 
-        let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';
+        let xmlContent: string = '<?xml version="1.0" encoding="UTF-8"?>\n';
         xmlContent += '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
 
         this.retainedMetadataTypes.reverse();
 
         this.repositionSettings();
 
-        for (var x = 0; x < this.retainedMetadataTypes.length; x++) {
+        for (var x: number = 0; x < this.retainedMetadataTypes.length; x++) {
 
             let metaType: string = this.retainedMetadataTypes[x];
 
@@ -453,25 +473,24 @@ export class MdapiRetrieveUtility {
                 continue;
             }// end if
 
-            let metaItems = this.metadataObjectsListMap[metaType];
-
-            let uniqueMetaItems = [...new Set(metaItems)];
+            let metaItems: Array<string> = this.metadataObjectsListMap[metaType];
+            let uniqueMetaItems: Array<string> = [...new Set(metaItems)];
 
             uniqueMetaItems.sort();
 
-            xmlContent += '  <types>\n';
+            xmlContent += (this.TWO_SPACE + '<types>\n');
 
-            for (var y = 0; y < uniqueMetaItems.length; y++) {
-                let item = uniqueMetaItems[y];
-                xmlContent += '    <members>' + item + '</members>\n';
+            for (var y: number = 0; y < uniqueMetaItems.length; y++) {
+                let item: string = uniqueMetaItems[y];
+                xmlContent += (this.FOUR_SPACE + '<members>' + item + '</members>\n');
             }// end for
 
-            xmlContent += '    <name>' + metaType + '</name>\n';
-            xmlContent += '  </types>\n';
+            xmlContent += (this.FOUR_SPACE + '<name>' + metaType + '</name>\n');
+            xmlContent += (this.TWO_SPACE + '</types>\n');
 
         }// end for
 
-        xmlContent += '  <version>' + this.apiVersion + '</version>\n';
+        xmlContent += (this.TWO_SPACE + '<version>' + this.apiVersion + '</version>\n');
         xmlContent += '</Package>\n';
 
         writeFileSync(packageFile, xmlContent);
@@ -482,13 +501,13 @@ export class MdapiRetrieveUtility {
     // create backup of retrieve meta in-case needed later
     protected createBackup(): void {
 
-        let iso = new Date().toISOString();
+        let iso: string = new Date().toISOString();
         iso = iso.replace(/:/g, '-').split('.')[0];
 
-        let backupFolder = (this.backupRoot + '/' + this.orgAlias); // e.g. backup/DevOrg
-        let backupOrgFolder = (backupFolder + '/' + iso); // e.g. backup/DevOrg/2000-00-00T11-11-11
-        let backupProjectFile = (backupOrgFolder + '/' + this.unpackagedZip);
-        let sourceProjectFile = (this.retrievePath + '/' + this.unpackagedZip);
+        let backupFolder: string = (this.backupRoot + '/' + this.orgAlias); // e.g. backup/DevOrg
+        let backupOrgFolder: string = (backupFolder + '/' + iso); // e.g. backup/DevOrg/2000-00-00T11-11-11
+        let backupProjectFile: string = (backupOrgFolder + '/' + this.unpackagedZip);
+        let sourceProjectFile: string = (this.retrievePath + '/' + this.unpackagedZip);
 
         if (this.ignoreBackup) {
             console.log('ignoring backup.');
@@ -652,6 +671,15 @@ export class MdapiRetrieveUtility {
 
     }// end method
 
+    protected objectToArray<T>(objectOrArray: T | Array<T>): Array<T> {
+        let returned: Array<T> = [];
+        if (objectOrArray) {
+            if (objectOrArray instanceof Array) { return objectOrArray; }
+            else { returned.push(objectOrArray); }// end else
+        }// end if
+        return returned;
+    }// end method
+
     protected queryListMetadata(params: Params, batchCtrl: BatchCtrl): void {
 
         var metaQueries: Array<ListMetadataQuery>;
@@ -664,30 +692,17 @@ export class MdapiRetrieveUtility {
 
         this.org.getConnection().metadata.list(metaQueries, this.apiVersion).then((result: Array<FileProperties>) => {
 
-            if (result) {
+            result = this.objectToArray(result);
 
-                // check if array first
-                if (result instanceof Array) {
-
-                    for (var x = 0; x < result.length; x++) {
-                        let metaItem: FileProperties = result[x];
-                        if (!this.checkIgnoreManaged(metaItem) &&
-                            !this.checkIgnoreNamespaces(metaItem)) {
-                            this.metadataObjectsListMap[metaType].push(metaItem.fullName);
-                        }// end if
-                    }// end for
-
-                } else {
-
-                    // check for single result
-                    let metaItem: FileProperties = result;
-                    if (!this.checkIgnoreManaged(metaItem) &&
-                        !this.checkIgnoreNamespaces(metaItem)) {
-                        this.metadataObjectsListMap[metaType].push(metaItem.fullName);
-                    }// end if
-
-                }// end else
-            }// end else
+            for (var x: number = 0; x < result.length; x++) {
+                let metaItem: FileProperties = result[x];
+                if (!this.checkIgnoreInstalled(metaItem) &&
+                    !this.checkIgnoreManaged(metaItem) &&
+                    !this.checkIgnoreNamespaces(metaItem) &&
+                    !this.checkIgnoreHidden(metaItem)) {
+                    this.metadataObjectsListMap[metaType].push(metaItem.fullName);
+                }// end if
+            }// end for
 
             if (--batchCtrl.counter <= 0) {
                 batchCtrl.resolve(this.metadataObjectsListMap);
@@ -713,7 +728,7 @@ export class MdapiRetrieveUtility {
 
             for (var x: number = 0; x < this.MetadataListBatchSize; x++) {
 
-                let metaType = this.sortedMetadataTypes.pop();
+                let metaType: string = this.sortedMetadataTypes.pop();
 
                 if ((metaType === undefined) || (metaType === null)) {
                     if (batchCtrl.counter <= 0) {
@@ -748,16 +763,18 @@ export class MdapiRetrieveUtility {
 
     protected async listMetadataFolders(): Promise<void> {
 
-        await this.listMetadataFolderBatch(this.Dashboard);
-        await this.listMetadataFolderBatch(this.Document);
-        await this.listMetadataFolderBatch(this.EmailTemplate);
-        await this.listMetadataFolderBatch(this.Report);
+        if (!this.ignoreFolders) {
+            await this.listMetadataFolderBatch(this.Dashboard);
+            await this.listMetadataFolderBatch(this.Document);
+            await this.listMetadataFolderBatch(this.EmailTemplate);
+            await this.listMetadataFolderBatch(this.Report);
+        }
 
     }// end method
 
     protected checkStageOrDevModePackageXml(): void {
 
-        if (this.devMode === true) {
+        if (this.devMode) {
 
             copySync(this.filePackageXmlPath, this.packageXml);
 
@@ -769,7 +786,7 @@ export class MdapiRetrieveUtility {
 
     protected checkStageOrDevModeFiles(): void {
 
-        if (this.devMode === true) {
+        if (this.devMode) {
 
             if (existsSync(this.srcFolder)) {
                 removeSync(this.srcFolder);
@@ -847,4 +864,4 @@ export class MdapiRetrieveUtility {
 
     }// end process
 
-};// end class
+}// end class

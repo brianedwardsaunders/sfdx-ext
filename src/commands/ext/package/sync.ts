@@ -1,3 +1,8 @@
+/**
+ * @name Sync
+ * @author brianewardsaunders 
+ * @date 2019-07-10
+ */
 import { SfdxCommand, flags } from '@salesforce/command';
 import { Messages, SfdxError } from '@salesforce/core';
 import { PackageSyncUtility } from '../../../scripts/package-sync-utility';
@@ -77,4 +82,4 @@ export default class Sync extends SfdxCommand {
       };
     });
   }
-}
+}// end class

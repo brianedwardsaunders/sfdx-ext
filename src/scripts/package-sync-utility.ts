@@ -1,4 +1,5 @@
 /**
+ * @PackageSyncUtility
  * @author brianewardsaunders 
  * @date 2019-07-10
  */
@@ -228,4 +229,4 @@ export class PackageSyncUtility {
     public async process(): Promise<any> {
         await this.compareSyncPackages();
     }// end process
-};
+}// end class

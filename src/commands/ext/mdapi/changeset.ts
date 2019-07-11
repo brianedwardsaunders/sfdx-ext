@@ -1,4 +1,5 @@
 /**
+ * @name Changeset
  * @author brianewardsaunders 
  * @date 2019-07-10
  */
@@ -71,4 +72,4 @@ export default class Changeset extends SfdxCommand {
       };
     });
   }
-}
+}// end class
