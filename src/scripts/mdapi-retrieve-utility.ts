@@ -15,6 +15,7 @@ import {
 import path = require('path');
 import yauzl = require('yauzl');
 import { Org } from '@salesforce/core';
+import { UX } from '@salesforce/command';
 const exec = require('child_process').exec;
 
 export interface BatchCtrl {
@@ -32,11 +33,11 @@ export class MdapiRetrieveUtility {
 
     constructor(
         protected org: Org,
+        protected ux: UX,
         protected orgAlias: string,
         protected apiVersion: string,
         protected ignoreBackup: boolean,
         protected ignoreInstalled: boolean,
-        protected ignoreManaged: boolean,
         protected ignoreNamespaces: boolean,
         protected ignoreHidden: boolean,
         protected ignoreFolders: boolean,
@@ -182,7 +183,7 @@ export class MdapiRetrieveUtility {
         return new Promise((resolve, reject) => {
             exec(cmd, this.bufferOptions, (error: any, stdout: any, stderr: any) => {
                 if (error) {
-                    console.debug(stderr);
+                    this.ux.error(stderr);
                     reject(error);
                 }// end if
                 else {
@@ -200,7 +201,7 @@ export class MdapiRetrieveUtility {
             let unsupportedMetadataType: string = this.unsupportedMetadataTypes[x];
 
             if (unsupportedMetadataType === metaType) {
-                console.log("excluding unsupported metatype: " + metaType);
+                // this.ux.log("excluding unsupported metatype: " + metaType);
                 return true;
             }// end if
 
@@ -265,11 +266,13 @@ export class MdapiRetrieveUtility {
                     if (this.isUnsupportedMetaType(metaTypeName)) { continue; }
 
                     if (this.ignoreStaticResources && (metaTypeName === this.StaticResource)) {
-                        console.log('excluding static resources'); continue;
+                        // this.ux.log('excluding static resources'); 
+                        continue;
                     }// end if
 
-                    if (metadataObject.inFolder) {
-                        console.log('excluding folder ' + metaTypeName); continue;
+                    if (this.ignoreFolders && metadataObject.inFolder) {
+                        // this.ux.log('excluding folder ' + metaTypeName); 
+                        continue;
                     }// end if
 
                     if (this.metadataObjectsLookup[metaTypeName] === undefined) {
@@ -323,9 +326,9 @@ export class MdapiRetrieveUtility {
         if (!this.ignoreNamespaces) {
             return false;
         }// end if
-        else if (!(metaItem.namespacePrefix === undefined ||
-            metaItem.namespacePrefix === null ||
-            metaItem.namespacePrefix === "")) { // pi or Finserv etc.
+        else if (metaItem.namespacePrefix &&
+            (metaItem.namespacePrefix !== null) &&
+            (metaItem.namespacePrefix !== '')) { // pi or Finserv etc.
             return true;
         }// end else if
         return false;
@@ -337,23 +340,8 @@ export class MdapiRetrieveUtility {
         if (!this.ignoreInstalled) {
             return false;
         }// end if
-        else if (!((metaItem.manageableState === undefined)
-            || (metaItem.manageableState === null)) &&
-            (metaItem.manageableState === "installed")) { //installed 
-            return true;
-        }// end else if
-        return false;
-
-    }// end method 
-
-    protected checkIgnoreManaged(metaItem: FileProperties): boolean {
-
-        if (!this.ignoreManaged) {
-            return false;
-        }// end if
-        else if (!((metaItem.manageableState === undefined)
-            || (metaItem.manageableState === null)) &&
-            (metaItem.manageableState === "managed")) { //managed 
+        else if (metaItem.manageableState &&
+            (metaItem.manageableState === 'installed')) { //installed 
             return true;
         }// end else if
         return false;
@@ -362,8 +350,14 @@ export class MdapiRetrieveUtility {
 
     protected checkIgnoreHidden(metaItem: FileProperties): boolean {
 
-        if (this.checkIgnoreManaged(metaItem)) {
-            for (var x = 0; x < this.hiddenManagedMetaTypes.length; x++) {
+        // if (metaItem.type === this.ApexClass) { console.log(metaItem); }
+
+        if (!this.ignoreHidden) {
+            return false;
+        }// end if
+        else if (metaItem.manageableState &&
+            (metaItem.manageableState === 'installed')) {
+            for (var x: number = 0; x < this.hiddenManagedMetaTypes.length; x++) {
                 let hiddenMetaType: string = this.hiddenManagedMetaTypes[x];
                 if (hiddenMetaType === metaItem.type) {
                     return true;
@@ -494,7 +488,7 @@ export class MdapiRetrieveUtility {
         xmlContent += '</Package>\n';
 
         writeFileSync(packageFile, xmlContent);
-        console.log(packageFile + ' file successfully saved.');
+        this.ux.log(packageFile + ' file successfully saved.');
 
     }// end function
 
@@ -510,9 +504,9 @@ export class MdapiRetrieveUtility {
         let sourceProjectFile: string = (this.retrievePath + '/' + this.unpackagedZip);
 
         if (this.ignoreBackup) {
-            console.log('ignoring backup.');
+            this.ux.log('ignoring backup.');
             unlinkSync(sourceProjectFile);
-            console.log('deleting temp file: ' + sourceProjectFile);
+            this.ux.log('deleting temp file: ' + sourceProjectFile);
             return;
         }// end if
 
@@ -528,13 +522,13 @@ export class MdapiRetrieveUtility {
             mkdirSync(backupOrgFolder);
         }// end if
 
-        console.log('backing up from: ' + sourceProjectFile + ' to: ' + backupProjectFile);
+        this.ux.log('backing up from: ' + sourceProjectFile + ' to: ' + backupProjectFile);
 
         copyFileSync(sourceProjectFile, backupProjectFile);
-        console.log('backup finished to file: ' + backupProjectFile);
+        this.ux.log('backup finished to file: ' + backupProjectFile);
 
         unlinkSync(sourceProjectFile);
-        console.log('deleting temp file: ' + sourceProjectFile);
+        this.ux.log('deleting temp file: ' + sourceProjectFile);
 
     }// end method
 
@@ -542,7 +536,7 @@ export class MdapiRetrieveUtility {
 
         return new Promise((resolve, reject) => {
 
-            console.log('unzipping ' + this.zipFilePath);
+            this.ux.log('unzipping ' + this.zipFilePath);
 
             yauzl.open(this.zipFilePath, { lazyEntries: true }, (openErr, zipfile) => {
 
@@ -553,7 +547,7 @@ export class MdapiRetrieveUtility {
                 zipfile.readEntry();
 
                 zipfile.once("close", () => {
-                    console.log('unzipping complete');
+                    this.ux.log('unzipping complete');
                     resolve();
                 });// end close
 
@@ -586,30 +580,26 @@ export class MdapiRetrieveUtility {
 
     protected async retrieveMetadata(): Promise<any> {
 
-        console.info('retrieve directory: ' + this.retrievePath);
+        this.ux.log('retrieve directory: ' + this.retrievePath);
 
         return new Promise((resolve, reject) => {
-
-            console.info('checking existing for clean: ' + this.retrievePath);
 
             if (existsSync(this.retrievePath)) {
                 removeSync(this.retrievePath);
             }// end if
 
             mkdirSync(this.retrievePath);
-            console.info('retrieve source directory cleaned.');
 
-            var retrieveCommand = ('sfdx force:mdapi:retrieve -s -k ' + this.filePackageXmlPath + ' -r ' + this.retrievePath + ' -w -1 -u ' + this.orgAlias);
-            console.info(retrieveCommand);
-            console.info('retrieving source, please standby this may take a few minutes ...');
+            var retrieveCommand: string = ('sfdx force:mdapi:retrieve -s -k ' + this.filePackageXmlPath + ' -r ' + this.retrievePath + ' -w -1 -u ' + this.orgAlias);
+            this.ux.log('please standby this may take a few minutes ...');
 
             this.command(retrieveCommand).then((result: any) => {
 
-                console.info(result);
+                this.ux.log(result);
                 resolve();
 
             }, (error: any) => {
-                console.error(error);
+                this.ux.error(error);
                 reject(error);
             });
 
@@ -621,7 +611,7 @@ export class MdapiRetrieveUtility {
 
         if (!existsSync(this.manifestDirectory)) {
             mkdirSync(this.manifestDirectory);
-            console.info('created manifest directory [' + this.manifestDirectory + '].');
+            this.ux.log('created manifest directory [' + this.manifestDirectory + '].');
         }// end if
 
         this.createPackageFile(this.filePackageXmlPath);
@@ -632,13 +622,13 @@ export class MdapiRetrieveUtility {
 
         if (!existsSync(this.stageRoot)) {
             mkdirSync(this.stageRoot);
-            console.info('staging [' + this.stageRoot + '] directory created.');
+            this.ux.log('staging [' + this.stageRoot + '] directory created.');
         }// end if
 
         // check if working directory exists
         if (!existsSync(this.stageOrgAliasDirectoryPath)) {
             mkdirSync(this.stageOrgAliasDirectoryPath);
-            console.info('staging alias [' + this.stageOrgAliasDirectoryPath + '] directory created.');
+            this.ux.log('staging alias [' + this.stageOrgAliasDirectoryPath + '] directory created.');
         }// end if
 
     }// end method
@@ -656,14 +646,12 @@ export class MdapiRetrieveUtility {
                 // rename unmanaged to src
                 renameSync(this.targetDirectoryUnpackaged, this.targetDirectorySource);
 
-                console.log('creating backup ...');
                 this.createBackup();
 
-                console.info('setup and retrieve stage [' + this.stageOrgAliasDirectoryPath + '] complete.');
                 resolve();
 
             }, (error: any) => {
-                console.error(error);
+                this.ux.error(error);
                 reject(error);
             });// end unzipUnpackaged
 
@@ -695,13 +683,15 @@ export class MdapiRetrieveUtility {
             result = this.objectToArray(result);
 
             for (var x: number = 0; x < result.length; x++) {
+
                 let metaItem: FileProperties = result[x];
+
                 if (!this.checkIgnoreInstalled(metaItem) &&
-                    !this.checkIgnoreManaged(metaItem) &&
                     !this.checkIgnoreNamespaces(metaItem) &&
                     !this.checkIgnoreHidden(metaItem)) {
                     this.metadataObjectsListMap[metaType].push(metaItem.fullName);
                 }// end if
+
             }// end for
 
             if (--batchCtrl.counter <= 0) {
@@ -768,7 +758,7 @@ export class MdapiRetrieveUtility {
             await this.listMetadataFolderBatch(this.Document);
             await this.listMetadataFolderBatch(this.EmailTemplate);
             await this.listMetadataFolderBatch(this.Report);
-        }
+        }// end if
 
     }// end method
 
@@ -778,7 +768,7 @@ export class MdapiRetrieveUtility {
 
             copySync(this.filePackageXmlPath, this.packageXml);
 
-            console.log('copied ' + this.packageXml);
+            this.ux.log('copied ' + this.packageXml);
 
         }// end if
 
@@ -795,18 +785,18 @@ export class MdapiRetrieveUtility {
             mkdirSync(this.srcFolder);
 
             copySync(this.targetDirectorySource, this.srcFolder);
-            console.log('copied ' + this.srcFolder);
+            this.ux.log('copied ' + this.srcFolder);
 
             if (existsSync(this.stageRoot)) {
                 removeSync(this.stageRoot);
-                console.log('deleted ' + this.stageRoot);
+                this.ux.log('deleted ' + this.stageRoot);
             }// end if
 
             removeSync(this.stageRoot);
 
             if (existsSync(this.backupRoot)) {
                 removeSync(this.backupRoot);
-                console.log('deleted ' + this.backupRoot);
+                this.ux.log('deleted ' + this.backupRoot);
             }// end if
 
         }// end if
@@ -816,50 +806,55 @@ export class MdapiRetrieveUtility {
     public async process(): Promise<any> {
 
         // init
-        console.log('initialising ...');
+        this.ux.startSpinner('initialising');
         this.init();
+        this.ux.stopSpinner();
 
         // async calls
-        console.log('describe metadata ...');
+        this.ux.startSpinner('describe metadata');
         await this.describeMetadata();
+        this.ux.stopSpinner();
 
-        console.log('list metadata ...');
+        this.ux.startSpinner('list metadata');
         await this.listMetadata();
+        this.ux.stopSpinner();
 
-        console.log('list metadata folders ...');
+        this.ux.startSpinner('list metadata folders');
         await this.listMetadataFolders();
 
-        console.log('resolve PersonAccount RecordTypes ...');
+        this.ux.startSpinner('resolve PersonAccount RecordTypes');
         await this.resolvePersonAccountRecordTypes();
+        this.ux.stopSpinner();
 
-        // sync calls
-        console.log('set StandardValueSets ...');
+        // sync call
         this.setStandardValueSets();
 
         // create package.xml
-        console.log('package.xml file ...');
+        this.ux.startSpinner('create package.xml file');
         this.packageFile();
+        this.ux.stopSpinner();
 
-        console.log('check stage or dev mode package.xml ...');
         this.checkStageOrDevModePackageXml();
 
         if (!this.manifestOnly) {
 
-            console.log('retrieve metadata files ...');
+            // retrieve metadata files
+            this.ux.startSpinner('retrieve metadata files');
             await this.retrieveMetadata();
+            this.ux.stopSpinner();
 
             // unzip retrieve and backup zip
-            console.log('unzip and backup zip ...');
+            this.ux.startSpinner('unzipping');
             await this.unzipAndBackup();
+            this.ux.stopSpinner();
 
             // check if staging only or clean for src dev only
-            console.log('check stage or dev mode src files and cleanup ...');
+            this.ux.startSpinner('finalising');
             this.checkStageOrDevModeFiles();
-            console.info('check process completed.');
+            this.ux.stopSpinner();
 
         } else {
-            // this.checkStageOrDevMode();
-            console.info('only created manifest package.xml, process completed.');
+            this.ux.log('only created manifest package.xml, process completed.');
         }// end else
 
     }// end process

@@ -1,5 +1,5 @@
 /**
- * @name Retrieve
+ * @name Retrieve (mdapi)
  * @author brianewardsaunders 
  * @date 2019-07-10
  */
@@ -17,10 +17,10 @@ export default class Retrieve extends SfdxCommand {
 
   public static examples = [
     `
-    $ sfdx ext:mdapi:retrieve --targetusername user@example.com --apiversion 46.0 --ignorebackup --ignoreinstalled --ignoremanaged --ignorenamespaces --ignorehidden --ignorefolders --ignorestaticresources --manifestonly --stagemode
+    $ sfdx ext:mdapi:retrieve --targetusername user@example.com --apiversion 46.0 --ignorebackup --ignoreinstalled --ignorenamespaces --ignorehidden --ignorefolders --ignorestaticresources --manifestonly --stagemode
     `,
     `
-    $ sfdx ext:mdapi:retrieve -u user@example.com -b -i -m -n -h -f -s -x
+    $ sfdx ext:mdapi:retrieve -u user@example.com -b -i -n -h -f -s -x
     `
     ,
     `
@@ -35,7 +35,6 @@ export default class Retrieve extends SfdxCommand {
   protected static flagsConfig = {
     ignorebackup: flags.boolean({ char: 'b', description: messages.getMessage('ignorebackupFlagDescription') }),
     ignoreinstalled: flags.boolean({ char: 'i', description: messages.getMessage('ignoreinstalledFlagDescription') }),
-    ignoremanaged: flags.boolean({ char: 'm', description: messages.getMessage('ignoremanagedFlagDescription') }),
     ignorenamespaces: flags.boolean({ char: 'n', description: messages.getMessage('ignorenamespacesFlagDescription') }),
     ignorehidden: flags.boolean({ char: 'h', description: messages.getMessage('ignorehiddenFlagDescription') }),
     ignorefolders: flags.boolean({ char: 'f', description: messages.getMessage('ignorefoldersFlagDescription') }),
@@ -54,7 +53,6 @@ export default class Retrieve extends SfdxCommand {
     let apiversion: string = this.flags.apiversion || defaultApiVersion;
     let ignorebackup: boolean = this.flags.ignorebackup || false;
     let ignoreinstalled: boolean = this.flags.ignoreinstalled || false;
-    let ignoremanaged: boolean = this.flags.ignoremanaged || false;
     let ignorenamespaces: boolean = this.flags.ignorenamespaces || false;
     let ignorehidden: boolean = this.flags.ignorehidden || false;
     let ignorefolders: boolean = this.flags.ignorefolders || false;
@@ -63,30 +61,29 @@ export default class Retrieve extends SfdxCommand {
     let stagemode: boolean = this.flags.stagemode || false; // default
     let devmode: boolean = !stagemode;
 
-    console.log("-----------------------------");
-    console.log("sfdx ext:mdapi:retrieve");
-    console.log("-----------------------------");
-    console.log("targetusername        : " + username);
-    console.log("apiversion            : " + apiversion);
-    console.log("ignorebackup          : " + ignorebackup);
-    console.log("ignoreinstalled       : " + ignoreinstalled);
-    console.log("ignoremanaged         : " + ignoremanaged);
-    console.log("ignorenamespaces      : " + ignorenamespaces);
-    console.log("ignorehidden          : " + ignorehidden);
-    console.log("ignorefolders         : " + ignorefolders);
-    console.log("ignorestaticresources : " + ignorestaticresources);
-    console.log("manifestonly          : " + manifestonly);
-    console.log("stagemode             : " + stagemode);
-    console.log("devmode               : " + devmode);
-    console.log("-----------------------------");
+    this.ux.log("-----------------------------");
+    this.ux.log("sfdx ext:mdapi:retrieve");
+    this.ux.log("-----------------------------");
+    this.ux.log("targetusername        : " + username);
+    this.ux.log("apiversion            : " + apiversion);
+    this.ux.log("ignorebackup          : " + ignorebackup);
+    this.ux.log("ignoreinstalled       : " + ignoreinstalled);
+    this.ux.log("ignorenamespaces      : " + ignorenamespaces);
+    this.ux.log("ignorehidden          : " + ignorehidden);
+    this.ux.log("ignorefolders         : " + ignorefolders);
+    this.ux.log("ignorestaticresources : " + ignorestaticresources);
+    this.ux.log("manifestonly          : " + manifestonly);
+    this.ux.log("stagemode             : " + stagemode);
+    this.ux.log("devmode               : " + devmode);
+    this.ux.log("-----------------------------");
 
     let util = new MdapiRetrieveUtility(
       this.org,
+      this.ux,
       username,
       apiversion,
       ignorebackup,
       ignoreinstalled,
-      ignoremanaged,
       ignorenamespaces,
       ignorehidden,
       ignorefolders,
@@ -95,7 +92,7 @@ export default class Retrieve extends SfdxCommand {
       devmode);
 
     util.process().then(() => {
-      this.ux.log('success');
+      this.ux.log('success.');
       return { "status": 'success' };
     }, (error: any) => {
       this.ux.error(error);
@@ -104,5 +101,7 @@ export default class Retrieve extends SfdxCommand {
         "error": error
       };
     });
-  }
+
+  }// end method
+
 }// end class
