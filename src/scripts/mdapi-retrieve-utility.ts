@@ -16,7 +16,8 @@ import path = require('path');
 import yauzl = require('yauzl');
 import { Org } from '@salesforce/core';
 import { UX } from '@salesforce/command';
-const exec = require('child_process').exec;
+import { MdapiConfig } from './mdapi-config';
+import { Common } from './common';
 
 export interface BatchCtrl {
     counter: number;
@@ -47,231 +48,43 @@ export class MdapiRetrieveUtility {
         // noop
     }// end constructor
 
-    protected bufferOptions: Object = { maxBuffer: 10 * 1024 * 1024 };
     protected MetadataListBatchSize: number = 30;
-    protected TWO_SPACE: string = '  ';
-    protected FOUR_SPACE: string = '    ';
-
-    // defaults
-    protected stageRoot: string = 'stage';
-    protected backupRoot: string = 'backup';
-    protected retrieveRoot: string = 'retrieve';
-    protected unpackagedRoot: string = 'unpackaged';
-    protected srcFolder: string = 'src';
-    protected unpackagedZip: string = 'unpackaged.zip';
-    protected manifest: string = 'manifest';
-    protected packageXml: string = 'package.xml';
-
-    protected metadataObjects: Array<Object> = [];
-    protected sortedMetadataTypes: Array<string> = [];
-    protected retainedMetadataTypes: Array<string> = [];
-    protected metadataObjectsLookup: Object = {};
-    protected metadataObjectsListMap: Object = {};
-
-    protected StaticResource: string = 'StaticResource';
-    protected PermissionSet: string = 'PermissionSet';
-    protected FlexiPage: string = 'FlexiPage';
-    protected StandardValueSet: string = 'StandardValueSet';
-    protected Settings: string = 'Settings';
-    protected RecordType: string = 'RecordType';
-    protected PersonAccount: string = 'PersonAccount';
-    protected Dashboard: string = 'Dashboard';
-    protected Document: string = 'Document';
-    protected Email: string = 'Email';
-    protected EmailTemplate: string = 'EmailTemplate';
-    protected Report: string = 'Report';
-    protected Folder: string = 'Folder';
-    // exception
-    protected ManagedTopic: string = 'ManagedTopic';
-    // hiddens if managed
-    protected ApexClass: string = 'ApexClass';
-    protected ApexComponent: string = 'ApexComponent';
-    protected ApexPage: string = 'ApexPage';
-    protected ApexTrigger: string = 'ApexTrigger';
-    protected LightningComponentBundle: string = 'LightningComponentBundle';
-    protected AuraDefinitionBundle: string = 'AuraDefinitionBundle';
-    protected Translation: string = 'Translation';
-    protected CustomPermission: string = 'CustomPermission';
-    protected CustomLabel: string = 'CustomLabel';
-    protected SharingReason: string = 'SharingReason';
-    protected CompactLayout: string = 'CompactLayout';
-    protected PlatformCachePartition: string = 'PlatformCachePartition';
-
-    // non-editable managed
-    // https://developer.salesforce.com/docs/atlas.en-us.packagingGuide.meta/packagingGuide/packaging_component_attributes.htm
-    protected hiddenOrNonEditableInstalledMetaTypes = [
-        // following are (hidden) if managed
-        this.ApexClass,
-        this.ApexComponent,
-        this.ApexPage,
-        this.ApexTrigger,
-        this.AuraDefinitionBundle,
-        this.LightningComponentBundle,
-        // following are visible but not editable
-        this.StaticResource,
-        this.PermissionSet,
-        this.FlexiPage,
-        this.Translation,
-        this.CustomPermission,
-        this.PlatformCachePartition,
-        this.SharingReason
-        // this.CustomSetting
-        // check if following should be included 
-        // 'CompactLayout', 
-        // 'CustomLabel',  
-        // 'HomePageComponent',
-        // 'CustomSetting 
-    ];
-		
-    protected unsupportedMetadataTypes = [
-        this.ManagedTopic
-    ]; // cannot query listmetadata (error invalid parameter value) with api 46.0
-
-    protected metadataFolders: Array<string> = [];
-
-    protected metadataFoldersLookup: Object = {};
-
-    protected metadataTypeChildren: Array<string> = [];
-
-    // https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/standardvalueset_names.htm
-    protected standardValueSets: Array<string> = [
-        "AccountContactMultiRoles",
-        "AccountContactRole",
-        "AccountOwnership",
-        "AccountRating",
-        "AccountType",
-        "AssetStatus",
-        "CampaignMemberStatus",
-        "CampaignStatus",
-        "CampaignType",
-        "CaseContactRole",
-        "CaseOrigin",
-        "CasePriority",
-        "CaseReason",
-        "CaseStatus",
-        "CaseType",
-        "ContactRole",
-        "ContractContactRole",
-        "ContractStatus",
-        "EntitlementType",
-        "EventSubject",
-        "EventType",
-        "FiscalYearPeriodName",
-        "FiscalYearPeriodPrefix",
-        "FiscalYearQuarterName",
-        "FiscalYearQuarterPrefix",
-        "IdeaCategory1",
-        "IdeaMultiCategory",
-        "IdeaStatus",
-        "IdeaThemeStatus",
-        "Industry",
-        "LeadSource",
-        "LeadStatus",
-        "OpportunityCompetitor",
-        "OpportunityStage",
-        "OpportunityType",
-        "OrderStatus",
-        "OrderType",
-        "PartnerRole",
-        "Product2Family",
-        "QuestionOrigin1",
-        "QuickTextCategory",
-        "QuickTextChannel",
-        "QuoteStatus",
-        "RoleInTerritory2",
-        "SalesTeamRole",
-        "Salutation",
-        "ServiceContractApprovalStatus",
-        "SocialPostClassification",
-        "SocialPostEngagementLevel",
-        "SocialPostReviewedStatus",
-        "SolutionStatus",
-        "TaskPriority",
-        "TaskStatus",
-        "TaskSubject",
-        "TaskType",
-        "WorkOrderLineItemStatus",
-        "WorkOrderPriority",
-        "WorkOrderStatus"
-    ];
 
     // define working folders
-    protected stageOrgAliasDirectoryPath: string = (this.stageRoot + '/' + this.orgAlias);
-    protected retrievePath: string = (this.stageOrgAliasDirectoryPath + '/' + this.retrieveRoot);
-    protected zipFilePath: string = (this.retrievePath + '/' + this.unpackagedZip);
-    protected targetDirectoryUnpackaged: string = (this.retrievePath + '/' + this.unpackagedRoot);
-    protected targetDirectorySource: string = (this.retrievePath + '/' + this.srcFolder);
-    protected manifestDirectory: string = (this.stageOrgAliasDirectoryPath + '/' + this.manifest);
-    protected filePackageXmlPath = (this.manifestDirectory + '/' + this.packageXml);
+    protected stageOrgAliasDirectoryPath: string = (Common.stageRoot + Common.PATH_SEP + this.orgAlias);
+    protected retrievePath: string = (this.stageOrgAliasDirectoryPath + Common.PATH_SEP + Common.retrieveRoot);
+    protected zipFilePath: string = (this.retrievePath + Common.PATH_SEP + MdapiConfig.unpackagedZip);
+    protected targetDirectoryUnpackaged: string = (this.retrievePath + Common.PATH_SEP + MdapiConfig.unpackagedFolder);
+    protected targetDirectorySource: string = (this.retrievePath + Common.PATH_SEP + MdapiConfig.srcFolder);
+    protected manifestDirectory: string = (this.stageOrgAliasDirectoryPath + Common.PATH_SEP + MdapiConfig.manifestFolder);
+    protected filePackageXmlPath = (this.manifestDirectory + Common.PATH_SEP + MdapiConfig.packageXml);
 
-    protected command(cmd: string): Promise<any> {
+    protected metadataTypes: Array<string> = [];
+    protected retainedMetadataTypes: Array<string> = [];
 
-        return new Promise((resolve, reject) => {
-            exec(cmd, this.bufferOptions, (error: any, stdout: any, stderr: any) => {
-                if (error) {
-                    this.ux.error(stderr);
-                    reject(error);
-                }// end if
-                else {
-                    resolve(stdout);
-                }// end else
-            });
-        });
+    protected metadataObjectLookup: Record<string, MetadataObject> = {};
+    protected metadataObjectMembersLookup: Record<string, Array<FileProperties>> = {};
 
-    }// end method
-
-    protected isUnsupportedMetaType(metaType: string): boolean {
-
-        for (var x: number = 0; x < this.unsupportedMetadataTypes.length; x++) {
-
-            let unsupportedMetadataType: string = this.unsupportedMetadataTypes[x];
-
-            if (unsupportedMetadataType === metaType) {
-                // this.ux.log("excluding unsupported metatype: " + metaType);
-                return true;
-            }// end if
-
-        }// end for
-
-        return false;
-
-    }// end method
-
-    protected describeMetadataChildren(): void {
-
-        this.describeMetadataArray(this.metadataTypeChildren);
-
-    }// end method
-
-    protected describeMetadataFolders(): void {
-
-        this.describeMetadataArray(this.metadataFolders);
-
-    }// end method
+    protected metadataFolders: Array<string> = [];
+    protected metadataTypeChildren: Array<string> = [];
 
     protected describeMetadataArray(metaTypeNameArray: Array<string>) {
 
         for (var x: number = 0; x < metaTypeNameArray.length; x++) {
 
             let metaTypeName: string = metaTypeNameArray[x];
+            this.metadataTypes.push(metaTypeName);
+            this.metadataObjectMembersLookup[metaTypeName] = [];
 
-            if (this.metadataObjectsLookup[metaTypeName] === undefined) {
-                this.metadataObjectsLookup[metaTypeName] = [];
-            }// end if
-
-            if (this.metadataObjectsListMap[metaTypeName] === undefined) {
-                this.metadataObjectsListMap[metaTypeName] = [];
-            }// end if
-
-            this.sortedMetadataTypes.push(metaTypeName);
-
-            this.metadataObjectsLookup[metaTypeName].push({
-                directoryName: null,
-                inFolder: false,
-                metaFile: false,
-                suffix: null,
-                xmlName: metaTypeName
-            });
+            this.metadataObjectLookup[metaTypeName] = (<MetadataObject>
+                {
+                    directoryName: null,
+                    inFolder: false,
+                    metaFile: false,
+                    suffix: null,
+                    xmlName: metaTypeName,
+                    childXmlNames: null
+                });
         }// end for
 
     }// end method
@@ -284,46 +97,35 @@ export class MdapiRetrieveUtility {
 
                 let metadataObjects: Array<MetadataObject> = result.metadataObjects;
 
-                for (var x = 0; x < metadataObjects.length; x++) {
+                for (var x: number = 0; x < metadataObjects.length; x++) {
 
                     let metadataObject: MetadataObject = metadataObjects[x];
                     let metaTypeName: string = metadataObject.xmlName;
 
-                    if (this.isUnsupportedMetaType(metaTypeName)) { continue; }
+                    if (MdapiConfig.isUnsupportedMetaType(metaTypeName)) { continue; }
 
-                    if (this.ignoreStaticResources && (metaTypeName === this.StaticResource)) {
-                        // this.ux.log('excluding static resources'); 
+                    if (this.ignoreStaticResources && (metaTypeName === MdapiConfig.StaticResource)) {
                         continue;
                     }// end if
 
                     if (this.ignoreFolders && metadataObject.inFolder) {
-                        // this.ux.log('excluding folder ' + metaTypeName); 
                         continue;
                     }// end if
 
-                    if (this.metadataObjectsLookup[metaTypeName] === undefined) {
-                        this.metadataObjectsLookup[metaTypeName] = [];
-                    }// end if
-
-                    if (this.metadataObjectsListMap[metaTypeName] === undefined) {
-                        this.metadataObjectsListMap[metaTypeName] = [];
-                    }// end if
-
-                    this.sortedMetadataTypes.push(metaTypeName);
-                    this.metadataObjectsLookup[metaTypeName].push(metadataObject);
+                    this.metadataTypes.push(metaTypeName);
+                    this.metadataObjectMembersLookup[metaTypeName] = [];
+                    this.metadataObjectLookup[metaTypeName] = metadataObject;
 
                     if (metadataObject.inFolder) {
-                        let metaTypeFolderName = (metaTypeName + this.Folder);
-                        if (metaTypeName === this.EmailTemplate) { metaTypeFolderName = (this.Email + this.Folder); } // exception
-                        this.metadataFolders.push(metaTypeFolderName);
-                        this.metadataFoldersLookup[metaTypeName] = metaTypeFolderName;
+                        let metaTypeFolderName: string = MdapiConfig.metadataTypeFolderLookup[metaTypeName];
+                        this.metadataFolders.push(metaTypeFolderName); // e.g. ReportFolder
                     }// end if
 
                     if (metadataObject.childXmlNames && (metadataObject.childXmlNames instanceof Array)) {
 
-                        for (var y = 0; y < metadataObject.childXmlNames.length; y++) {
+                        for (var y: number = 0; y < metadataObject.childXmlNames.length; y++) {
                             let childXmlName = metadataObject.childXmlNames[y];
-                            if (this.isUnsupportedMetaType(childXmlName)) { continue; }
+                            if (MdapiConfig.isUnsupportedMetaType(childXmlName)) { continue; }
                             this.metadataTypeChildren.push(childXmlName);
                         }// end for
 
@@ -331,13 +133,13 @@ export class MdapiRetrieveUtility {
 
                 }// end for
 
-                this.describeMetadataFolders();
+                this.describeMetadataArray(this.metadataFolders);
 
-                this.describeMetadataChildren();
+                this.describeMetadataArray(this.metadataTypeChildren);
 
-                this.sortedMetadataTypes.sort();
+                this.metadataTypes.sort();
 
-                resolve(this.metadataObjectsLookup);
+                resolve();
 
             }, (error: any) => {
                 reject(error);
@@ -374,17 +176,15 @@ export class MdapiRetrieveUtility {
 
     }// end method 
 
-    protected checkIgnoreHidden(metaItem: FileProperties): boolean {
-
-        // if (metaItem.type === this.ApexClass) { console.log(metaItem); }
+    protected checkIgnoreHiddenOrNonEditable(metaItem: FileProperties): boolean {
 
         if (!this.ignoreHidden) {
             return false;
         }// end if
         else if (metaItem.manageableState &&
             (metaItem.manageableState === 'installed')) {
-            for (var x: number = 0; x < this.hiddenOrNonEditableInstalledMetaTypes.length; x++) {
-                let hiddenMetaType: string = this.hiddenOrNonEditableInstalledMetaTypes[x];
+            for (var x: number = 0; x < MdapiConfig.hiddenOrNonEditableInstalledMetaTypes.length; x++) {
+                let hiddenMetaType: string = MdapiConfig.hiddenOrNonEditableInstalledMetaTypes[x];
                 if (hiddenMetaType === metaItem.type) {
                     return true;
                 }// end if
@@ -398,8 +198,8 @@ export class MdapiRetrieveUtility {
 
         return new Promise((resolve, reject) => {
 
-            let folderType: string = this.metadataFoldersLookup[metaType];
-            let folderArray: Array<string> = this.metadataObjectsListMap[folderType];
+            let folderType: string = MdapiConfig.metadataTypeFolderLookup[metaType];
+            let folderArray: Array<FileProperties> = this.metadataObjectMembersLookup[folderType];
 
             let counter: number = 0;
 
@@ -411,17 +211,19 @@ export class MdapiRetrieveUtility {
 
             for (var x: number = 0; x < folderArray.length; x++) {
 
-                let folder: string = folderArray[x];
+                let folderName: string = folderArray[x].fullName;
 
                 var params = <Params>{
                     "metaType": metaType,
-                    "folder": folder
+                    "folder": folderName
                 };
 
                 batchCtrl.counter = ++counter;
 
                 // inject the folder before
-                this.metadataObjectsListMap[metaType].push(folder);
+                this.metadataObjectMembersLookup[metaType].push(
+                    folderArray[x]
+                );
                 this.queryListMetadata(params, batchCtrl);
 
             }// end for
@@ -432,8 +234,23 @@ export class MdapiRetrieveUtility {
 
     protected setStandardValueSets(): void {
 
-        for (var x: number = 0; x < this.standardValueSets.length; x++) {
-            this.metadataObjectsListMap[this.StandardValueSet].push(this.standardValueSets[x]);
+        for (var x: number = 0; x < MdapiConfig.standardValueSets.length; x++) {
+            this.metadataObjectMembersLookup[MdapiConfig.StandardValueSet].push(
+                (<FileProperties>{
+                    "type": MdapiConfig.StandardValueSet,
+                    "createdById": null,
+                    "createdByName": null,
+                    "createdDate": null,
+                    "fileName": null,
+                    "fullName": MdapiConfig.standardValueSets[x],
+                    "id": null,
+                    "lastModifiedById": null,
+                    "lastModifiedByName": null,
+                    "lastModifiedDate": null,
+                    "manageableState": null,
+                    "namespacePrefix": null,
+                })
+            );
         }// end for
 
     }// end function
@@ -442,14 +259,14 @@ export class MdapiRetrieveUtility {
 
         let found: boolean = false;
         for (var x: number = 0; x < this.retainedMetadataTypes.length; x++) {
-            if (this.retainedMetadataTypes[x] === this.Settings) {
+            if (this.retainedMetadataTypes[x] === MdapiConfig.Settings) {
                 this.retainedMetadataTypes.splice(x, 1);
                 found = true;
                 break;
             }// end if
         }// end if
         if (found) {
-            this.retainedMetadataTypes.push(this.Settings);
+            this.retainedMetadataTypes.push(MdapiConfig.Settings);
         }// end if
 
     }// end method
@@ -460,11 +277,29 @@ export class MdapiRetrieveUtility {
 
             this.org.getConnection().query("SELECT DeveloperName, SobjectType, IsPersonType FROM RecordType " +
                 " WHERE SobjectType = 'Account' AND IsPersonType = true").then((result: QueryResult<any>) => {
+
                     if (result.records) {
                         for (var x: number = 0; x < result.records.length; x++) {
+
                             let record: Object = result.records[x];
-                            let personRecordType: string = (this.PersonAccount + '.' + record["DeveloperName"]);
-                            this.metadataObjectsListMap[this.RecordType].push(personRecordType);
+                            let personRecordType: string = (MdapiConfig.PersonAccount + '.' + record["DeveloperName"]);
+
+                            this.metadataObjectMembersLookup[MdapiConfig.RecordType].push(
+                                (<FileProperties>{
+                                    "type": MdapiConfig.RecordType,
+                                    "createdById": null,
+                                    "createdByName": null,
+                                    "createdDate": null,
+                                    "fileName": null,
+                                    "fullName": personRecordType,
+                                    "id": null,
+                                    "lastModifiedById": null,
+                                    "lastModifiedByName": null,
+                                    "lastModifiedDate": null,
+                                    "manageableState": null,
+                                    "namespacePrefix": null,
+                                })
+                            );
                         }// end for
                     }// end if
                     resolve();
@@ -489,28 +324,25 @@ export class MdapiRetrieveUtility {
 
             let metaType: string = this.retainedMetadataTypes[x];
 
-            if (this.metadataObjectsListMap[metaType].length === 0) {
-                continue;
-            }// end if
+            if (this.metadataObjectMembersLookup[metaType].length === 0) { continue; }
 
-            let metaItems: Array<string> = this.metadataObjectsListMap[metaType];
-            let uniqueMetaItems: Array<string> = [...new Set(metaItems)];
+            let metaItems: Array<FileProperties> = this.metadataObjectMembersLookup[metaType];
 
-            uniqueMetaItems.sort();
+            let sortedMembers: Array<string> = MdapiConfig.toSortedMembers(metaItems);
 
-            xmlContent += (this.TWO_SPACE + '<types>\n');
+            xmlContent += (Common.TWO_SPACE + '<types>\n');
 
-            for (var y: number = 0; y < uniqueMetaItems.length; y++) {
-                let item: string = uniqueMetaItems[y];
-                xmlContent += (this.FOUR_SPACE + '<members>' + item + '</members>\n');
+            for (var y: number = 0; y < sortedMembers.length; y++) {
+                let item: string = sortedMembers[y];
+                xmlContent += (Common.FOUR_SPACE + '<members>' + item + '</members>\n');
             }// end for
 
-            xmlContent += (this.FOUR_SPACE + '<name>' + metaType + '</name>\n');
-            xmlContent += (this.TWO_SPACE + '</types>\n');
+            xmlContent += (Common.FOUR_SPACE + '<name>' + metaType + '</name>\n');
+            xmlContent += (Common.TWO_SPACE + '</types>\n');
 
         }// end for
 
-        xmlContent += (this.TWO_SPACE + '<version>' + this.apiVersion + '</version>\n');
+        xmlContent += (Common.TWO_SPACE + '<version>' + this.apiVersion + '</version>\n');
         xmlContent += '</Package>\n';
 
         writeFileSync(packageFile, xmlContent);
@@ -524,10 +356,10 @@ export class MdapiRetrieveUtility {
         let iso: string = new Date().toISOString();
         iso = iso.replace(/:/g, '-').split('.')[0];
 
-        let backupFolder: string = (this.backupRoot + '/' + this.orgAlias); // e.g. backup/DevOrg
-        let backupOrgFolder: string = (backupFolder + '/' + iso); // e.g. backup/DevOrg/2000-00-00T11-11-11
-        let backupProjectFile: string = (backupOrgFolder + '/' + this.unpackagedZip);
-        let sourceProjectFile: string = (this.retrievePath + '/' + this.unpackagedZip);
+        let backupFolder: string = (Common.backupRoot + Common.PATH_SEP + this.orgAlias); // e.g. backup/DevOrg
+        let backupOrgFolder: string = (backupFolder + Common.PATH_SEP + iso); // e.g. backup/DevOrg/2000-00-00T11-11-11
+        let backupProjectFile: string = (backupOrgFolder + Common.PATH_SEP + MdapiConfig.unpackagedZip);
+        let sourceProjectFile: string = (this.retrievePath + Common.PATH_SEP + MdapiConfig.unpackagedZip);
 
         if (this.ignoreBackup) {
             this.ux.log('ignoring backup.');
@@ -536,8 +368,8 @@ export class MdapiRetrieveUtility {
             return;
         }// end if
 
-        if (!existsSync(this.backupRoot)) {
-            mkdirSync(this.backupRoot);
+        if (!existsSync(Common.backupRoot)) {
+            mkdirSync(Common.backupRoot);
         }// end if
 
         if (!existsSync(backupFolder)) {
@@ -616,10 +448,10 @@ export class MdapiRetrieveUtility {
 
             mkdirSync(this.retrievePath);
 
-            var retrieveCommand: string = ('sfdx force:mdapi:retrieve -s -k ' + this.filePackageXmlPath + ' -r ' + this.retrievePath + ' -w -1 -u ' + this.orgAlias);
-            this.ux.log('please standby this may take a few minutes ...');
+            var retrieveCommand: string = ('sfdx force:mdapi:retrieve -s -k ' + this.filePackageXmlPath
+                + ' -r ' + this.retrievePath + ' -w -1 -u ' + this.orgAlias);
 
-            this.command(retrieveCommand).then((result: any) => {
+            Common.command(retrieveCommand).then((result: any) => {
 
                 this.ux.log(result);
                 resolve();
@@ -646,9 +478,9 @@ export class MdapiRetrieveUtility {
 
     protected init(): void {
 
-        if (!existsSync(this.stageRoot)) {
-            mkdirSync(this.stageRoot);
-            this.ux.log('staging [' + this.stageRoot + '] directory created.');
+        if (!existsSync(Common.stageRoot)) {
+            mkdirSync(Common.stageRoot);
+            this.ux.log('staging [' + Common.stageRoot + '] directory created.');
         }// end if
 
         // check if working directory exists
@@ -714,14 +546,14 @@ export class MdapiRetrieveUtility {
 
                 if (!this.checkIgnoreInstalled(metaItem) &&
                     !this.checkIgnoreNamespaces(metaItem) &&
-                    !this.checkIgnoreHidden(metaItem)) {
-                    this.metadataObjectsListMap[metaType].push(metaItem.fullName);
+                    !this.checkIgnoreHiddenOrNonEditable(metaItem)) {
+                    this.metadataObjectMembersLookup[metaType].push(metaItem);
                 }// end if
 
             }// end for
 
             if (--batchCtrl.counter <= 0) {
-                batchCtrl.resolve(this.metadataObjectsListMap);
+                batchCtrl.resolve();
             }// end if
 
         }, (error: any) => {
@@ -744,11 +576,11 @@ export class MdapiRetrieveUtility {
 
             for (var x: number = 0; x < this.MetadataListBatchSize; x++) {
 
-                let metaType: string = this.sortedMetadataTypes.pop();
+                let metaType: string = this.metadataTypes.pop();
 
                 if ((metaType === undefined) || (metaType === null)) {
                     if (batchCtrl.counter <= 0) {
-                        resolve(this.metadataObjectsListMap);
+                        resolve(this.metadataObjectMembersLookup);
                         return;
                     } else { continue; }
                 }// end if
@@ -771,7 +603,7 @@ export class MdapiRetrieveUtility {
 
     protected async listMetadata(): Promise<any> {
 
-        while (this.sortedMetadataTypes.length > 0) {
+        while (this.metadataTypes.length > 0) {
             await this.listMetadataBatch();
         }// end while
 
@@ -780,10 +612,10 @@ export class MdapiRetrieveUtility {
     protected async listMetadataFolders(): Promise<void> {
 
         if (!this.ignoreFolders) {
-            await this.listMetadataFolderBatch(this.Dashboard);
-            await this.listMetadataFolderBatch(this.Document);
-            await this.listMetadataFolderBatch(this.EmailTemplate);
-            await this.listMetadataFolderBatch(this.Report);
+            await this.listMetadataFolderBatch(MdapiConfig.Dashboard);
+            await this.listMetadataFolderBatch(MdapiConfig.Document);
+            await this.listMetadataFolderBatch(MdapiConfig.EmailTemplate);
+            await this.listMetadataFolderBatch(MdapiConfig.Report);
         }// end if
 
     }// end method
@@ -792,9 +624,9 @@ export class MdapiRetrieveUtility {
 
         if (this.devMode) {
 
-            copySync(this.filePackageXmlPath, this.packageXml);
+            copySync(this.filePackageXmlPath, MdapiConfig.packageXml);
 
-            this.ux.log('copied ' + this.packageXml);
+            this.ux.log('copied ' + MdapiConfig.packageXml);
 
         }// end if
 
@@ -804,25 +636,25 @@ export class MdapiRetrieveUtility {
 
         if (this.devMode) {
 
-            if (existsSync(this.srcFolder)) {
-                removeSync(this.srcFolder);
+            if (existsSync(MdapiConfig.srcFolder)) {
+                removeSync(MdapiConfig.srcFolder);
             }// end if
 
-            mkdirSync(this.srcFolder);
+            mkdirSync(MdapiConfig.srcFolder);
 
-            copySync(this.targetDirectorySource, this.srcFolder);
-            this.ux.log('copied ' + this.srcFolder);
+            copySync(this.targetDirectorySource, MdapiConfig.srcFolder);
+            this.ux.log('copied ' + MdapiConfig.srcFolder);
 
-            if (existsSync(this.stageRoot)) {
-                removeSync(this.stageRoot);
-                this.ux.log('deleted ' + this.stageRoot);
+            if (existsSync(Common.stageRoot)) {
+                removeSync(Common.stageRoot);
+                this.ux.log('deleted ' + Common.stageRoot);
             }// end if
 
-            removeSync(this.stageRoot);
+            removeSync(Common.stageRoot);
 
-            if (existsSync(this.backupRoot)) {
-                removeSync(this.backupRoot);
-                this.ux.log('deleted ' + this.backupRoot);
+            if (existsSync(Common.backupRoot)) {
+                removeSync(Common.backupRoot);
+                this.ux.log('deleted ' + Common.backupRoot);
             }// end if
 
         }// end if
