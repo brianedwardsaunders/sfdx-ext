@@ -73,8 +73,7 @@ export default class Retrieve extends SfdxCommand {
     this.ux.log("ignorefolders         : " + ignorefolders);
     this.ux.log("ignorestaticresources : " + ignorestaticresources);
     this.ux.log("manifestonly          : " + manifestonly);
-    this.ux.log("stagemode             : " + stagemode);
-    this.ux.log("devmode               : " + devmode);
+    this.ux.log("retrievemode          : " + (devmode ? 'dev': 'stage'));
     this.ux.log("-----------------------------");
 
     let util = new MdapiRetrieveUtility(

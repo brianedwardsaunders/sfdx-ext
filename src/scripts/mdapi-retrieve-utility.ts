@@ -69,6 +69,8 @@ export class MdapiRetrieveUtility {
     protected metadataObjectsListMap: Object = {};
 
     protected StaticResource: string = 'StaticResource';
+    protected PermissionSet: string = 'PermissionSet';
+    protected FlexiPage: string = 'FlexiPage';
     protected StandardValueSet: string = 'StandardValueSet';
     protected Settings: string = 'Settings';
     protected RecordType: string = 'RecordType';
@@ -88,15 +90,39 @@ export class MdapiRetrieveUtility {
     protected ApexTrigger: string = 'ApexTrigger';
     protected LightningComponentBundle: string = 'LightningComponentBundle';
     protected AuraDefinitionBundle: string = 'AuraDefinitionBundle';
+    protected Translation: string = 'Translation';
+    protected CustomPermission: string = 'CustomPermission';
+    protected CustomLabel: string = 'CustomLabel';
+    protected SharingReason: string = 'SharingReason';
+    protected CompactLayout: string = 'CompactLayout';
+    protected PlatformCachePartition: string = 'PlatformCachePartition';
 
-    protected hiddenManagedMetaTypes = [
+    // non-editable managed
+    // https://developer.salesforce.com/docs/atlas.en-us.packagingGuide.meta/packagingGuide/packaging_component_attributes.htm
+    protected hiddenOrNonEditableInstalledMetaTypes = [
+        // following are (hidden) if managed
         this.ApexClass,
         this.ApexComponent,
         this.ApexPage,
         this.ApexTrigger,
         this.AuraDefinitionBundle,
-        this.LightningComponentBundle];
-
+        this.LightningComponentBundle,
+        // following are visible but not editable
+        this.StaticResource,
+        this.PermissionSet,
+        this.FlexiPage,
+        this.Translation,
+        this.CustomPermission,
+        this.PlatformCachePartition,
+        this.SharingReason
+        // this.CustomSetting
+        // check if following should be included 
+        // 'CompactLayout', 
+        // 'CustomLabel',  
+        // 'HomePageComponent',
+        // 'CustomSetting 
+    ];
+		
     protected unsupportedMetadataTypes = [
         this.ManagedTopic
     ]; // cannot query listmetadata (error invalid parameter value) with api 46.0
@@ -357,8 +383,8 @@ export class MdapiRetrieveUtility {
         }// end if
         else if (metaItem.manageableState &&
             (metaItem.manageableState === 'installed')) {
-            for (var x: number = 0; x < this.hiddenManagedMetaTypes.length; x++) {
-                let hiddenMetaType: string = this.hiddenManagedMetaTypes[x];
+            for (var x: number = 0; x < this.hiddenOrNonEditableInstalledMetaTypes.length; x++) {
+                let hiddenMetaType: string = this.hiddenOrNonEditableInstalledMetaTypes[x];
                 if (hiddenMetaType === metaItem.type) {
                     return true;
                 }// end if
