@@ -59,22 +59,8 @@ export class MdapiRetrieveUtility {
     protected manifestDirectory: string = (this.stageOrgAliasDirectoryPath + MdapiCommon.PATH_SEP + MdapiConfig.manifestFolder);
     protected filePackageXmlPath = (this.manifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
 
-    protected config: IConfig = (<IConfig>{
-        metadataTypes: [],
-        metadataFolders: [],
-        metadataTypeChildren: [],
-        metadataObjectLookup: {},
-        metadataObjectMembersLookup: {},
-    });
-
-    protected settings: ISettings = (<ISettings>{
-        ignoreHiddenOrNonEditable: this.ignoreHiddenOrNonEditable,
-        ignoreInstalled: this.ignoreInstalled,
-        ignoreNamespaces: this.ignoreNamespaces,
-        ignoreStaticResources: this.ignoreStaticResources,
-        ignoreFolders: this.ignoreFolders,
-        apiVersion: this.apiVersion
-    });
+    protected config: IConfig;
+    protected settings: ISettings;
 
     protected transientMetadataTypes: Array<string> = [];
 
@@ -281,6 +267,17 @@ export class MdapiRetrieveUtility {
 
     protected init(): void {
 
+        // setup config and setting properties
+        this.config = MdapiConfig.createConfig();
+        this.settings = MdapiConfig.createSettings();
+
+        this.settings.ignoreHiddenOrNonEditable = this.ignoreHiddenOrNonEditable;
+        this.settings.ignoreInstalled = this.ignoreInstalled;
+        this.settings.ignoreNamespaces = this.ignoreNamespaces;
+        this.settings.ignoreStaticResources = this.ignoreStaticResources;
+        this.settings.ignoreFolders = this.ignoreFolders;
+        this.settings.apiVersion = this.apiVersion;
+
         if (!existsSync(MdapiCommon.stageRoot)) {
             mkdirSync(MdapiCommon.stageRoot);
             this.ux.log('staging [' + MdapiCommon.stageRoot + '] directory created.');
@@ -338,6 +335,12 @@ export class MdapiRetrieveUtility {
 
                 let metaItem: FileProperties = result[x];
 
+                if (metaItem.manageableState === MdapiConfig.deleted ||
+                    metaItem.manageableState === MdapiConfig.deprecated) {
+                    this.ux.log('ignoring [' + metaType + '] ' + metaItem.manageableState + ' item ' + metaItem.fullName);
+                    continue;
+                }// end if
+
                 if (!MdapiConfig.ignoreInstalled(this.settings, metaItem) &&
                     !MdapiConfig.ignoreNamespaces(this.settings, metaItem) &&
                     !MdapiConfig.ignoreHiddenOrNonEditable(this.settings, metaItem)) {
@@ -372,7 +375,7 @@ export class MdapiRetrieveUtility {
 
                 let metaType: string = this.transientMetadataTypes.pop();
 
-                if ((metaType === undefined) || (metaType === null)) {
+                if (!metaType) {
                     if (batchCtrl.counter <= 0) {
                         resolve();
                         return;
@@ -508,7 +511,8 @@ export class MdapiRetrieveUtility {
             this.ux.startSpinner('finalising');
             this.checkStageOrDevModeFiles();
             this.ux.stopSpinner();
-        }
+
+        }// end client
 
     }// end process
 

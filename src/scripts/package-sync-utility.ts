@@ -178,7 +178,10 @@ export class PackageSyncUtility {
                     this.rightPackageList = jsonObject["result"];
 
                     this.comparePackageList();
-                    this.ux.log(JSON.stringify(this.diffPackageList));
+                    if (this.diffPackageList.length > 0) {
+                        this.ux.logJson(this.diffPackageList);
+                    }// end if
+                    this.ux.log('(' + this.diffPackageList.length + ') installed package version difference(s) found.');
 
                     // syncPackages
                     this.ux.startSpinner('syncPackages');

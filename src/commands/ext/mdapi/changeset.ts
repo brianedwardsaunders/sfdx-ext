@@ -36,7 +36,7 @@ export default class Changeset extends SfdxCommand {
 
   public async run(): Promise<any> {
 
-    let defaultApiVersion: string = '46.0';
+    let defaultApiVersion: string = await this.org.retrieveMaxApiVersion();
     let ignorecomments: boolean = this.flags.ignorecomments || false;
     let sourceusername: string = this.flags.sourceusername;
     let targetusername: string = this.flags.targetusername;
@@ -57,13 +57,14 @@ export default class Changeset extends SfdxCommand {
 
     let util = new MdapiChangesetUtility(
       this.org,
+      this.ux,
       sourceusername,
       targetusername,
       apiversion,
       ignorecomments);
 
     util.process().then(() => {
-      this.ux.log('success');
+      this.ux.log('success.');
       return { "status": 'success' };
     }, (error: any) => {
       this.ux.error(error);
