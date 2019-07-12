@@ -34,6 +34,7 @@ export interface DiffRecord {
     filePath: string;
     fileHash: number; // only hash as contents is large
     directory: string; // sfdx directory e.g. triggers
+    folderXml: boolean;
     metadataName: string;
     metadataObject: MetadataObject;
     fileSize: number;
@@ -58,71 +59,12 @@ export class MdapiChangesetUtility {
     protected deploymentFilePackageXml: string;
     protected fileDestructiveChangesXml: string;
 
-    /* protected objectChildMetaDirectories = [
-        this.fields,
-        this.indexes,
-        this.businessProcesses,
-        this.recordTypes,
-        this.compactLayouts,
-        this.webLinks,
-        this.validationRules,
-        this.sharingReasons,
-        this.listViews,
-        this.fieldSets
-    ];
-
-    protected objectChildMetaTypes = [
-        this.CustomField,
-        this.Index,
-        this.BusinessProcess,
-        this.RecordType,
-        this.CompactLayout,
-        this.WebLink,
-        this.ValidationRule,
-        this.SharingReason,
-        this.ListView,
-        this.FieldSet
-    ];
-
-    protected childMetaTypesLookup = {
-        "fields": this.CustomField,
-        "indexes": this.Index,
-        "businessProcesses": this.BusinessProcess,
-        "recordTypes": this.RecordType,
-        "compactLayouts": this.CompactLayout,
-        "webLinks": this.WebLink,
-        "validationRules": this.ValidationRule,
-        "sharingReasons": this.SharingReason,
-        "listViews": this.ListView,
-        "fieldSets": this.FieldSet
-    };
-
-    protected metaDefinitions: Array<MetadataObject> = [];
-    protected metaTypeLookupFromSfdxFolder: Object = {};
-    protected metaTypes: Array<string> = [];
-
-  
-
-    /* protected metadataFoldersLookup: Object = {
-        "Dashboard": this.DashboardFolder,
-        "Document": this.DocumentFolder,
-        "EmailTemplate": this.EmailFolder,
-        "Report": this.ReportFolder
-    };
-
-    protected metadataFolders: Array<string> = [
-        this.DashboardFolder,
-        this.DocumentFolder,
-        this.EmailFolder,
-        this.ReportFolder
-    ]; */
-
     protected leftFilePathDiffRecordRegister: Record<string, DiffRecord> = {}; // e.g. {UniqueFilePath: <DiffRecord>{}}
     protected rightFilePathDiffRecordRegister: Record<string, DiffRecord> = {};
 
     protected packageDiffRecords: Record<string, Array<DiffRecord>> = {};
     protected packageMatchResults: Record<string, Array<DiffRecord>> = {};
-    //protected packageCombinedResults: Record<string, Array<DiffRecord>> = {};
+    protected packageCombinedResults: Record<string, Array<DiffRecord>> = {}; // needed for recon
 
     protected destructiveDiffRecords: Record<string, Array<DiffRecord>> = {};
     protected destructiveIgnoreResults: Record<string, Array<DiffRecord>> = {};
@@ -258,8 +200,8 @@ export class MdapiChangesetUtility {
     constructor(
         protected org: Org,
         protected ux: UX,
-        protected sourceOrgAlias: string, // left
-        protected targetOrgAlias: string, // right
+        protected sourceOrgAlias: string, // left (source)
+        protected targetOrgAlias: string, // right (target)
         protected apiVersion: string,
         protected ignoreComments: boolean) {
         // noop
@@ -341,7 +283,7 @@ export class MdapiChangesetUtility {
             if (this.destructiveExceptions[0] === "*") { // all
                 exception = true;
             } else {
-                for (var x: number = 0; x < excludeElements.length; x++) {
+                for (let x: number = 0; x < excludeElements.length; x++) {
                     if (element === excludeElements[x]) {
                         exception = true;
                         break;
@@ -362,10 +304,10 @@ export class MdapiChangesetUtility {
         return false;
     }// end method
 
-    protected initDiffRecords(DiffRecords: Object): void {
+    protected initDiffRecords(diffRecords: Object): void {
 
         this.config.metadataTypes.forEach(metaTypeKey => {
-            DiffRecords[metaTypeKey] = [];
+            diffRecords[metaTypeKey] = [];
         });// end for
 
     }// end method
@@ -379,7 +321,7 @@ export class MdapiChangesetUtility {
         //package
         this.initDiffRecords(this.packageDiffRecords);
         this.initDiffRecords(this.packageMatchResults);
-        //this.initDiffRecords(this.packageCombinedResults);
+        this.initDiffRecords(this.packageCombinedResults);
 
         //destructive
         this.initDiffRecords(this.destructiveDiffRecords);
@@ -394,6 +336,7 @@ export class MdapiChangesetUtility {
         let fileName: string = MdapiCommon.isolateLeafNode(filePath); // Account.meta-object.xml
         let memberName: string = MdapiConfig.isolateMetadataObjectName(fileName); //Account
         let anchorName: string = MdapiCommon.BLANK; // ''
+        let folderXml: boolean = false;
 
         // don't process top level directories (from excluded list)
         if (MdapiConfig.isExcludedDirectory(directory) || MdapiConfig.isExcludedFile(fileName)) {
@@ -402,7 +345,8 @@ export class MdapiChangesetUtility {
         }// end if
 
         let metadataObject: MetadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(instance.config, directory, fileName);
-        // if (metadataObject && metadataObject.inFolder) { fileName = instance.removeFolderExtension(fileName); }
+
+        if (MdapiConfig.isFolderDirectory(directory)) { folderXml = true; } // required to exclude from descructive changes
 
         // check for unresolve type
         if (!metadataObject) { // if null attempt to resolve
@@ -432,17 +376,15 @@ export class MdapiChangesetUtility {
         let relativeFilePath: string = (directory + MdapiCommon.PATH_SEP + fileName);
 
         // saftey check
-        if ((!fileName) || (!directory) || (!metadataObject)
-        ) {
+        if ((!fileName) || (!directory) || (!metadataObject)) {
             instance.ux.error('Unexpected unresolved metaobject - key: ', memberKey +
                 ' (fileName: ' + fileName + ') directory: (' + directory + '), ' +
                 ' parentDirectory: ' + parentDirectory + ', metadataObject: ' + metadataObject);
-
             throw 'unresolved metadataObject';
         }// end if
 
-        const fileContents: string = readFileSync(filePath, MdapiCommon.UTF8);
-        const stats: Stats = statSync(filePath);
+        let fileContents: string = readFileSync(filePath, MdapiCommon.UTF8);
+        let stats: Stats = statSync(filePath);
 
         let DiffRecord: DiffRecord = (<DiffRecord>{
             "memberKey": memberKey,
@@ -450,6 +392,7 @@ export class MdapiChangesetUtility {
             "filePath": filePath,
             "fileHash": MdapiCommon.hashCode(fileContents), // only hash as contents is large
             "directory": directory, // sfdx directory e.g. triggers
+            "folderXml": folderXml,
             "metadataName": metadataObject.xmlName,
             "metadataObject": metadataObject,
             "fileSize": stats.size,
@@ -467,7 +410,7 @@ export class MdapiChangesetUtility {
 
         let fileItems: Array<string> = readdirSync(dir);
 
-        for (var x: number = 0; x < fileItems.length; x++) {
+        for (let x: number = 0; x < fileItems.length; x++) {
 
             let fileItem: string = fileItems[x];
             let dirPath: string = path.join(dir, fileItem);
@@ -514,374 +457,268 @@ export class MdapiChangesetUtility {
     }// end method
 
     // children only present on one side so no compare needed but do list
-    protected processEdgeChildren(item: DiffRecord): void {
+    protected compareEdgeChildren(item: DiffRecord): void {
 
         let childMetaObject: Object = MdapiCommon.xmlFileToJson(item.filePath);
-
         let childXmlNames: Array<string> = item.metadataObject.childXmlNames;
 
-        for (var x: number = 0; x < childXmlNames.length; x++) {
+        for (let x: number = 0; x < childXmlNames.length; x++) {
 
             let childMetaName: string = childXmlNames[x];
             if (MdapiConfig.isUnsupportedMetaType(childMetaName)) { continue; }
 
-            let childMetaDirectories: Array<MetadataObject> = this.config.metadataDirectoryLookup[childMetaName];
-            if (childMetaDirectories.length !== 1) {
-                this.ux.warn('unexpected childMetaDirectory length (' + childMetaDirectories.length + ') was expecting 1: ' + childMetaName);
-                throw "unexpected childMetaDirectory length";
-            }// end if
-            let childMetadataObject: MetadataObject = childMetaDirectories[0];
+            let childMetadataObject: MetadataObject = this.config.metadataObjectLookup[childMetaName];
+
             let childDirectoryName: string = MdapiConfig.childMetadataDirectoryLookup[childMetaName];
 
             let parentContents: Object = childMetaObject[item.metadataName];
-
             let children: Array<Object> = this.objectToArray(parentContents[childDirectoryName]);
 
-            for (var y: number = 0; y < children.length; y++) {
+            for (let y: number = 0; y < children.length; y++) {
 
                 let child: Object = children[y];
-                let fullName: string = child[MdapiConfig.fullName]._text;
+                let memberName: string = (item.memberName + MdapiCommon.DOT + child[MdapiConfig.fullName]._text);
+                let memberKey: string = (childDirectoryName + MdapiCommon.PATH_SEP + item.metadataName + MdapiCommon.PATH_SEP + memberName);
+                let childString: string = JSON.stringify(child);
 
+                let diffRecord: DiffRecord = (<DiffRecord>{
+                    "memberKey": memberKey,
+                    "memberName": memberName,
+                    "filePath": (item.filePath + MdapiCommon.PATH_SEP + childMetaName + MdapiCommon.PATH_SEP + memberName),
+                    "fileHash": MdapiCommon.hashCode(childString),
+                    "directory": childDirectoryName,
+                    "folderXml": false,
+                    "metadataName": childMetadataObject.xmlName,
+                    "metadataObject": childMetadataObject,
+                    "fileSize": childString.length,
+                    "diffType": item.diffType,
+                    "diffSize": 0
+                });
+
+                if (item.diffType === DiffType.Left) {
+                    diffRecord.diffSize = childString.length;
+                    this.packageDiffRecords[childMetaName].push(diffRecord);
+                } else if (item.diffType === DiffType.Right) {
+                    diffRecord.diffSize = (-childString.length);
+                    this.destructiveIgnoreResults[childMetaName].push(diffRecord);
+                } else {
+                    throw "unexpected child diff edge event - only allows left or right";
+                }// end else
+                this.packageCombinedResults[childMetaName].push(diffRecord);
             }// end for
-
-
-            // BCBCBC
-
-            /* let DiffRecord: DiffRecord = (<DiffRecord>{
-                "memberKey": memberKey,
-                "memberName": memberName, // e.g. Account
-                "filePath": filePath,
-                "fileHash": MdapiCommon.hashCode(fileContents), // only hash as contents is large
-                "directory": directory, // sfdx directory e.g. triggers
-                "metadataName": metadataObject.xmlName,
-                "metadataObject": metadataObject,
-                "fileSize": stats.size,
-                "diffType": DiffType.None,
-                "diffSize": 0 // init
-            }); */
-
 
         }// end for
 
     }// end method
 
-    /* protected compareChildMetadata(leftItem?: DiffRecord, rightItem?: DiffRecord): void {
+    /**
+     * working with inner file contents
+     * 
+     * @param leftItem 
+     * @param rightItem 
+     */
+    protected compareChildMetadata(leftItem: DiffRecord, rightItem: DiffRecord): void {
 
-        let leftObject: Object = MdapiCommon.xmlFileToJson(leftItem.filePath);
-        let rightObject: Object = MdapiCommon.xmlFileToJson(rightItem.filePath);
+        let leftMetaObject: Object = MdapiCommon.xmlFileToJson(leftItem.filePath);
+        let rightMetaObject: Object = MdapiCommon.xmlFileToJson(rightItem.filePath);
+        let childXmlNames: Array<string> = leftItem.metadataObject.childXmlNames;
 
-        for (var metaIndex: number = 0; metaIndex < this.objectChildMetaDirectories.length; metaIndex++) {
+        for (let x: number = 0; x < childXmlNames.length; x++) {
 
-            let childMetaDirectory: string = this.objectChildMetaDirectories[metaIndex];
+            let parentMetadataName: string = leftItem.metadataName;
+            let childMetaName: string = childXmlNames[x];
+            if (MdapiConfig.isUnsupportedMetaType(childMetaName)) { continue; }
 
-            let leftContents: Object = leftObject[this.CustomObject];
-            let rightContents: Object = rightObject[this.CustomObject];
+            let childMetadataObject: MetadataObject = this.config.metadataObjectLookup[childMetaName];
+            let childDirectoryName: string = MdapiConfig.childMetadataDirectoryLookup[childMetaName];
 
-            let leftChildren: Array<Object> = this.objectToArray(leftContents[childMetaDirectory]);
-            let rightChildren: Array<Object> = this.objectToArray(rightContents[childMetaDirectory]);
+            let leftParentContents: Object = leftMetaObject[parentMetadataName];
+            let rightParentContents: Object = rightMetaObject[parentMetadataName];
+
+            let leftChildren: Array<Object> = this.objectToArray(leftParentContents[childDirectoryName]);
+            let rightChildren: Array<Object> = this.objectToArray(rightParentContents[childDirectoryName]);
 
             // ---------------------
             // compare left to right
             // ---------------------
-            for (var left: number = 0; left < leftChildren.length; left++) {
+            for (let left: number = 0; left < leftChildren.length; left++) {
 
                 let leftChild: Object = leftChildren[left];
-                let leftFullName: string = leftChild[this.fullName]._text;
+                let leftFullName: string = leftChild[MdapiConfig.fullName]._text;
 
-                let leftCheckSum: number = 0;
-                let leftSize: number = 0;
-                let leftString: string = null;
-
+                let rightChild: Object = null;
+                let rightChildString: string = null;
                 let rightCheckSum: number = 0;
-                let rightSize: number = 0;
-                let rightString: string = null;
+                let rightIndex: number = 0;
 
-                let rightPosition: number = 0;
                 let found: boolean = false;
 
-                for (var right: number = 0; right < rightChildren.length; right++) {
+                for (let right: number = 0; right < rightChildren.length; right++) {
 
-                    let rightChild: Object = rightChildren[right];
-
-                    let rightFullName: string = rightChild[this.fullName]._text;
+                    rightChild = rightChildren[right];
+                    let rightFullName: string = rightChild[MdapiConfig.fullName]._text;
 
                     if (leftFullName === rightFullName) {
-                        rightString = JSON.stringify(rightChild);
-                        rightCheckSum = this.hashCode(rightString);
-                        rightSize = rightString.length;
-                        rightPosition = right;
+                        rightChildString = JSON.stringify(rightChild);
+                        rightCheckSum = MdapiCommon.hashCode(rightChildString);
+                        rightIndex = right;
                         found = true;
                         break;
                     }// end if
 
                 }// end for right
 
-                let typeFileName: string = (leftItem.metaName + "." + leftFullName); // convention in package.xml
-                let registerKey: string = (childMetaDirectory + "/" + leftItem.metaName + "/" + typeFileName); // with extension so unique
-                leftString = JSON.stringify(leftChild);
-                leftCheckSum = this.hashCode(leftString);
-                leftSize = leftString.length;
+                let leftMemberName: string = (leftItem.memberName + MdapiCommon.DOT + leftFullName);
+                let leftMemberKey: string = (childDirectoryName + MdapiCommon.PATH_SEP + leftItem.metadataName + MdapiCommon.PATH_SEP + leftMemberName);
+                let leftFilePath: string = (leftItem.filePath + MdapiCommon.PATH_SEP + childMetaName + MdapiCommon.PATH_SEP + leftMemberName);
+                let leftChildString: string = JSON.stringify(leftChild);
+                let leftCheckSum: number = MdapiCommon.hashCode(leftChildString);
 
-                let DiffRecord: DiffRecord = {
-                    "registerKey": registerKey,
-                    "checkKey": registerKey,
-                    "keyAnchor": leftItem.metaName,
-                    "filePath": (leftItem.filePath + '\\' + childMetaDirectory + '\\' + leftFullName), // dummy file name
-                    "parentDirectory": this.objects,
-                    "fileContents": leftCheckSum, // only hash as contents is large
-                    "directory": childMetaDirectory, // directory e.g. objects
-                    "isFolderDefinition": false,
-                    "metaTypeDefinition": null, // todo
-                    "metaType": this.childMetaTypesLookup[childMetaDirectory], // e.g. ApexTrigger
-                    "metaName": typeFileName, // e.g. Account.Name
-                    "diffType": this.DiffTypeUnprocessed,
-                    "lastModified": leftItem.lastModified,
-                    "fileSize": leftSize,
-                    "diffSize": (leftSize - rightSize) // init
-                };
+                let diffRecord: DiffRecord = (<DiffRecord>{
+                    "memberKey": leftMemberKey,
+                    "memberName": leftMemberName,
+                    "filePath": leftFilePath,
+                    "fileHash": leftCheckSum,
+                    "directory": childDirectoryName,
+                    "folderXml": false,
+                    "metadataName": childMetadataObject.xmlName,
+                    "metadataObject": childMetadataObject,
+                    "fileSize": leftChildString.length,
+                    "diffType": DiffType.None,
+                    "diffSize": 0
+                });
 
-                if (DiffRecord.metaType === undefined) {
+                if (!diffRecord.metadataName) {
                     throw "unexpected scenario child metaType is undefined";
                 }// end if
 
-                if (((leftCheckSum === rightCheckSum) && (rightString !== leftString)) ||
-                    ((leftCheckSum !== rightCheckSum) && (rightString === leftString))) {
+                if (((leftCheckSum === rightCheckSum) && (rightChildString !== leftChildString)) ||
+                    ((leftCheckSum !== rightCheckSum) && (rightChildString === leftChildString))) {
                     throw "unexpected scenario checksum failure";
                 }// end if
 
                 if (found && (leftCheckSum === rightCheckSum)) {
-                    DiffRecord.diffType = this.DiffTypeMatch;
                     // no difference so don't migrate delete on both sides (right only in-memory delete)
+                    diffRecord.diffType = DiffType.Match;
+                    diffRecord.diffSize = (leftChildString.length - rightChildString.length);
                     leftChildren.splice(left, 1);
-                    rightChildren.splice(rightPosition, 1);
-                    this.packageMatchResults[DiffRecord.metaType].push(DiffRecord);
-                }// end if
-                else if (found && (leftCheckSum !== rightCheckSum)) {
-                    DiffRecord.diffType = this.DiffTypeDiff;
-                    this.packageDiffRecords[DiffRecord.metaType].push(DiffRecord);
-                } // end else
-                else if (!found) {// new entry on left                    
-                    DiffRecord.diffType = this.DiffTypeLeft;
-                    this.packageDiffRecords[DiffRecord.metaType].push(DiffRecord);
-                }// end if
-                else {
-                    throw "unexpected scenario";
+                    rightChildren.splice(rightIndex, 1);
+                    this.packageMatchResults[diffRecord.metadataName].push(diffRecord);
+
+                } else if (found && (leftCheckSum !== rightCheckSum)) {
+
+                    diffRecord.diffType = DiffType.Diff;
+                    diffRecord.diffSize = (leftChildString.length - rightChildString.length);
+                    this.packageDiffRecords[diffRecord.metadataName].push(diffRecord);
+
+                } else if (!found) {// new entry on left                    
+
+                    diffRecord.diffType = DiffType.Left;
+                    diffRecord.diffSize = leftChildString.length; // maximum
+                    this.packageDiffRecords[diffRecord.metadataName].push(diffRecord);
+
+                } else {
+                    throw "unexpected compare left to right child scenario";
                 }// end else
 
-                this.packageCombinedResults[DiffRecord.metaType].push(DiffRecord);
+                this.packageCombinedResults[diffRecord.metadataName].push(diffRecord);
 
             }// end for left
 
             // ---------------------
             // compare right to left
             // ---------------------
+            for (let right: number = 0; right < rightChildren.length; right++) {
 
-            for (var right: number = 0; right < rightChildren.length; right++) {
-
-                let found: boolean = false;
                 let rightChild: Object = rightChildren[right];
-                let rightFullName: string = rightChild[this.fullName]._text;
-
-                let rightCheckSum: number = 0;
-                let rightSize: number = 0;
-                let rightString: string = null;
+                let rightFullName: string = rightChild[MdapiConfig.fullName]._text;
 
                 let leftCheckSum: number = 0;
-                let leftSize: number = 0;
-                let leftString: string = null;
+                let leftChildString: string = null;
 
-                for (var left: number = 0; left < leftChildren.length; left++) {
+                let found: boolean = false;
+
+                for (let left: number = 0; left < leftChildren.length; left++) {
 
                     let leftChild: Object = leftChildren[left];
-                    let leftFullName: string = leftChild[this.fullName]._text;
+                    let leftFullName: string = leftChild[MdapiConfig.fullName]._text;
 
                     if (rightFullName === leftFullName) {
-                        leftString = JSON.stringify(leftChild);
-                        leftCheckSum = this.hashCode(leftString);
-                        leftSize = leftString.length;
+                        leftChildString = JSON.stringify(rightChild);
+                        leftCheckSum = MdapiCommon.hashCode(leftChildString);
                         found = true;
                         break;
                     }// end if
 
                 }// end for right
 
-                let typeFileName: string = (rightItem.metaName + "." + rightFullName); // convention in package.xml
-                let registerKey: string = (childMetaDirectory + "/" + rightItem.metaName + "/" + typeFileName); // with extension so unique
-                rightString = JSON.stringify(rightChild);
-                rightCheckSum = this.hashCode(rightString);
+                let rightMemberName: string = (rightItem.memberName + MdapiCommon.DOT + rightFullName);
+                let rightMemberKey: string = (childDirectoryName + MdapiCommon.PATH_SEP + rightItem.metadataName + MdapiCommon.PATH_SEP + rightMemberName);
+                let rightFilePath: string = (rightItem.filePath + MdapiCommon.PATH_SEP + childMetaName + MdapiCommon.PATH_SEP + rightMemberName);
+                let rightChildString: string = JSON.stringify(rightChild);
+                let rightCheckSum: number = MdapiCommon.hashCode(rightChildString);
 
-                let DiffRecord: DiffRecord = {
-                    "registerKey": registerKey,
-                    "checkKey": registerKey,
-                    "keyAnchor": rightItem.metaName,
-                    "filePath": (rightItem.filePath + '\\' + childMetaDirectory + '\\' + rightFullName), // dummy file name
-                    "parentDirectory": this.objects,
-                    "fileContents": rightCheckSum, // only hash as content is large
-                    "directory": childMetaDirectory, // directory e.g. fields
-                    "isFolderDefinition": false,
-                    "metaTypeDefinition": null,
-                    "metaType": this.childMetaTypesLookup[childMetaDirectory], // e.g. CustomField
-                    "metaName": typeFileName, // e.g. Account.Name
-                    "diffType": this.DiffTypeUnprocessed,
-                    "lastModified": rightItem.lastModified,
-                    "fileSize": rightSize,
-                    "diffSize": (rightSize - leftSize) // init
-                };
+                let diffRecord: DiffRecord = (<DiffRecord>{
+                    "memberKey": rightMemberKey,
+                    "memberName": rightMemberName,
+                    "filePath": rightFilePath,
+                    "fileHash": leftCheckSum,
+                    "directory": childDirectoryName,
+                    "folderXml": false,
+                    "metadataName": childMetadataObject.xmlName,
+                    "metadataObject": childMetadataObject,
+                    "fileSize": rightChildString.length,
+                    "diffType": DiffType.None, //init
+                    "diffSize": 0
+                });
 
-                if (DiffRecord.metaType === undefined) {
+                if (!diffRecord.metadataName) {
                     throw "unexpected scenario child metaType is undefined";
                 }// end if
 
-                if (((rightCheckSum === leftCheckSum) && (leftString !== rightString)) ||
-                    ((rightCheckSum !== leftCheckSum) && (leftString === rightString))) {
+                if (((rightCheckSum === leftCheckSum) && (leftChildString !== rightChildString)) ||
+                    ((rightCheckSum !== leftCheckSum) && (leftChildString === rightChildString))) {
                     throw "unexpected scenario checksum failure";
                 }// end if
 
-                if (found === false) {
-                    DiffRecord.diffType = DiffType.Right;
-                    this.destructiveDiffRecords[DiffRecord.metaType].push(DiffRecord);
-                }// end if
-                else if (rightCheckSum !== leftCheckSum) {
-                    DiffRecord.diffType = this.DiffTypeDiff; // already in left diff
-                    this.destructiveIgnoreResults[DiffRecord.metaType].push(DiffRecord);
-                }// end else if
-                else {// same unlikely to still exist
-                    DiffRecord.diffType = this.DiffTypeDiff;
-                    this.destructiveMatchResults[DiffRecord.metaType].push(DiffRecord);
+                if (!found) {
+                    diffRecord.diffType = DiffType.Right;
+                    diffRecord.diffSize = (-rightChildString.length);
+                    this.destructiveDiffRecords[diffRecord.metadataName].push(diffRecord);
+                } else if (rightCheckSum !== leftCheckSum) {
+                    diffRecord.diffType = DiffType.Diff; // already in left diff
+                    diffRecord.diffSize = (rightChildString.length - leftChildString.length);
+                    this.destructiveIgnoreResults[diffRecord.metadataName].push(diffRecord);
+                } else {// same unlikely to still exist
+                    diffRecord.diffType = DiffType.Match;
+                    diffRecord.diffSize = (rightChildString.length - leftChildString.length); // should be 0
+                    this.destructiveMatchResults[diffRecord.metadataName].push(diffRecord);
                 }// end else
 
             }// end for right
 
         }// end for
 
-        MdapiCommon.jsonToXmlFile(leftObject, leftItem.filePath);
+        MdapiCommon.jsonToXmlFile(leftMetaObject, leftItem.filePath);
 
     }// end method
 
-    */
-
-    /*
-    // bot version is required for deploy
-    protected injectBotVersion(leftItem: DiffRecord, rightItem?: DiffRecord) {
-
-        let leftObject: Object = MdapiCommon.xmlFileToJson(leftItem.filePath);
-
-        let rightObject: Object;
-
-        if (rightItem) {
-            rightObject = MdapiCommon.xmlFileToJson(rightItem.filePath);
+    protected metadataObjectHasChildren(metadataObject: MetadataObject): boolean {
+        if (metadataObject.childXmlNames &&
+            (metadataObject.childXmlNames.length > 0)) {
+            return true;
         }// end if
-
-        let leftChildren: Array<Object> = this.objectToArray(leftObject[MdapiConfig.Bot].botVersions);
-
-        let leftFullName: string = null;
-        let leftCheckSum: number = 0;
-        let leftSize: number = 0;
-        let leftChanged: boolean = false;
-
-        let rightFullName: string = null;
-        let rightSize: number = 0;
-        let rightChanged: boolean = false;
-
-        for (var left: number = 0; left < leftChildren.length; left++) {
-
-            let leftChild: Object = leftChildren[left];
-            let compareName: string = leftChild[MdapiConfig.fullName]._text;
-
-            if (leftFullName === null) {
-                leftFullName = compareName; // e.g. v1
-                leftChanged = true;
-            }// end if
-            else if (leftFullName.localeCompare(compareName) < 0) {
-                leftFullName = compareName;
-                leftChanged = true;
-            }// end else if
-            // check if change
-            if (leftChanged) {
-                let leftString = JSON.stringify(leftChild);
-                leftCheckSum = MdapiCommon.hashCode(leftString);
-                leftSize = leftString.length;
-                leftChanged = false; // reset
-            }// end if
-
-        }// end for
-
-        if (rightObject) { // if was previous version check right against left for compare info
-
-            let rightChildren: Array<Object> = this.objectToArray(rightObject[MdapiConfig.Bot].botVersions);
-
-            for (var right: number = 0; right < rightChildren.length; right++) {
-
-                let rightChild: Object = rightChildren[right];
-                let compareName: string = rightChild[MdapiConfig.fullName]._text;
-
-                if (rightFullName === null) {
-                    rightFullName = compareName; // e.g. v1
-                    rightChanged = true;
-                }// end if
-                else if (rightFullName.localeCompare(compareName) < 0) {
-                    rightFullName = compareName;
-                    rightChanged = true;
-                }// end else if
-
-                // check if change
-                if (rightChanged) {
-                    let rightString: string = JSON.stringify(rightChild);
-                    rightSize = rightString.length;
-                    rightChanged = false; // reset
-                }// end if
-
-                if (rightFullName === leftFullName) {
-                    break; // found a match to diff size otherwise biggest (old) one 
-                }// end if
-
-            }// end for
-
-        }// end if
-
-        let typeFileName: string = (leftItem.memberName + "." + leftFullName); // convention in package.xml
-        let registerKey: string = (MdapiConfig.botVersions + "/" + leftItem.memberName + "/" + typeFileName); // with extension so unique
-        let diffType: DiffType = (rightItem) ? DiffType.Change : DiffType.Left;
-
-        let DiffRecord: DiffRecord = {
-            "memberKey": registerKey,
-            "memberName": typeFileName,
-            "filePath": (leftItem.filePath + '\\' + MdapiConfig.botVersions + '\\' + leftFullName), // dummy file name
-            "fileHash": leftCheckSum, // only hash as contents is large
-            "directory": this.botVersions, // directory e.g. objects
-            "metaTypeObject": null, // todo
-            "fileStats": stats,
-            "stats": stats,
-            "fileSize": leftSize,
-            "diffSize": (leftSize - rightSize) // init
-        };
-
-        export interface DiffRecord {
-            memberKey: string;
-            memberName: string, // e.g. Account
-            filePath: string;
-            fileHash: number; // only hash as contents is large
-            directory: string; // sfdx directory e.g. triggers
-            metaTypeObject: MetadataObject;
-            fileStats: Stats;
-            diffType: DiffType;
-            diffSize: number; // init
-        };
-
-        this.packageDiffRecords[DiffRecord.metaTypeObject.xmlName].push(DiffRecord);
-        // this.packageCombinedResults[DiffRecord.metaTypeObject.xmlName].push(DiffRecord);
-
+        return false
     }// end method
-    */
 
     protected compareSourceAndTarget(): void {
 
-        console.log('-----------------------------');
-        console.log('COMPARE SOURCE WITH TARGET ');
-        console.log('-----------------------------');
+        this.ux.log('-----------------------------');
+        this.ux.log('COMPARE SOURCE WITH TARGET ');
+        this.ux.log('-----------------------------');
 
         //compare left to right
-        for (var filePath in this.leftFilePathDiffRecordRegister) {
+        for (let filePath in this.leftFilePathDiffRecordRegister) {
 
             let leftItem: DiffRecord = this.leftFilePathDiffRecordRegister[filePath];
             let rightItem: DiffRecord = this.rightFilePathDiffRecordRegister[filePath];
@@ -890,18 +727,16 @@ export class MdapiChangesetUtility {
                 leftItem.diffType = DiffType.Left;
                 leftItem.diffSize = leftItem.fileSize;
                 this.packageDiffRecords[leftItem.metadataName].push(leftItem);
-                if (leftItem.metadataObject.childXmlNames &&
-                    (leftItem.metadataObject.childXmlNames.length > 0)) {
-
+                if (this.metadataObjectHasChildren(leftItem.metadataObject)) {
+                    this.compareEdgeChildren(leftItem);
                 }// end if
             }// end if
             else if (leftItem.fileHash !== rightItem.fileHash) {
                 leftItem.diffType = DiffType.Diff;
                 leftItem.diffSize = (leftItem.fileSize - rightItem.fileSize);
                 this.packageDiffRecords[leftItem.metadataName].push(leftItem);
-                if (leftItem.metadataObject.childXmlNames &&
-                    (leftItem.metadataObject.childXmlNames.length > 0)) {
-
+                if (this.metadataObjectHasChildren(leftItem.metadataObject)) {
+                    this.compareChildMetadata(leftItem, rightItem);
                 }// end if
             }// end if
             else if (leftItem.fileHash === rightItem.fileHash) {
@@ -910,15 +745,16 @@ export class MdapiChangesetUtility {
                 this.packageMatchResults[leftItem.metadataName].push(leftItem);
             }// end else if
 
-            // this.packageCombinedResults[leftItem.metaType].push(leftItem);
+            // for audit / check / recon
+            this.packageCombinedResults[leftItem.metadataName].push(leftItem);
 
         }// end for
 
-        console.log('-----------------------------');
-        console.log('COMPARE TARGET WITH SOURCE ');
-        console.log('-----------------------------');
+        this.ux.log('-----------------------------');
+        this.ux.log('COMPARE TARGET WITH SOURCE ');
+        this.ux.log('-----------------------------');
         //compare right to left
-        for (var filePathKey in this.rightFilePathDiffRecordRegister) {
+        for (let filePathKey in this.rightFilePathDiffRecordRegister) {
 
             let leftItem: DiffRecord = this.leftFilePathDiffRecordRegister[filePathKey];
             let rightItem: DiffRecord = this.rightFilePathDiffRecordRegister[filePathKey];
@@ -927,9 +763,8 @@ export class MdapiChangesetUtility {
                 rightItem.diffType = DiffType.Right; // 
                 rightItem.diffSize = rightItem.fileSize;
                 this.destructiveDiffRecords[rightItem.metadataName].push(rightItem);
-                if (rightItem.metadataObject.childXmlNames &&
-                    (rightItem.metadataObject.childXmlNames.length > 0)) {
-
+                if (this.metadataObjectHasChildren(rightItem.metadataObject)) {
+                    this.compareEdgeChildren(rightItem);
                 }// end if
             }
             else if (rightItem.fileHash !== leftItem.fileHash) {
@@ -952,9 +787,9 @@ export class MdapiChangesetUtility {
     // console.log(destructiveDiffRecords);
     protected sortDiffRecordsTypes(DiffRecords: Record<string, Array<DiffRecord>>): Array<string> {
 
-        var metadataObjectNames: Array<string> = [];
+        let metadataObjectNames: Array<string> = [];
 
-        for (var metadataObjectName in DiffRecords) {
+        for (let metadataObjectName in DiffRecords) {
             metadataObjectNames.push(metadataObjectName);
         }// end for
 
@@ -963,59 +798,53 @@ export class MdapiChangesetUtility {
 
     }// end method
 
-    protected createPackageFile(packageFile: string, DiffRecords: Record<string, Array<DiffRecord>>, changeType: ChangeType): void {
+    protected createPackageFile(packageFile: string, diffRecords: Record<string, Array<DiffRecord>>, changeType: ChangeType): void {
 
-        var xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';
+        let xmlContent: string = '<?xml version="1.0" encoding="UTF-8"?>\n';
         xmlContent += '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
 
-        let metadataObjectNames: Array<string> = this.sortDiffRecordsTypes(DiffRecords);
+        let metadataObjectNames: Array<string> = this.sortDiffRecordsTypes(diffRecords);
 
-        for (var i: number = 0; i < metadataObjectNames.length; i++) {
+        for (let i: number = 0; i < metadataObjectNames.length; i++) {
 
             let metadataObjectName: string = metadataObjectNames[i];
 
-            if (DiffRecords[metadataObjectName].length === 0) {
-                console.log('ignoring metaType: ' + metadataObjectName);
+            if (diffRecords[metadataObjectName].length === 0) {
+                this.ux.log('ignoring no diff metaType: ' + metadataObjectName);
                 continue;
             }// end if
 
-            let rawMembers: Array<DiffRecord> = DiffRecords[metadataObjectName];
+            let rawMembers: Array<DiffRecord> = diffRecords[metadataObjectName];
             let limitedMembers: Array<string> = [];
 
             // create comments
             let comments: string = "<!-- \n";
 
-            for (var x: number = 0; x < rawMembers.length; x++) {
+            for (let x: number = 0; x < rawMembers.length; x++) {
 
-                let DiffRecord: DiffRecord = rawMembers[x];
+                let diffRecord: DiffRecord = rawMembers[x];
 
-                comments += (DiffRecord.diffType + ", " + DiffRecord.directory +
-                    MdapiCommon.PATH_SEP + MdapiCommon.isolateLeafNode(DiffRecord.filePath)
-                    + ", delta-size " + DiffRecord.diffSize + " (bytes)" + ", file-size "
-                    + DiffRecord.fileSize + " (bytes), file-hash [" + DiffRecord.fileHash
-                    + "]. \n");
+                comments += (diffRecord.diffType + ": " + diffRecord.directory +
+                    MdapiCommon.PATH_SEP + MdapiCommon.isolateLeafNode(diffRecord.filePath)
+                    + ", delta-size " + diffRecord.diffSize + " (bytes)" + ", file-size "
+                    + diffRecord.fileSize + " (bytes), file-hash [" + diffRecord.fileHash + "]. \n");
 
-                limitedMembers.push(DiffRecord.memberName);
-
-                /* if (isDestructive && diff.isFolderDefinition) {
-                    let excludeFolderMessage = 'NOTE: Excluding folder type from destructiveChanges ['
-                        + diff.memberName + '], review and delete manually in target org.';
-
-                    console.log(excludeFolderMessage);
+                if ((changeType === ChangeType.DestructiveChanges) && diffRecord.folderXml) {
+                    let excludeFolderMessage: string = 'NOTE: Excluding folder type from destructiveChanges ['
+                        + diffRecord.memberName + '], review and delete manually in target org.';
+                    this.ux.log(excludeFolderMessage);
                     comments += (excludeFolderMessage + '\n');
                 }// end if
                 else {
-                   
-                }// end else */
+                    limitedMembers.push(diffRecord.memberName);
+                }// end else
 
             }//end for
 
             comments += " -->";
 
             // ensure only unique entries
-            var members = [...new Set(limitedMembers)];
-
-            members.sort();
+            let members: Array<string> = [...new Set(limitedMembers)].sort();
 
             if (members.length > 0) {
 
@@ -1026,14 +855,14 @@ export class MdapiChangesetUtility {
                     xmlContent += "<!-- \n";
                     let exceptionMessage = 'NOTE: Excluding meta type from destructiveChanges ['
                         + metadataObjectName + '], review and delete manually in target org.';
-                    console.log(exceptionMessage);
+                    this.ux.log(exceptionMessage);
                     xmlContent += (exceptionMessage + '\n');
                 }// end if
 
                 xmlContent += MdapiCommon.TWO_SPACE + '<types>\n';
                 xmlContent += MdapiCommon.FOUR_SPACE + '<name>' + metadataObjectName + '</name>\n';
 
-                for (var y = 0; y < members.length; y++) {
+                for (let y = 0; y < members.length; y++) {
                     let member = members[y];
                     if (!(member)) {
                         this.ux.error(metadataObjectName + " member unexpected blank")
@@ -1047,7 +876,7 @@ export class MdapiChangesetUtility {
                     else { xmlContent += MdapiCommon.FOUR_SPACE + '<members>' + member + '</members>\n'; }
                 }// end for
 
-                xmlContent += MdapiCommon.TWO_SPACE + '</types>\n';
+                xmlContent += (MdapiCommon.TWO_SPACE + '</types>\n');
 
                 if (isGlobalException) {
                     xmlContent += " -->";
@@ -1055,16 +884,16 @@ export class MdapiChangesetUtility {
 
             }// end if
 
-            if (!this.ignoreComments) { xmlContent += comments + '\n'; }
+            if (!this.ignoreComments) { xmlContent += (comments + '\n'); }
 
         }// end for
 
-        xmlContent += MdapiCommon.TWO_SPACE + '<version>' + this.apiVersion + '</version>\n';
+        xmlContent += (MdapiCommon.TWO_SPACE + '<version>' + this.apiVersion + '</version>\n');
         xmlContent += '</Package>\n';
 
         if (!existsSync(this.sourceDeployDirTarget)) {
             mkdirSync(this.sourceDeployDirTarget);
-            console.info(this.sourceDeployDirTarget + ' directory created.');
+            this.ux.log(this.sourceDeployDirTarget + ' directory created.');
         }// end if
 
         writeFileSync(packageFile, xmlContent);
@@ -1073,43 +902,44 @@ export class MdapiChangesetUtility {
 
     protected createEmptyPackageFile(): void {
 
-        var xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';
+        let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';
         xmlContent += '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
 
-        xmlContent += '  <version>' + this.apiVersion + '</version>\n';
+        xmlContent += (MdapiCommon.TWO_SPACE + '<version>' + this.apiVersion + '</version>\n');
         xmlContent += '</Package>\n';
 
         if (!existsSync(this.sourceDeployDirTarget)) {
             mkdirSync(this.sourceDeployDirTarget);
-            console.info(this.sourceDeployDirTarget + ' directory created.');
+            this.ux.log(this.sourceDeployDirTarget + ' directory created.');
         }
 
         writeFileSync(this.emptyPackageXml, xmlContent);
+
     }// end method
 
     protected createPackageXmls(): void {
 
-        console.log('-----------------------------');
-        console.log('CREATE PACKAGE.XML');
-        console.log('-----------------------------');
+        this.ux.log('-----------------------------');
+        this.ux.log('CREATE PACKAGE.XML');
+        this.ux.log('-----------------------------');
 
         this.createPackageFile(
             this.filePackageXml,
             this.packageDiffRecords,
             ChangeType.Package);
 
-        console.log('-----------------------------');
-        console.log('CREATE DESTRUCTIVECHANGES.XML');
-        console.log('-----------------------------');
+        this.ux.log('-----------------------------');
+        this.ux.log('CREATE DESTRUCTIVECHANGES.XML');
+        this.ux.log('-----------------------------');
 
         this.createPackageFile(
             this.fileDestructiveChangesXml,
             this.destructiveDiffRecords,
             ChangeType.DestructiveChanges);
 
-        console.log('-----------------------------');
-        console.log('DIFF PROCESS COMPLETED  ');
-        console.log('-----------------------------');
+        this.ux.log('-----------------------------');
+        this.ux.log('DIFF PROCESS COMPLETED  ');
+        this.ux.log('-----------------------------');
 
         this.createEmptyPackageFile();
 
@@ -1117,16 +947,16 @@ export class MdapiChangesetUtility {
 
     protected preparePackageDirectory(): void {
 
-        console.log('-----------------------------');
-        console.log('DELETING SOURCE FILE MATCHES ');
-        console.log('-----------------------------');
+        this.ux.log('-----------------------------');
+        this.ux.log('DELETING SOURCE FILE MATCHES ');
+        this.ux.log('-----------------------------');
 
         // only want to transport what is necessary
-        for (var metaType in this.packageMatchResults) {
+        for (let metaType in this.packageMatchResults) {
 
-            var matchResults: Array<DiffRecord> = this.packageMatchResults[metaType];
+            let matchResults: Array<DiffRecord> = this.packageMatchResults[metaType];
 
-            for (var x: number = 0; x < matchResults.length; x++) {
+            for (let x: number = 0; x < matchResults.length; x++) {
 
                 let matchResult = matchResults[x];
                 let found: boolean = false;
@@ -1134,7 +964,7 @@ export class MdapiChangesetUtility {
                 let diffRecords: Array<DiffRecord> = this.packageDiffRecords[metaType];
 
                 // check if diff entry exists
-                for (var y: number = 0; y < diffRecords.length; y++) {
+                for (let y: number = 0; y < diffRecords.length; y++) {
 
                     let diffRecord = diffRecords[y];
 
@@ -1167,25 +997,25 @@ export class MdapiChangesetUtility {
     protected copyDeploymentFiles(): void {
 
         copySync(this.sourceRetrieveDir, this.sourceDeployDirTargetSource);
-        console.log(this.sourceRetrieveDir + ' moved to [' + this.sourceDeployDirTargetSource + '].');
+        this.ux.log(this.sourceRetrieveDir + ' moved to [' + this.sourceDeployDirTargetSource + '].');
         removeSync(this.sourceRetrieveDir);
 
         copyFileSync(this.filePackageXml, this.deploymentFilePackageXml);
-        console.log(this.deploymentFilePackageXml + ' file created.');
+        this.ux.log(this.deploymentFilePackageXml + ' file created.');
         unlinkSync(this.filePackageXml);
 
-        console.log('-----------------------------');
-        console.log('CHANGESET PROCESS COMPLETE  ');
-        console.log('-----------------------------');
+        this.ux.log('-----------------------------');
+        this.ux.log('CHANGESET PROCESS COMPLETE  ');
+        this.ux.log('-----------------------------');
 
     }// end process
 
     // recursive walk directory function
     protected postWalkDir(dir: string, callback: any): void {
 
-        const fileItems: Array<string> = readdirSync(dir);
+        let fileItems: Array<string> = readdirSync(dir);
 
-        for (var x: number = 0; x < fileItems.length; x++) {
+        for (let x: number = 0; x < fileItems.length; x++) {
 
             let fileItem: string = fileItems[x];
             let dirPath: string = path.join(dir, fileItem);
@@ -1210,16 +1040,37 @@ export class MdapiChangesetUtility {
 
             if (filePath.endsWith('Lead.object')) {
 
-                var jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
+                let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
 
-                var listViews = instance.objectToArray(jsonObject[MdapiConfig.CustomObject].listViews);
+                let listViews = instance.objectToArray(jsonObject[MdapiConfig.CustomObject].listViews);
 
-                for (var x: number = 0; x < listViews.length; x++) {
+                for (let x: number = 0; x < listViews.length; x++) {
                     let listView = listViews[x];
-                    let columns: Array<Object> = instance.objectToArray(listView["columns"]);
-                    for (var y: number = 0; y < columns.length; y++) {
+                    let columns: Array<Object> = instance.objectToArray(listView[MdapiConfig.columns]);
+                    for (let y: number = 0; y < columns.length; y++) {
                         let column = columns[y];
-                        if (column["_text"] === 'LEAD_SCORE') {
+                        if (column[MdapiConfig._text] === 'LEAD_SCORE') {
+                            columns.splice(y, 1); // pop
+                            break;
+                        }// end if
+                    }// end if
+                }// end for
+
+                MdapiCommon.jsonToXmlFile(jsonObject, filePath);
+
+            }// end if
+            if (filePath.endsWith('Opportunity.object')) {
+
+                let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
+
+                let listViews = instance.objectToArray(jsonObject[MdapiConfig.CustomObject].listViews);
+
+                for (let x: number = 0; x < listViews.length; x++) {
+                    let listView = listViews[x];
+                    let columns: Array<Object> = instance.objectToArray(listView[MdapiConfig.columns]);
+                    for (let y: number = 0; y < columns.length; y++) {
+                        let column = columns[y];
+                        if (column[MdapiConfig._text] === 'OPPORTUNITY_SCORE') {
                             columns.splice(y, 1); // pop
                             break;
                         }// end if
@@ -1231,16 +1082,16 @@ export class MdapiChangesetUtility {
             }// end if
             else if (filePath.endsWith('Task.object')) {
 
-                var jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
+                let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
 
-                var listViews = instance.objectToArray(jsonObject[MdapiConfig.CustomObject].listViews);
+                let listViews = instance.objectToArray(jsonObject[MdapiConfig.CustomObject].listViews);
 
                 // FIXME should actually be looking for duplicates and removing. on all list views....
-                for (var x: number = 0; x < listViews.length; x++) {
+                for (let x: number = 0; x < listViews.length; x++) {
                     let count: number = 0;
                     let listView = listViews[x];
                     let listViewLabel: string = listView["fullName"]._text;
-                    for (var y: number = 0; y < listViews.length; y++) {
+                    for (let y: number = 0; y < listViews.length; y++) {
                         let listViewCompare = listViews[y];
                         let listViewCompareLabel: string = listViewCompare["fullName"]._text;
                         if (listViewLabel === listViewCompareLabel) {
@@ -1252,21 +1103,25 @@ export class MdapiChangesetUtility {
                     }// end if 
                 }// end if 
 
-                // too long ENCODED:{!FilterNames.Task_DelegatedTasks}
-                for (var x: number = 0; x < listViews.length; x++) {
+                // too long ENCODED:{!FilterNames.Task_DelegatedTasks} 40 charater limit
+                for (let x: number = 0; x < listViews.length; x++) {
                     let listView = listViews[x];
                     // Value too long for field: Name maximum length is:40
-                    if (listView["fullName"]._text === 'UnscheduledTasks' &&
-                        listView["label"]._text === 'ENCODED:{!FilterNames.Task_UnscheduledTasks}') {
-                        listView["label"]._text = 'Unscheduled Tasks';
+                    if (listView[MdapiConfig.fullName]._text === 'UnscheduledTasks' &&
+                        listView[MdapiConfig.label]._text === 'ENCODED:{!FilterNames.Task_UnscheduledTasks}') {
+                        listView[MdapiConfig.label]._text = 'Unscheduled Tasks';
                     }// end if
-                    else if (listView["fullName"]._text === 'CompletedTasks' &&
-                        listView["label"]._text === 'ENCODED:{!FilterNames.Task_CompletedTasks}') {
-                        listView["label"]._text = 'Completed Tasks';
+                    else if (listView[MdapiConfig.fullName]._text === 'CompletedTasks' &&
+                        listView[MdapiConfig.label]._text === 'ENCODED:{!FilterNames.Task_CompletedTasks}') {
+                        listView[MdapiConfig.label]._text = 'Completed Tasks';
                     }// end if
-                    else if (listView["fullName"]._text === 'DelegatedTasks' &&
-                        listView["label"]._text === 'ENCODED:{!FilterNames.Task_DelegatedTasks}') {
-                        listView["label"]._text = 'Delegated Tasks';
+                    else if (listView[MdapiConfig.fullName]._text === 'DelegatedTasks' &&
+                        listView[MdapiConfig.label]._text === 'ENCODED:{!FilterNames.Task_DelegatedTasks}') {
+                        listView[MdapiConfig.label]._text = 'Delegated Tasks';
+                    }// end if
+                    else if (listView[MdapiConfig.fullName]._text === 'RecurringTasks' &&
+                        listView[MdapiConfig.label]._text === 'ENCODED:{!FilterNames.Task_RecurringTasks}') {
+                        listView[MdapiConfig.label]._text = 'Recurring Tasks';
                     }// end if
                 }// end for
 
@@ -1278,16 +1133,16 @@ export class MdapiChangesetUtility {
         // check profile issues
         else if (typeFolder === MdapiConfig.profiles) {
 
-            var jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
+            let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
 
             //  set standard profile user permssions to blank as should not be able to change.
             if (jsonObject[MdapiConfig.Profile].custom._text === 'false') {
                 jsonObject[MdapiConfig.Profile].userPermissions = [];
             }// end if
 
-            var userPermissions = instance.objectToArray(jsonObject[MdapiConfig.Profile].userPermissions);
+            let userPermissions = instance.objectToArray(jsonObject[MdapiConfig.Profile].userPermissions);
 
-            for (var x: number = 0; x < userPermissions.length; x++) {
+            for (let x: number = 0; x < userPermissions.length; x++) {
                 let userPerm = userPermissions[x];
                 if (userPerm["name"]._text === 'ManageSandboxes') {
                     userPermissions.splice(x, 1); // pop
@@ -1296,9 +1151,9 @@ export class MdapiChangesetUtility {
             }// end for
 
             // this causes errors
-            var tabVisibilities = instance.objectToArray(jsonObject[MdapiConfig.Profile].tabVisibilities);
+            let tabVisibilities = instance.objectToArray(jsonObject[MdapiConfig.Profile].tabVisibilities);
 
-            for (var x: number = 0; x < tabVisibilities.length; x++) {
+            for (let x: number = 0; x < tabVisibilities.length; x++) {
                 let tabVisibility = tabVisibilities[x];
                 // You can't edit tab settings for SocialPersona, as it's not a valid tab.
                 if (tabVisibility["tab"]._text === 'standard-SocialPersona') {
@@ -1307,10 +1162,10 @@ export class MdapiChangesetUtility {
                 }// end if
             }// end for
 
-            var fieldPermissions = instance.objectToArray(jsonObject[MdapiConfig.Profile].fieldPermissions);
+            let fieldPermissions = instance.objectToArray(jsonObject[MdapiConfig.Profile].fieldPermissions);
 
             // field service field being injected in to PersonLifeEvent object (remove)
-            for (var x: number = 0; x < fieldPermissions.length; x++) {
+            for (let x: number = 0; x < fieldPermissions.length; x++) {
                 let fieldPermission = fieldPermissions[x];
                 if (fieldPermission["field"]._text === 'PersonLifeEvent.LocationId') {
                     fieldPermissions.splice(x, 1); // pop
@@ -1324,13 +1179,10 @@ export class MdapiChangesetUtility {
         // check dashboard run as issues
         else if (grandParentFolder === MdapiConfig.dashboards) {
 
-            console.log('dashboard screening ' + grandParentFolder + ' ' + typeFolder);
+            let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
+            let dashboard = jsonObject["Dashboard"];
 
-            var jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
-
-            var dashboard = jsonObject["Dashboard"];
-
-            if (!(dashboard.runningUser === undefined)) {
+            if (dashboard.runningUser) {
                 delete dashboard.runningUser;
             }// end if
 
@@ -1341,11 +1193,10 @@ export class MdapiChangesetUtility {
 
             if (filePath.endsWith('OrgPreference.settings')) {
 
-                var jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
+                let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
+                let preferences = instance.objectToArray(jsonObject["OrgPreferenceSettings"].preferences);
 
-                var preferences = instance.objectToArray(jsonObject["OrgPreferenceSettings"].preferences);
-
-                for (var x: number = 0; x < preferences.length; x++) {
+                for (let x: number = 0; x < preferences.length; x++) {
                     let preference = preferences[x];
                     ////You do not have sufficient rights to access the organization setting: CompileOnDeploy
                     if (preference["settingName"]._text === 'CompileOnDeploy') {

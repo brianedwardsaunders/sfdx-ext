@@ -168,6 +168,9 @@ export class MdapiConfig {
 
   //name field used in metadata object files 
   public static fullName: string = "fullName";
+  public static label: string = "label";
+  public static _text: string = "_text";
+  public static columns: string = "columns";
 
   //https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_retrieveresult.htm
   public static beta: string = 'beta';
@@ -362,42 +365,42 @@ export class MdapiConfig {
 
   public static childMetadataDirectoryLookup = {
     //Custom Label
-    "CustomLabel": MdapiConfig.labels,
+    CustomLabel: MdapiConfig.labels,
     //Cusom Object
-    "CustomField": MdapiConfig.fields,
-    "Index": MdapiConfig.indexes,
-    "BusinessProcess": MdapiConfig.businessProcesses,
-    "RecordType": MdapiConfig.recordTypes,
-    "CompactLayout": MdapiConfig.compactLayouts,
-    "WebLink": MdapiConfig.webLinks,
-    "ValidationRule": MdapiConfig.validationRules,
-    "SharingReason": MdapiConfig.sharingReasons,
-    "ListView": MdapiConfig.listViews,
-    "FieldSet": MdapiConfig.fieldSets,
+    CustomField: MdapiConfig.fields,
+    Index: MdapiConfig.indexes,
+    BusinessProcess: MdapiConfig.businessProcesses,
+    RecordType: MdapiConfig.recordTypes,
+    CompactLayout: MdapiConfig.compactLayouts,
+    WebLink: MdapiConfig.webLinks,
+    ValidationRule: MdapiConfig.validationRules,
+    SharingReason: MdapiConfig.sharingReasons,
+    ListView: MdapiConfig.listViews,
+    FieldSet: MdapiConfig.fieldSets,
     //Workflow
-    "WorkflowAlert": MdapiConfig.alerts,
-    "WorkflowFieldUpdate": MdapiConfig.fieldUpdates,
-    "WorkflowSend": MdapiConfig.flowActions, // check this
-    "WorkflowKnowledgePublish": MdapiConfig.knowledgePublishes,
-    "WorkflowOutboundMessage": MdapiConfig.outboundMessages,
-    "WorkflowRule": MdapiConfig.rules,
-    "WorkflowTask": MdapiConfig.tasks,
+    WorkflowAlert: MdapiConfig.alerts,
+    WorkflowFieldUpdate: MdapiConfig.fieldUpdates,
+    WorkflowSend: MdapiConfig.flowActions, // check this
+    WorkflowKnowledgePublish: MdapiConfig.knowledgePublishes,
+    WorkflowOutboundMessage: MdapiConfig.outboundMessages,
+    WorkflowRule: MdapiConfig.rules,
+    WorkflowTask: MdapiConfig.tasks,
     //Assignment rule (singular)
-    "AssignmentRule": MdapiConfig.assignmentRule,
+    AssignmentRule: MdapiConfig.assignmentRule,
     //Auto Response Rule (singular)
-    "AutoResponseRule": MdapiConfig.autoresponseRule,
+    AutoResponseRule: MdapiConfig.autoresponseRule,
     //Escalation Rule (singular)
-    "EscalationRule": MdapiConfig.escalationRule,
+    EscalationRule: MdapiConfig.escalationRule,
     //Matching Rules (plural)
-    "MatchingRule": MdapiConfig.matchingRules,
+    MatchingRule: MdapiConfig.matchingRules,
     //SharingOwnerRule
-    "SharingOwnerRule": MdapiConfig.sharingOwnerRules,
-    "SharingCriteriaRule": MdapiConfig.sharingCriteriaRules,
-    "SharingTerritoryRule": MdapiConfig.sharingTerritoryRules,
+    SharingOwnerRule: MdapiConfig.sharingOwnerRules,
+    SharingCriteriaRule: MdapiConfig.sharingCriteriaRules,
+    SharingTerritoryRule: MdapiConfig.sharingTerritoryRules,
     //ManagedTopic
-    "ManagedTopic": MdapiConfig.ManagedTopic,
+    ManagedTopic: MdapiConfig.ManagedTopic,
     //Botversion
-    "BotVersions": MdapiConfig.botVersions
+    BotVersions: MdapiConfig.botVersions
   };
 
   public static childMetadataObjectLookup = {
@@ -569,7 +572,7 @@ export class MdapiConfig {
 
       config.metadataObjectLookup[metaTypeName] = (<MetadataObject>
         {
-          directoryName: null,
+          directoryName: MdapiConfig.childMetadataDirectoryLookup[metaTypeName],
           inFolder: false,
           metaFile: false,
           suffix: null,
@@ -647,6 +650,15 @@ export class MdapiConfig {
           MdapiConfig.describeMetadataArray(config, config.metadataFolders);
 
           MdapiConfig.describeMetadataArray(config, config.metadataTypeChildren);
+
+          config.metadataTypeChildren.forEach((childmetaType: string) => {
+            let childMetadataObject = config.metadataObjectLookup[childmetaType];
+            let childDirectoryName: string = MdapiConfig.childMetadataDirectoryLookup[childmetaType];
+            let lookupArray: Array<MetadataObject> = config.metadataDirectoryLookup[childDirectoryName];
+            if (!lookupArray) { lookupArray = []; }// end if init array
+            lookupArray.push(childMetadataObject);
+            config.metadataDirectoryLookup[childDirectoryName] = lookupArray;
+          });
 
           config.metadataTypes.sort();
 
