@@ -1,8 +1,9 @@
 /**
- * @name Convert (source)
+ * @name Convert (from sfdx to mdapi source)
  * @author brianewardsaunders 
  * @date 2019-07-10
  */
+
 import { SfdxCommand, flags } from '@salesforce/command';
 import { Messages, SfdxError } from '@salesforce/core';
 import { MdapiConvertUtility } from '../../../scripts/mdapi-convert-utility';
@@ -50,6 +51,7 @@ export default class Convert extends SfdxCommand {
 
     let util = new MdapiConvertUtility(
       this.org,
+      this.ux,
       sourcedirectory,
       targetdirectory);
 
@@ -63,5 +65,7 @@ export default class Convert extends SfdxCommand {
         "error": error
       };
     });
-  }
+
+  }// end method
+
 }// end class

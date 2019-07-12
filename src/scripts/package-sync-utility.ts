@@ -1,9 +1,11 @@
 /**
- * @PackageSyncUtility
+ * @name PackageSyncUtility
  * @author brianewardsaunders 
  * @date 2019-07-10
  */
-const exec = require('child_process').exec;
+
+import { UX } from "@salesforce/command";
+import { MdapiCommon } from './mdapi-common';
 
 export interface PackageVersion {
     SubscriberPackageName: string;
@@ -14,8 +16,6 @@ export interface PackageVersion {
 }
 
 export class PackageSyncUtility {
-
-    protected bufferOptions: Object = { maxBuffer: 10 * 1024 * 1024 };
 
     protected leftPackageList: Array<PackageVersion> = [];
     protected rightPackageList: Array<PackageVersion> = [];
@@ -28,6 +28,7 @@ export class PackageSyncUtility {
     protected actionNone = "none";
 
     constructor(
+        protected ux: UX,
         protected sourceOrgAlias: string, // left
         protected targetOrgAlias: string, // right
         protected flagCheckOnly: boolean,
@@ -37,32 +38,16 @@ export class PackageSyncUtility {
         // noop
     }// end constructor
 
-    protected command(cmd: string): Promise<any> {
-
-        return new Promise((resolve, reject) => {
-            exec(cmd, this.bufferOptions, (error: any, stdout: any, stderr: any) => {
-                if (error) {
-                    console.debug(stderr);
-                    reject(error);
-                }// end if
-                else {
-                    resolve(stdout);
-                }// end else
-            });
-        });
-
-    }// end method
-
     // compare the packages
     protected comparePackageList(): void {
 
         // left to right
-        for (var i = 0; i < this.leftPackageList.length; i++) {
+        for (var i: number = 0; i < this.leftPackageList.length; i++) {
 
             let leftPackage: PackageVersion = this.leftPackageList[i];
             let found: boolean = false;
 
-            for (var j = 0; j < this.rightPackageList.length; j++) {
+            for (var j: number = 0; j < this.rightPackageList.length; j++) {
 
                 let rightPackage = this.rightPackageList[j];
 
@@ -85,12 +70,12 @@ export class PackageSyncUtility {
         }// end for
 
         // right to left
-        for (var x = 0; x < this.rightPackageList.length; x++) {
+        for (var x: number = 0; x < this.rightPackageList.length; x++) {
 
             let rightPackage: PackageVersion = this.rightPackageList[x];
             let found: boolean = false;
 
-            for (var y = 0; y < this.leftPackageList.length; y++) {
+            for (var y: number = 0; y < this.leftPackageList.length; y++) {
 
                 let leftPackage = this.leftPackageList[y];
 
@@ -113,13 +98,11 @@ export class PackageSyncUtility {
     // syncPackage by installing or uninstalling
     protected async syncPackages(): Promise<any> {
 
-        let counter: number = 0;
-        let total: number = 0;
-
         return new Promise((resolve, reject) => {
 
-            total = this.diffPackageList.length;
-            counter = total;
+            let counter: number = 0;
+            counter = this.diffPackageList.length;
+            let total: number = counter;
 
             if (total === 0) {
                 resolve("Check or Update of (" + total + ") Package(s) complete.");
@@ -134,29 +117,29 @@ export class PackageSyncUtility {
                 let executeCommand: boolean = true;
 
                 if ((diffPackage.action === this.actionInstall) && canInstall) {
-                    console.info('Installing ' + diffPackage.SubscriberPackageName + ' (' + diffPackage.SubscriberPackageVersionNumber + ') in ' + this.targetOrgAlias + ' please standby ...');
+                    this.ux.log('Installing ' + diffPackage.SubscriberPackageName + ' (' + diffPackage.SubscriberPackageVersionNumber + ') in ' + this.targetOrgAlias + ' please standby ...');
                     commandSfdxPackageUpdate = "sfdx force:package:install --package " + diffPackage.SubscriberPackageVersionId + " -u " + this.targetOrgAlias + " -w 10 --json";
                 }// end if
                 else if ((diffPackage.action === this.actionUninstall) && canUninstall) {
-                    console.info('Uninstalling ' + diffPackage.SubscriberPackageName + ' (' + diffPackage.SubscriberPackageVersionNumber + ') in ' + this.targetOrgAlias + ' please standby ...');
+                    this.ux.log('Uninstalling ' + diffPackage.SubscriberPackageName + ' (' + diffPackage.SubscriberPackageVersionNumber + ') in ' + this.targetOrgAlias + ' please standby ...');
                     commandSfdxPackageUpdate = "sfdx force:package:uninstall --package " + diffPackage.SubscriberPackageVersionId + " -u " + this.targetOrgAlias + " -w 10 --json";
                 } // end else if
                 else {
-                    console.info('Ignoring action (' + diffPackage.action + ') ' + diffPackage.SubscriberPackageName + ' (' + diffPackage.SubscriberPackageVersionNumber + ') in ' + this.targetOrgAlias + ' please standby ...');
+                    this.ux.log('Ignoring action (' + diffPackage.action + ') ' + diffPackage.SubscriberPackageName + ' (' + diffPackage.SubscriberPackageVersionNumber + ') in ' + this.targetOrgAlias + ' please standby ...');
                     executeCommand = false;
                     if (--counter <= 0) {
                         resolve("Check/Update of (" + total + ") Package(s) complete.");
-                    }
+                    }// end if
                 }// end else
 
                 // execute resolved command
                 if (executeCommand) {
-                    console.info(commandSfdxPackageUpdate);
-                    this.command(commandSfdxPackageUpdate).then((result: any) => {
-                        console.info(result);
+                    this.ux.log(commandSfdxPackageUpdate);
+                    MdapiCommon.command(commandSfdxPackageUpdate).then((result: any) => {
+                        this.ux.log(result);
                         if (--counter <= 0) {
                             resolve("Check/Update of (" + total + ") Package(s) complete.");
-                        }
+                        }// end if
                     }, (error: any) => {
                         reject(error);
                     });
@@ -165,60 +148,56 @@ export class PackageSyncUtility {
         });
     }// end method
 
-    /* export default extends Command {
-      async run() {
-        await packageInstalledList.run()
-      }
-    } */
     // process compareSyncPackages
     protected async compareSyncPackages(): Promise<any> {
 
         return new Promise((resolve, reject) => {
             // get packagelist on left as json
             const commandSfdxLeftPackageList = 'sfdx force:package:installed:list -u ' + this.sourceOrgAlias + ' --json';
-
+            //this.ux.log(commandSfdxLeftPackageList);
             //commandSfdxLeftPackageList 
-            console.info('retrieving installed packages from ' + this.sourceOrgAlias + ' please standby ...');
-            console.info(commandSfdxLeftPackageList);
+            this.ux.startSpinner('retrieving installed packages from ' + this.sourceOrgAlias);
 
-            // packageInstalledList.run(); 
+            MdapiCommon.command(commandSfdxLeftPackageList).then((result: any) => {
 
-            this.command(commandSfdxLeftPackageList).then((result: any) => {
-
-                console.info(result);
+                this.ux.stopSpinner();
+                this.ux.log(result);
                 let jsonObject = JSON.parse(result);
                 this.leftPackageList = jsonObject.result;
 
                 // commandSfdxRightPackageList 
                 const commandSfdxRightPackageList = 'sfdx force:package:installed:list -u ' + this.targetOrgAlias + ' --json';
-                console.info('retrieving installed packages from ' + this.targetOrgAlias + ' please standby ...');
-                console.info(commandSfdxRightPackageList);
+                //this.ux.log(commandSfdxRightPackageList);
+                this.ux.startSpinner('retrieving installed packages from ' + this.targetOrgAlias);
 
-                this.command(commandSfdxRightPackageList).then((result: any) => {
+                MdapiCommon.command(commandSfdxRightPackageList).then((result: any) => {
 
-                    console.info(result);
-                    let jsonObject = JSON.parse(result);
-                    this.rightPackageList = jsonObject.result;
+                    this.ux.stopSpinner();
+                    this.ux.log(result);
+                    let jsonObject: Object = JSON.parse(result);
+                    this.rightPackageList = jsonObject["result"];
 
                     this.comparePackageList();
-                    console.log('diffPackageList: ', this.diffPackageList);
+                    this.ux.log(JSON.stringify(this.diffPackageList));
 
                     // syncPackages
+                    this.ux.startSpinner('syncPackages');
                     this.syncPackages().then((result: any) => {
-                        console.log(result);
+                        this.ux.stopSpinner();
+                        this.ux.log(result);
                         resolve(result);
                     }, (error: any) => {
-                        console.error(error);
+                        this.ux.error(error);
                         reject(error);
                     });
 
                 }, (error: any) => {
-                    console.error(error);
+                    this.ux.error(error);
                     reject(error);
                 });
 
             }, (error: any) => {
-                console.error(error);
+                this.ux.error(error);
                 reject(error);
             });
 
@@ -229,4 +208,5 @@ export class PackageSyncUtility {
     public async process(): Promise<any> {
         await this.compareSyncPackages();
     }// end process
+
 }// end class

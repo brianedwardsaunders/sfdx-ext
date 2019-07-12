@@ -17,7 +17,7 @@ import yauzl = require('yauzl');
 import { Org } from '@salesforce/core';
 import { UX } from '@salesforce/command';
 import { MdapiConfig, IConfig, ISettings } from './mdapi-config';
-import { Common } from './common';
+import { MdapiCommon } from './mdapi-common';
 
 export interface BatchCtrl {
     counter: number;
@@ -51,13 +51,13 @@ export class MdapiRetrieveUtility {
     protected BATCH_SIZE: number = 30;
 
     // define working folders
-    protected stageOrgAliasDirectoryPath: string = (Common.stageRoot + Common.PATH_SEP + this.orgAlias);
-    protected retrievePath: string = (this.stageOrgAliasDirectoryPath + Common.PATH_SEP + Common.retrieveRoot);
-    protected zipFilePath: string = (this.retrievePath + Common.PATH_SEP + MdapiConfig.unpackagedZip);
-    protected targetDirectoryUnpackaged: string = (this.retrievePath + Common.PATH_SEP + MdapiConfig.unpackagedFolder);
-    protected targetDirectorySource: string = (this.retrievePath + Common.PATH_SEP + MdapiConfig.srcFolder);
-    protected manifestDirectory: string = (this.stageOrgAliasDirectoryPath + Common.PATH_SEP + MdapiConfig.manifestFolder);
-    protected filePackageXmlPath = (this.manifestDirectory + Common.PATH_SEP + MdapiConfig.packageXml);
+    protected stageOrgAliasDirectoryPath: string = (MdapiCommon.stageRoot + MdapiCommon.PATH_SEP + this.orgAlias);
+    protected retrievePath: string = (this.stageOrgAliasDirectoryPath + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot);
+    protected zipFilePath: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
+    protected targetDirectoryUnpackaged: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedFolder);
+    protected targetDirectorySource: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
+    protected manifestDirectory: string = (this.stageOrgAliasDirectoryPath + MdapiCommon.PATH_SEP + MdapiConfig.manifestFolder);
+    protected filePackageXmlPath = (this.manifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
 
     protected config: IConfig = (<IConfig>{
         metadataTypes: [],
@@ -133,19 +133,19 @@ export class MdapiRetrieveUtility {
 
             let sortedMembers: Array<string> = MdapiConfig.toSortedMembers(metaItems);
 
-            xmlContent += (Common.TWO_SPACE + '<types>\n');
+            xmlContent += (MdapiCommon.TWO_SPACE + '<types>\n');
 
             for (var y: number = 0; y < sortedMembers.length; y++) {
                 let item: string = sortedMembers[y];
-                xmlContent += (Common.FOUR_SPACE + '<members>' + item + '</members>\n');
+                xmlContent += (MdapiCommon.FOUR_SPACE + '<members>' + item + '</members>\n');
             }// end for
 
-            xmlContent += (Common.FOUR_SPACE + '<name>' + metaType + '</name>\n');
-            xmlContent += (Common.TWO_SPACE + '</types>\n');
+            xmlContent += (MdapiCommon.FOUR_SPACE + '<name>' + metaType + '</name>\n');
+            xmlContent += (MdapiCommon.TWO_SPACE + '</types>\n');
 
         }// end for
 
-        xmlContent += (Common.TWO_SPACE + '<version>' + this.apiVersion + '</version>\n');
+        xmlContent += (MdapiCommon.TWO_SPACE + '<version>' + this.apiVersion + '</version>\n');
         xmlContent += '</Package>\n';
 
         writeFileSync(packageFile, xmlContent);
@@ -157,12 +157,12 @@ export class MdapiRetrieveUtility {
     protected createBackup(): void {
 
         let iso: string = new Date().toISOString();
-        iso = iso.replace(/:/g, Common.DASH).split(Common.DOT)[0];
+        iso = iso.replace(/:/g, MdapiCommon.DASH).split(MdapiCommon.DOT)[0];
 
-        let backupFolder: string = (Common.backupRoot + Common.PATH_SEP + this.orgAlias); // e.g. backup/DevOrg
-        let backupOrgFolder: string = (backupFolder + Common.PATH_SEP + iso); // e.g. backup/DevOrg/2000-00-00T11-11-11
-        let backupProjectFile: string = (backupOrgFolder + Common.PATH_SEP + MdapiConfig.unpackagedZip);
-        let sourceProjectFile: string = (this.retrievePath + Common.PATH_SEP + MdapiConfig.unpackagedZip);
+        let backupFolder: string = (MdapiCommon.backupRoot + MdapiCommon.PATH_SEP + this.orgAlias); // e.g. backup/DevOrg
+        let backupOrgFolder: string = (backupFolder + MdapiCommon.PATH_SEP + iso); // e.g. backup/DevOrg/2000-00-00T11-11-11
+        let backupProjectFile: string = (backupOrgFolder + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
+        let sourceProjectFile: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
 
         if (this.ignoreBackup) {
             this.ux.log('ignoring backup.');
@@ -171,8 +171,8 @@ export class MdapiRetrieveUtility {
             return;
         }// end if
 
-        if (!existsSync(Common.backupRoot)) {
-            mkdirSync(Common.backupRoot);
+        if (!existsSync(MdapiCommon.backupRoot)) {
+            mkdirSync(MdapiCommon.backupRoot);
         }// end if
 
         if (!existsSync(backupFolder)) {
@@ -254,7 +254,7 @@ export class MdapiRetrieveUtility {
             var retrieveCommand: string = ('sfdx force:mdapi:retrieve -s -k ' + this.filePackageXmlPath
                 + ' -r ' + this.retrievePath + ' -w -1 -u ' + this.orgAlias);
 
-            Common.command(retrieveCommand).then((result: any) => {
+            MdapiCommon.command(retrieveCommand).then((result: any) => {
 
                 this.ux.log(result);
                 resolve();
@@ -281,9 +281,9 @@ export class MdapiRetrieveUtility {
 
     protected init(): void {
 
-        if (!existsSync(Common.stageRoot)) {
-            mkdirSync(Common.stageRoot);
-            this.ux.log('staging [' + Common.stageRoot + '] directory created.');
+        if (!existsSync(MdapiCommon.stageRoot)) {
+            mkdirSync(MdapiCommon.stageRoot);
+            this.ux.log('staging [' + MdapiCommon.stageRoot + '] directory created.');
         }// end if
 
         // check if working directory exists
@@ -332,7 +332,7 @@ export class MdapiRetrieveUtility {
 
         this.org.getConnection().metadata.list(metaQueries, this.apiVersion).then((result: Array<FileProperties>) => {
 
-            result = Common.objectToArray(result);
+            result = MdapiCommon.objectToArray(result);
 
             for (var x: number = 0; x < result.length; x++) {
 
@@ -442,16 +442,16 @@ export class MdapiRetrieveUtility {
             copySync(this.targetDirectorySource, MdapiConfig.srcFolder);
             this.ux.log('copied ' + MdapiConfig.srcFolder);
 
-            if (existsSync(Common.stageRoot)) {
-                removeSync(Common.stageRoot);
-                this.ux.log('deleted ' + Common.stageRoot);
+            if (existsSync(MdapiCommon.stageRoot)) {
+                removeSync(MdapiCommon.stageRoot);
+                this.ux.log('deleted ' + MdapiCommon.stageRoot);
             }// end if
 
-            removeSync(Common.stageRoot);
+            removeSync(MdapiCommon.stageRoot);
 
-            if (existsSync(Common.backupRoot)) {
-                removeSync(Common.backupRoot);
-                this.ux.log('deleted ' + Common.backupRoot);
+            if (existsSync(MdapiCommon.backupRoot)) {
+                removeSync(MdapiCommon.backupRoot);
+                this.ux.log('deleted ' + MdapiCommon.backupRoot);
             }// end if
 
         }// end if

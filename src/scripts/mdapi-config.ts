@@ -1,11 +1,12 @@
 /**
- * @name MdapiChangesetUtility
+ * @name MdapiConfig
  * @author brianewardsaunders 
  * @date 2019-07-10
  */
+
 import { DescribeMetadataResult, MetadataObject, FileProperties, QueryResult } from "jsforce";
 import { Org } from "@salesforce/core";
-import { Common } from "./common";
+import { MdapiCommon } from "./mdapi-common";
 
 export interface IConfig {
   metadataTypes: Array<string>; // e.g. ['ApexClass', 'CustomObjet'] // from describeMetada also acts a key index for metadataObjectLookup and metadataObjectMembersLookup
@@ -49,6 +50,7 @@ export class MdapiConfig {
   public static manifestFolder: string = 'manifest';
   public static unpackagedZip: string = 'unpackaged.zip';
   public static packageXml: string = 'package.xml';
+  public static forceapp: string = 'force-app';
 
   public static StaticResource: string = 'StaticResource';
   public static PermissionSet: string = 'PermissionSet';
@@ -186,6 +188,22 @@ export class MdapiConfig {
     "EmailTemplate": MdapiConfig.EmailFolder, // does not follow typical name and folder convention
     "Report": MdapiConfig.ReportFolder
   };
+
+  // CHECK THIS WITH SALESFORCE RELEASE NOTE THE FOLLOWING IS NOT SUPPORTED WITH SFDX AS PART OF API VERSION 46.0
+  // FUTURE ENHANCEMENT MAKE THIS A PARAM TO INPUT JSON FILE
+  // this must match above directory as of API VERSION 46.0
+  public static nonSfdxSupportedDirectories = [
+    '/animationRules',
+    '/audience',
+    '/bots'
+  ];
+
+  // this must match above directory
+  public static nonSfdxSupportedMetaTypes = [
+    'AnimationRule',
+    'Audience',
+    'Bot'
+  ];
 
   public static isUnsupportedMetaType(metaType: string): boolean {
     for (var x: number = 0; x < MdapiConfig.unsupportedMetadataTypes.length; x++) {
@@ -394,7 +412,7 @@ export class MdapiConfig {
             for (var x: number = 0; x < result.records.length; x++) {
 
               let record: Object = result.records[x];
-              let personRecordType: string = (MdapiConfig.PersonAccount + Common.DOT + record[MdapiConfig.DeveloperName]);
+              let personRecordType: string = (MdapiConfig.PersonAccount + MdapiCommon.DOT + record[MdapiConfig.DeveloperName]);
 
               config.metadataObjectMembersLookup[MdapiConfig.RecordType].push(
                 (<FileProperties>{

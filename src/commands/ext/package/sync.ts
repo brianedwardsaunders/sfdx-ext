@@ -1,8 +1,9 @@
 /**
- * @name Sync
+ * @name Sync (package versions between orgs)
  * @author brianewardsaunders 
  * @date 2019-07-10
  */
+
 import { SfdxCommand, flags } from '@salesforce/command';
 import { Messages, SfdxError } from '@salesforce/core';
 import { PackageSyncUtility } from '../../../scripts/package-sync-utility';
@@ -26,9 +27,9 @@ export default class Sync extends SfdxCommand {
 
   protected static flagsConfig = {
     sourceusername: flags.string({ char: 's', description: messages.getMessage('sourceusernameFlagDescription') }),
-    compareonly: flags.string({ char: 'c', description: messages.getMessage('compareonlyFlagDescription') }),
+    compareonly: flags.boolean({ char: 'c', description: messages.getMessage('compareonlyFlagDescription') }),
     installonly: flags.boolean({ char: 'i', description: messages.getMessage('installonlyFlagDescription') }),
-    uninstallonly: flags.boolean({ char: 'u', description: messages.getMessage('uninstallonlyFlagDescription') }),
+    uninstallonly: flags.boolean({ char: 'x', description: messages.getMessage('uninstallonlyFlagDescription') }),
     syncpackages: flags.boolean({ char: 'z', description: messages.getMessage('syncpackagesFlagDescription') })
   };
 
@@ -63,7 +64,8 @@ export default class Sync extends SfdxCommand {
     console.log("syncpackages    : " + syncpackages);
     console.log("-----------------------------");
 
-    let packageSyncUtil = new PackageSyncUtility(
+    let util = new PackageSyncUtility(
+      this.ux,
       sourceusername,
       targetusername,
       compareonly,
@@ -71,8 +73,8 @@ export default class Sync extends SfdxCommand {
       uninstallonly,
       syncpackages);
 
-    packageSyncUtil.process().then(() => {
-      this.ux.log('success');
+      util.process().then(() => {
+      this.ux.log('success.');
       return { "status": 'success' };
     }, (error: any) => {
       this.ux.error(error);
