@@ -6,7 +6,9 @@ export class Common {
     public static backupRoot: string = 'backup';
     public static retrieveRoot: string = 'retrieve';
 
-    public static PATH_SEP = '/';
+    public static PATH_SEP: string = '/';
+    public static DOT: string = '.';
+    public static DASH: string = '-';
     public static TWO_SPACE: string = '  ';
     public static FOUR_SPACE: string = '    ';
 
@@ -26,6 +28,15 @@ export class Common {
             });
         });
 
+    }// end method
+
+    public static objectToArray<T>(objectOrArray: T | Array<T>): Array<T> {
+        let returned: Array<T> = [];
+        if (objectOrArray) {
+            if (objectOrArray instanceof Array) { return objectOrArray; }
+            else { returned.push(objectOrArray); }// end else
+        }// end if
+        return returned;
     }// end method
 
 }// end class
