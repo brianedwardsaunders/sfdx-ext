@@ -5,14 +5,12 @@
  */
 
 import {
-    existsSync, mkdirSync, removeSync, copySync,
-    copyFileSync, readFileSync, writeFileSync
+    existsSync, mkdirSync, removeSync, copySync, copyFileSync
 } from 'fs-extra';
 
 import path = require('path');
-import convert = require('xml-js');
 import { Org } from '@salesforce/core';
-import { chdir, cwd } from 'process'; 
+import { chdir, cwd } from 'process';
 import { UX } from '@salesforce/command';
 import { MdapiConfig } from './mdapi-config';
 import { MdapiCommon } from './mdapi-common';
@@ -28,8 +26,8 @@ export class MdapiConvertUtility {
         // noop
     }// end constructor
 
-    protected targetStagePath: string = (this.targetDirectory + '/' + MdapiCommon.stageRoot);
-    protected targetStageSrcPath: string = (this.targetStagePath + '/' + MdapiConfig.srcFolder);
+    protected targetStagePath: string = (this.targetDirectory + MdapiCommon.PATH_SEP + MdapiCommon.stageRoot);
+    protected targetStageSrcPath: string = (this.targetStagePath + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
     protected targetManifestPackageXmlPath: string;
 
     protected async init(): Promise<void> {
@@ -46,7 +44,7 @@ export class MdapiConvertUtility {
         }// end path
         else {
 
-            let forceAppPath: string = (this.targetDirectory + '/' + MdapiConfig.forceapp);
+            let forceAppPath: string = (this.targetDirectory + MdapiCommon.PATH_SEP + MdapiConfig.forceapp);
 
             if (existsSync(forceAppPath)) {
 
@@ -60,7 +58,7 @@ export class MdapiConvertUtility {
 
         }// end else
 
-        let targetManifestDirectory: string = (this.targetDirectory + '/' + MdapiConfig.manifestFolder);
+        let targetManifestDirectory: string = (this.targetDirectory + MdapiCommon.PATH_SEP + MdapiConfig.manifestFolder);
         if (!existsSync(targetManifestDirectory)) {
             this.ux.log('creating ' + targetManifestDirectory);
             mkdirSync(targetManifestDirectory);
@@ -79,8 +77,8 @@ export class MdapiConvertUtility {
         copySync(this.sourceDirectory, this.targetStageSrcPath);
         this.ux.log(this.sourceDirectory + ' copied to [' + this.targetStageSrcPath + '].');
 
-        let packageXmlPath = (this.targetStageSrcPath + '/' + MdapiConfig.packageXml);
-        this.targetManifestPackageXmlPath = (targetManifestDirectory + '/' + MdapiConfig.packageXml);
+        let packageXmlPath = (this.targetStageSrcPath + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
+        this.targetManifestPackageXmlPath = (targetManifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
         copyFileSync(packageXmlPath, this.targetManifestPackageXmlPath);
         this.ux.log(packageXmlPath + ' copied to [' + this.targetManifestPackageXmlPath + '].');
 
@@ -97,26 +95,23 @@ export class MdapiConvertUtility {
 
     protected removeUnsupportedMetaTypesFromManifestPackageXml(): void {
 
-        var jsonObject: Object = JSON.parse(convert.xml2json(
-            readFileSync(this.targetManifestPackageXmlPath, MdapiCommon.UTF8), MdapiCommon.convertOptions));
+        let jsonObject: Object = MdapiCommon.xmlFileToJson(this.targetManifestPackageXmlPath);
 
-        var metaTypes: Array<Object> = this.objectToArray(jsonObject["types"]);
+        let metaTypes: Array<Object> = this.objectToArray(jsonObject["types"]);
 
-        for (var x: number = 0; x < metaTypes.length; x++) {
+        for (let x: number = 0; x < metaTypes.length; x++) {
             let metaType = metaTypes[x];
-            for (var y: number = 0; y < MdapiConfig.nonSfdxSupportedMetaTypes.length; y++) {
+            for (let y: number = 0; y < MdapiConfig.nonSfdxSupportedMetaTypes.length; y++) {
                 let metaName: string = MdapiConfig.nonSfdxSupportedMetaTypes[y];
                 if (metaType["name"]._text === metaName) {
-                    this.ux.log('removing unsupported metatype [' + metaName + '] from package.xml ...');
+                    this.ux.log('removing unsupported metatype [' + metaName + '] from package.xml...');
                     metaTypes.splice(x, 1); // pop
                     break;
                 }// end if
             }// end for
         }// end for
 
-        var reducedXmlString: string = convert.json2xml(JSON.stringify(jsonObject), MdapiCommon.convertOptions);
-        this.ux.log(this.targetManifestPackageXmlPath + ' updated');
-        writeFileSync(this.targetManifestPackageXmlPath, reducedXmlString);
+        MdapiCommon.jsonToXmlFile(jsonObject, this.targetManifestPackageXmlPath);
 
     }// end method 
 
@@ -127,15 +122,15 @@ export class MdapiConvertUtility {
      */
     protected deleteUnsupportedDirectories(): void {
 
-        MdapiConfig.nonSfdxSupportedDirectories.forEach(folder => {
+        MdapiConfig.nonSfdxSupportedDirectories.forEach(directory => {
 
-            let folderPath = this.targetStageSrcPath + folder;
+            let directoryPath = (this.targetStageSrcPath + MdapiCommon.PATH_SEP + directory);
 
-            this.ux.log('deleting sfdx unsupported folder [' + folderPath + '] if exists ...');
+            this.ux.log('deleting sfdx unsupported directory [' + directoryPath + '] if exists...');
 
-            if (existsSync(folderPath)) {
-                removeSync(folderPath);
-                this.ux.log(folderPath + ' deleted.');
+            if (existsSync(directoryPath)) {
+                removeSync(directoryPath);
+                this.ux.log(directoryPath + ' deleted.');
             }// end if
 
         });// end for each
@@ -184,7 +179,7 @@ export class MdapiConvertUtility {
 
         chdir(startDirectory);
 
-        this.ux.log('cleanup stage ...');
+        this.ux.log('cleanup stage...');
         this.cleanup();
 
     }// end process

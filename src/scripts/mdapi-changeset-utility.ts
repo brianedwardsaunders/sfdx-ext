@@ -14,6 +14,7 @@ import { MdapiCommon } from "./mdapi-common";
 import { MdapiConfig, IConfig, ISettings } from "./mdapi-config";
 import { UX } from "@salesforce/command";
 import path = require('path');
+import { runInThisContext } from "vm";
 
 export enum ChangeType {
     Package,
@@ -85,7 +86,9 @@ export class MdapiChangesetUtility {
         "/profilePasswordPolicies", // get all kinds of issues with this org specific
         "/profileSessionSettings", // get all kinds of issues with this org specific
         "/animationRules", // cannot deploy
-        "/flowDefinitions" // not required
+        "/flowDefinitions", // not required
+        "/reports/LeadInsightsReports", // salesforce sales einstein can't modify
+        "/dashboards/LeadInsightsDashboards"
     ];
 
     // SFDC WONT ALLOW THE MIGRATION OF THESE FILES (FIELDS PART OF MANAGED PACKAGE)
@@ -186,9 +189,18 @@ export class MdapiChangesetUtility {
         "/profiles/testcommunity Profile.profile",
         "/userCriteria/testcommunity.Customer_Members.userCriteria",
         "/userCriteria/testcommunity.Members_without_contribution.userCriteria",
-        "/userCriteria/testcommunity.Partner_and_Customer_members.userCriteria"
+        "/userCriteria/testcommunity.Partner_and_Customer_members.userCriteria",
+        // installed as part of package always causing issues. e.g. the values of chartSummary and/or groupingColumn are not compatible
+        "/dashboards/Sales_and_Marketing_Dashboards/Best_Practices_Dashboard6.dashboard",
+        // used by standard apps
+        "/contentassets/elliegif1.asset",
+        "/contentassets/elliegif1.asset-meta.xml",
+        "/contentassets/online_pay_final.asset",
+        "/contentassets/online_pay_final.asset-meta.xml"
         /* 
         // default pathAssistant has domain hard coded and can't migrate this thing
+        /dashboards/Sales_and_Marketing_Dashboards/Best_Practices_Dashboard6.dashboard
+        "/reports/LeadInsightsReports/SampleReportLeadScoreConversion"
         "/pathAssistants/Default_Opportunity.pathAssistant-meta.xml", 
         "/dashboards/AdviserPerformanceDashboard/Best_Practices_Dashboard611.dashboard"
         "/objects/Account/fields/FinServ__ReferredByUser__c.field-meta.xml",
@@ -1132,6 +1144,11 @@ export class MdapiChangesetUtility {
         }// end else if
         // check profile issues
         else if (typeFolder === MdapiConfig.profiles) {
+            /* 
+             //once deploy add this to ignored as user is full username and not email
+              <AuthProvider xmlns="http://soap.sforce.com/2006/04/metadata">
+                 <executionUser>andre.locke@liberty.co.za.dev</executionUser> 
+             */
 
             let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
 
@@ -1139,6 +1156,23 @@ export class MdapiChangesetUtility {
             if (jsonObject[MdapiConfig.Profile].custom._text === 'false') {
                 jsonObject[MdapiConfig.Profile].userPermissions = [];
             }// end if
+
+            // handle this wierd situation of duplicates Duplicate layoutAssignment:PersonAccount
+            let layoutAssignments = instance.objectToArray(jsonObject[MdapiConfig.Profile].layoutAssignments);
+
+            for (let x: number = 0; x < layoutAssignments.length; x++) {
+                let layoutAssignment = JSON.stringify(layoutAssignments[x]);
+                let count: number = 0;
+                for (let y: number = 0; y < layoutAssignments.length; y++) {
+                    let layoutAssignmentCompare = JSON.stringify(layoutAssignments[y]);
+                    if (layoutAssignment.localeCompare(layoutAssignmentCompare) === 0) { count++; }
+                    if (count > 1) {
+                        instance.ux.warn('removing duplicate layoutAssignment in: ' + filePath);
+                        layoutAssignments.splice(y, 1);
+                        break;
+                    }// end if
+                }// end for
+            }// end for
 
             let userPermissions = instance.objectToArray(jsonObject[MdapiConfig.Profile].userPermissions);
 
