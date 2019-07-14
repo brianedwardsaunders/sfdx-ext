@@ -46,14 +46,14 @@ export default class Changeset extends SfdxCommand {
       throw new SfdxError(messages.getMessage('errorSourceusernameRequired'));
     }// end if
 
-    console.log("-----------------------------");
-    console.log("sfdx ext:mdapi:changeset");
-    console.log("-----------------------------");
-    console.log("sourceusername   : " + sourceusername);
-    console.log("targetusername   : " + targetusername);
-    console.log("apiversion       : " + apiversion);
-    console.log("ignorecomments   : " + ignorecomments);
-    console.log("-----------------------------");
+    this.ux.log("-----------------------------");
+    this.ux.log("sfdx ext:mdapi:changeset");
+    this.ux.log("-----------------------------");
+    this.ux.log("sourceusername   : " + sourceusername);
+    this.ux.log("targetusername   : " + targetusername);
+    this.ux.log("apiversion       : " + apiversion);
+    this.ux.log("ignorecomments   : " + ignorecomments);
+    this.ux.log("-----------------------------");
 
     let util = new MdapiChangesetUtility(
       this.org,

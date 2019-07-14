@@ -14,7 +14,6 @@ import { MdapiCommon } from "./mdapi-common";
 import { MdapiConfig, IConfig, ISettings } from "./mdapi-config";
 import { UX } from "@salesforce/command";
 import path = require('path');
-import { runInThisContext } from "vm";
 
 export enum ChangeType {
     Package,
@@ -455,19 +454,6 @@ export class MdapiChangesetUtility {
 
     }// end method
 
-    protected objectToArray(objectOrArray: any): Array<Object> {
-        let returned: Array<Object> = [];
-        if (objectOrArray) {
-            if (objectOrArray instanceof Array) {
-                return objectOrArray;
-            }
-            else {
-                returned.push(objectOrArray);
-            }// end else
-        }
-        return returned;
-    }// end method
-
     // children only present on one side so no compare needed but do list
     protected compareEdgeChildren(item: DiffRecord): void {
 
@@ -484,7 +470,7 @@ export class MdapiChangesetUtility {
             let childDirectoryName: string = MdapiConfig.childMetadataDirectoryLookup[childMetaName];
 
             let parentContents: Object = childMetaObject[item.metadataName];
-            let children: Array<Object> = this.objectToArray(parentContents[childDirectoryName]);
+            let children: Array<Object> = MdapiCommon.objectToArray(parentContents[childDirectoryName]);
 
             for (let y: number = 0; y < children.length; y++) {
 
@@ -547,8 +533,8 @@ export class MdapiChangesetUtility {
             let leftParentContents: Object = leftMetaObject[parentMetadataName];
             let rightParentContents: Object = rightMetaObject[parentMetadataName];
 
-            let leftChildren: Array<Object> = this.objectToArray(leftParentContents[childDirectoryName]);
-            let rightChildren: Array<Object> = this.objectToArray(rightParentContents[childDirectoryName]);
+            let leftChildren: Array<Object> = MdapiCommon.objectToArray(leftParentContents[childDirectoryName]);
+            let rightChildren: Array<Object> = MdapiCommon.objectToArray(rightParentContents[childDirectoryName]);
 
             // ---------------------
             // compare left to right
@@ -1054,11 +1040,11 @@ export class MdapiChangesetUtility {
 
                 let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
 
-                let listViews = instance.objectToArray(jsonObject[MdapiConfig.CustomObject].listViews);
+                let listViews = MdapiCommon.objectToArray(jsonObject[MdapiConfig.CustomObject].listViews);
 
                 for (let x: number = 0; x < listViews.length; x++) {
                     let listView = listViews[x];
-                    let columns: Array<Object> = instance.objectToArray(listView[MdapiConfig.columns]);
+                    let columns: Array<Object> = MdapiCommon.objectToArray(listView[MdapiConfig.columns]);
                     for (let y: number = 0; y < columns.length; y++) {
                         let column = columns[y];
                         if (column[MdapiConfig._text] === 'LEAD_SCORE') {
@@ -1075,11 +1061,11 @@ export class MdapiChangesetUtility {
 
                 let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
 
-                let listViews = instance.objectToArray(jsonObject[MdapiConfig.CustomObject].listViews);
+                let listViews = MdapiCommon.objectToArray(jsonObject[MdapiConfig.CustomObject].listViews);
 
                 for (let x: number = 0; x < listViews.length; x++) {
                     let listView = listViews[x];
-                    let columns: Array<Object> = instance.objectToArray(listView[MdapiConfig.columns]);
+                    let columns: Array<Object> = MdapiCommon.objectToArray(listView[MdapiConfig.columns]);
                     for (let y: number = 0; y < columns.length; y++) {
                         let column = columns[y];
                         if (column[MdapiConfig._text] === 'OPPORTUNITY_SCORE') {
@@ -1096,7 +1082,7 @@ export class MdapiChangesetUtility {
 
                 let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
 
-                let listViews = instance.objectToArray(jsonObject[MdapiConfig.CustomObject].listViews);
+                let listViews = MdapiCommon.objectToArray(jsonObject[MdapiConfig.CustomObject].listViews);
 
                 // FIXME should actually be looking for duplicates and removing. on all list views....
                 for (let x: number = 0; x < listViews.length; x++) {
@@ -1158,7 +1144,10 @@ export class MdapiChangesetUtility {
             }// end if
 
             // handle this wierd situation of duplicates Duplicate layoutAssignment:PersonAccount
-            let layoutAssignments = instance.objectToArray(jsonObject[MdapiConfig.Profile].layoutAssignments);
+            let layoutAssignments = MdapiCommon.objectToArray(jsonObject[MdapiConfig.Profile].layoutAssignments);
+
+            // UPDATE THIS TO LOOK FOR Profile duplicates and remove second one (generally only applies to admin)
+            // TODO pull process definition to auto activate and shutdown flows. as a tool.
 
             for (let x: number = 0; x < layoutAssignments.length; x++) {
                 let layoutAssignment = JSON.stringify(layoutAssignments[x]);
@@ -1174,7 +1163,7 @@ export class MdapiChangesetUtility {
                 }// end for
             }// end for
 
-            let userPermissions = instance.objectToArray(jsonObject[MdapiConfig.Profile].userPermissions);
+            let userPermissions = MdapiCommon.objectToArray(jsonObject[MdapiConfig.Profile].userPermissions);
 
             for (let x: number = 0; x < userPermissions.length; x++) {
                 let userPerm = userPermissions[x];
@@ -1185,7 +1174,7 @@ export class MdapiChangesetUtility {
             }// end for
 
             // this causes errors
-            let tabVisibilities = instance.objectToArray(jsonObject[MdapiConfig.Profile].tabVisibilities);
+            let tabVisibilities = MdapiCommon.objectToArray(jsonObject[MdapiConfig.Profile].tabVisibilities);
 
             for (let x: number = 0; x < tabVisibilities.length; x++) {
                 let tabVisibility = tabVisibilities[x];
@@ -1196,7 +1185,7 @@ export class MdapiChangesetUtility {
                 }// end if
             }// end for
 
-            let fieldPermissions = instance.objectToArray(jsonObject[MdapiConfig.Profile].fieldPermissions);
+            let fieldPermissions = MdapiCommon.objectToArray(jsonObject[MdapiConfig.Profile].fieldPermissions);
 
             // field service field being injected in to PersonLifeEvent object (remove)
             for (let x: number = 0; x < fieldPermissions.length; x++) {
@@ -1228,7 +1217,7 @@ export class MdapiChangesetUtility {
             if (filePath.endsWith('OrgPreference.settings')) {
 
                 let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
-                let preferences = instance.objectToArray(jsonObject["OrgPreferenceSettings"].preferences);
+                let preferences = MdapiCommon.objectToArray(jsonObject["OrgPreferenceSettings"].preferences);
 
                 for (let x: number = 0; x < preferences.length; x++) {
                     let preference = preferences[x];

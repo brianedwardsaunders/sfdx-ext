@@ -53,16 +53,16 @@ export default class Sync extends SfdxCommand {
       throw new SfdxError(messages.getMessage('errorSourceusernameRequired'));
     }// end else
 
-    console.log("-----------------------------");
-    console.log("sfdx ext:package:sync");
-    console.log("-----------------------------");
-    console.log("sourceusername  : " + sourceusername);
-    console.log("targetusername  : " + targetusername);
-    console.log("compareonly     : " + compareonly);
-    console.log("installonly     : " + installonly);
-    console.log("uninstallonly   : " + uninstallonly);
-    console.log("syncpackages    : " + syncpackages);
-    console.log("-----------------------------");
+    this.ux.log("-----------------------------");
+    this.ux.log("sfdx ext:package:sync");
+    this.ux.log("-----------------------------");
+    this.ux.log("sourceusername  : " + sourceusername);
+    this.ux.log("targetusername  : " + targetusername);
+    this.ux.log("compareonly     : " + compareonly);
+    this.ux.log("installonly     : " + installonly);
+    this.ux.log("uninstallonly   : " + uninstallonly);
+    this.ux.log("syncpackages    : " + syncpackages);
+    this.ux.log("-----------------------------");
 
     let util = new PackageSyncUtility(
       this.ux,

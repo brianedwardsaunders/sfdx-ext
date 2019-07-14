@@ -42,12 +42,12 @@ export default class Convert extends SfdxCommand {
       throw new SfdxError(messages.getMessage('errorTargetDirectoryRequired', []));
     }// end else if
 
-    console.log("-----------------------------");
-    console.log("sfdx ext:mdapi:convert");
-    console.log("-----------------------------");
-    console.log("sourcedirectory  : " + sourcedirectory);
-    console.log("targetdirectory  : " + targetdirectory);
-    console.log("-----------------------------");
+    this.ux.log("-----------------------------");
+    this.ux.log("sfdx ext:mdapi:convert");
+    this.ux.log("-----------------------------");
+    this.ux.log("sourcedirectory  : " + sourcedirectory);
+    this.ux.log("targetdirectory  : " + targetdirectory);
+    this.ux.log("-----------------------------");
 
     let util = new MdapiConvertUtility(
       this.org,
@@ -56,7 +56,7 @@ export default class Convert extends SfdxCommand {
       targetdirectory);
 
     util.process().then(() => {
-      this.ux.log('success');
+      this.ux.log('success.');
       return { "status": 'success' };
     }, (error: any) => {
       this.ux.error(error);

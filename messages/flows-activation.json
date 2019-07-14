@@ -1,0 +1,6 @@
+{
+  "commandDescription": "Activate or deactivate all flows (i.e. flows and process builders).",
+  "deactivateFlagDescription": "flag to deactivate all flows",
+  "activateFlagDescription": "flag activate all flows",
+  "errorActivateOrDeactivateRequired": "Provide single activate or deactivate flag"
+}

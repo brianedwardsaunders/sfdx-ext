@@ -6,7 +6,7 @@
  */
 
 import {
-    existsSync, mkdirSync, removeSync, unlinkSync, mkdirp, createWriteStream, writeFileSync, copyFileSync, renameSync, copySync
+    existsSync, mkdirSync, removeSync, unlinkSync, mkdirp, createWriteStream, copyFileSync, copySync, rename
 } from 'fs-extra';
 import {
     ListMetadataQuery, FileProperties
@@ -79,11 +79,11 @@ export class MdapiRetrieveUtility {
                 "reject": reject
             };
 
-            for (var x: number = 0; x < folderArray.length; x++) {
+            for (let x: number = 0; x < folderArray.length; x++) {
 
                 let folderName: string = folderArray[x].fullName;
 
-                var params = <Params>{
+                let params = <Params>{
                     "metaType": metaType,
                     "folder": folderName
                 };
@@ -102,14 +102,14 @@ export class MdapiRetrieveUtility {
 
     }// end method
 
-    protected createPackageFile(config: IConfig, packageFile: string): void {
+    /* protected createPackageFile(config: IConfig, packageFile: string): void {
 
         let xmlContent: string = '<?xml version="1.0" encoding="UTF-8"?>\n';
         xmlContent += '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
 
         MdapiConfig.repositionSettings(config);
 
-        for (var x: number = 0; x < config.metadataTypes.length; x++) {
+        for (let x: number = 0; x < config.metadataTypes.length; x++) {
 
             let metaType: string = config.metadataTypes[x];
 
@@ -121,7 +121,7 @@ export class MdapiRetrieveUtility {
 
             xmlContent += (MdapiCommon.TWO_SPACE + '<types>\n');
 
-            for (var y: number = 0; y < sortedMembers.length; y++) {
+            for (let y: number = 0; y < sortedMembers.length; y++) {
                 let item: string = sortedMembers[y];
                 xmlContent += (MdapiCommon.FOUR_SPACE + '<members>' + item + '</members>\n');
             }// end for
@@ -137,10 +137,10 @@ export class MdapiRetrieveUtility {
         writeFileSync(packageFile, xmlContent);
         this.ux.log(packageFile + ' file successfully saved.');
 
-    }// end function
+    }// end function */
 
     // create backup of retrieve meta in-case needed later
-    protected createBackup(): void {
+    protected backup(): void {
 
         let iso: string = new Date().toISOString();
         iso = iso.replace(/:/g, MdapiCommon.DASH).split(MdapiCommon.DOT)[0];
@@ -150,32 +150,31 @@ export class MdapiRetrieveUtility {
         let backupProjectFile: string = (backupOrgFolder + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
         let sourceProjectFile: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
 
-        if (this.ignoreBackup) {
-            this.ux.log('ignoring backup.');
+        if (!this.ignoreBackup) {
+
+            if (!existsSync(MdapiCommon.backupRoot)) {
+                mkdirSync(MdapiCommon.backupRoot);
+            }// end if
+
+            if (!existsSync(backupFolder)) {
+                mkdirSync(backupFolder);
+            }// end if
+
+            if (!existsSync(backupOrgFolder)) {
+                mkdirSync(backupOrgFolder);
+            }// end if
+
+            this.ux.log('backing up from: ' + sourceProjectFile + ' to: ' + backupProjectFile);
+
+            copyFileSync(sourceProjectFile, backupProjectFile);
+            this.ux.log('backup finished to file: ' + backupProjectFile);
+
+        }// end if
+
+        if (!existsSync(sourceProjectFile)) {
             unlinkSync(sourceProjectFile);
             this.ux.log('deleting temp file: ' + sourceProjectFile);
-            return;
         }// end if
-
-        if (!existsSync(MdapiCommon.backupRoot)) {
-            mkdirSync(MdapiCommon.backupRoot);
-        }// end if
-
-        if (!existsSync(backupFolder)) {
-            mkdirSync(backupFolder);
-        }// end if
-
-        if (!existsSync(backupOrgFolder)) {
-            mkdirSync(backupOrgFolder);
-        }// end if
-
-        this.ux.log('backing up from: ' + sourceProjectFile + ' to: ' + backupProjectFile);
-
-        copyFileSync(sourceProjectFile, backupProjectFile);
-        this.ux.log('backup finished to file: ' + backupProjectFile);
-
-        unlinkSync(sourceProjectFile);
-        this.ux.log('deleting temp file: ' + sourceProjectFile);
 
     }// end method
 
@@ -237,7 +236,7 @@ export class MdapiRetrieveUtility {
 
             mkdirSync(this.retrievePath);
 
-            var retrieveCommand: string = ('sfdx force:mdapi:retrieve -s -k ' + this.filePackageXmlPath
+            let retrieveCommand: string = ('sfdx force:mdapi:retrieve -s -k ' + this.filePackageXmlPath
                 + ' -r ' + this.retrievePath + ' -w -1 -u ' + this.orgAlias);
 
             MdapiCommon.command(retrieveCommand).then((result: any) => {
@@ -261,7 +260,7 @@ export class MdapiRetrieveUtility {
             this.ux.log('created manifest directory [' + this.manifestDirectory + '].');
         }// end if
 
-        this.createPackageFile(this.config, this.filePackageXmlPath);
+        MdapiConfig.createPackageFile(this.config, this.settings, this.filePackageXmlPath);
 
     }// end method
 
@@ -291,35 +290,22 @@ export class MdapiRetrieveUtility {
 
     }// end method
 
-    protected async unzipAndBackup(): Promise<any> {
+    protected async unzip(): Promise<any> {
 
-        return new Promise((resolve, reject) => {
+        if (existsSync(this.targetDirectorySource)) {
+            removeSync(this.targetDirectorySource);
+        }// end if
 
-            if (existsSync(this.targetDirectorySource)) {
-                removeSync(this.targetDirectorySource);
-            }// end if
+        await MdapiConfig.unzipUnpackaged(this.zipFilePath, this.targetDirectoryUnpackaged);
 
-            this.unzipUnpackaged().then(() => {
-
-                // rename unmanaged to src
-                renameSync(this.targetDirectoryUnpackaged, this.targetDirectorySource);
-
-                this.createBackup();
-
-                resolve();
-
-            }, (error: any) => {
-                this.ux.error(error);
-                reject(error);
-            });// end unzipUnpackaged
-
-        }); // end promise
+        // rename unmanaged to src
+        await rename(this.targetDirectoryUnpackaged, this.targetDirectorySource);
 
     }// end method
 
     protected queryListMetadata(params: Params, batchCtrl: BatchCtrl): void {
 
-        var metaQueries: Array<ListMetadataQuery>;
+        let metaQueries: Array<ListMetadataQuery>;
 
         const metaType: string = params.metaType;
         const folder: string = params.folder;
@@ -331,7 +317,7 @@ export class MdapiRetrieveUtility {
 
             result = MdapiCommon.objectToArray(result);
 
-            for (var x: number = 0; x < result.length; x++) {
+            for (let x: number = 0; x < result.length; x++) {
 
                 let metaItem: FileProperties = result[x];
 
@@ -371,7 +357,7 @@ export class MdapiRetrieveUtility {
                 "reject": reject
             };
 
-            for (var x: number = 0; x < this.BATCH_SIZE; x++) {
+            for (let x: number = 0; x < this.BATCH_SIZE; x++) {
 
                 let metaType: string = this.transientMetadataTypes.pop();
 
@@ -485,8 +471,10 @@ export class MdapiRetrieveUtility {
         await MdapiConfig.resolvePersonAccountRecordTypes(this.org, this.config);
         this.ux.stopSpinner();
 
-        // sync call
+        // sync calls
         MdapiConfig.setStandardValueSets(this.config);
+
+        MdapiConfig.repositionSettings(this.config);
 
         // create package.xml
         this.ux.startSpinner('package.xml file');
@@ -502,9 +490,14 @@ export class MdapiRetrieveUtility {
             await this.retrieveMetadata();
             this.ux.stopSpinner();
 
-            // unzip retrieve and backup zip
+            // unzip retrieved zip
             this.ux.startSpinner('unzipping');
-            await this.unzipAndBackup();
+            await this.unzip();
+            this.ux.stopSpinner();
+
+            // backup zip
+            this.ux.startSpinner('backup');
+            await this.backup();
             this.ux.stopSpinner();
 
             // check if staging only or clean for src dev only

@@ -4,10 +4,12 @@
  * @date 2019-07-10
  */
 
-import { DescribeMetadataResult, MetadataObject, FileProperties, QueryResult } from "jsforce";
+import { DescribeMetadataResult, MetadataObject, FileProperties, QueryResult, ListMetadataQuery } from "jsforce";
 import { Org } from "@salesforce/core";
 import { MdapiCommon } from "./mdapi-common";
 import path = require('path');
+import { writeFileSync, mkdirp, createWriteStream } from "fs-extra";
+import yauzl = require('yauzl');
 
 export interface IConfig {
   metadataTypes: Array<string>; // e.g. ['ApexClass', 'CustomObjet'] // from describeMetada also acts a key index for metadataObjectLookup and metadataObjectMembersLookup
@@ -52,6 +54,8 @@ export class MdapiConfig {
   public static EmailTemplate: string = 'EmailTemplate';
   public static Report: string = 'Report';
   public static Folder: string = 'Folder';
+  public static FlowDefinition: string = 'FlowDefinition';
+  public static Flow: string = 'Flow';
   public static ReportFolder: string = 'ReportFolder';
   public static EmailFolder: string = 'EmailFolder';
   public static DocumentFolder: string = 'DocumentFolder';
@@ -71,9 +75,10 @@ export class MdapiConfig {
   public static CompactLayout: string = 'CompactLayout';
   public static PlatformCachePartition: string = 'PlatformCachePartition';
   public static DeveloperName: string = 'DeveloperName';
+  public static LatestVersion: string = 'LatestVersion';
+  public static VersionNumber: string = 'VersionNumber';
 
   // special case e.g. static resources
-  //public static metaSuffix: string = "-meta";
   public static metaXmlSuffix: string = "-meta.xml";
 
   /** SPECIFIC DIR CONSTANTS*/
@@ -87,14 +92,14 @@ export class MdapiConfig {
   public static profiles: string = "profiles";
   public static settings: string = "settings";
 
-  /** BOT HANDLE VARIABLES */
+  // Bot related
   // https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_bot.htm
   public static bots: string = 'bots';
   public static Bot: string = 'Bot';
   public static BotVersion: string = 'BotVersion';
   public static botVersions: string = 'botVersions';
 
-  /** META TYPES */
+  // Object related
   public static Profile: string = "Profile";
   public static CustomObject: string = "CustomObject";
   public static CustomField: string = "CustomField";
@@ -105,6 +110,7 @@ export class MdapiConfig {
   public static ListView: string = "ListView";
   public static FieldSet: string = "FieldSet";
 
+  // Workflow related
   public static WorkflowAlert: string = "WorkflowAlert";
   public static WorkflowFieldUpdate: string = "WorkflowFieldUpdate";
   public static WorkflowFlowAction: string = "WorkflowFlowAction";
@@ -133,6 +139,11 @@ export class MdapiConfig {
   public static userCriteria: string = "userCriteria";
   public static duplicateRules: string = "duplicateRules";
   public static customMetadata: string = "customMetadata";
+
+  public static flows: string = "flows";
+  public static status: string = "status";
+  public static flowDefinitions: string = "flowDefinitions";
+  public static activeVersionNumber: string = "activeVersionNumber";
 
   public static fields: string = "fields";
   public static indexes: string = "indexes";
@@ -357,7 +368,7 @@ export class MdapiConfig {
     MdapiConfig.sharingOwnerRules,
     MdapiConfig.sharingCriteriaRules,
     MdapiConfig.sharingTerritoryRules,
-    //ManagedTopic (is uppercase) - wierd
+    //ManagedTopic (is uppercase) - weird
     MdapiConfig.ManagedTopic,
     //botversions
     MdapiConfig.botVersions
@@ -403,7 +414,7 @@ export class MdapiConfig {
     BotVersions: MdapiConfig.botVersions
   };
 
-  public static childMetadataObjectLookup = {
+  /* public static childMetadataObjectLookup = {
     //label
     "labels": MdapiConfig.CustomLabel,
     //object
@@ -442,6 +453,7 @@ export class MdapiConfig {
     //botversions
     "botVersions": MdapiConfig.BotVersion
   };
+  */
 
   public static isFolderDirectory(directory: string): boolean {
     let returned: boolean = false;
@@ -488,7 +500,7 @@ export class MdapiConfig {
   }// end method
 
   public static isUnsupportedMetaType(metaType: string): boolean {
-    for (var x: number = 0; x < MdapiConfig.unsupportedMetadataTypes.length; x++) {
+    for (let x: number = 0; x < MdapiConfig.unsupportedMetadataTypes.length; x++) {
       let unsupportedMetadataType: string = MdapiConfig.unsupportedMetadataTypes[x];
       if (unsupportedMetadataType === metaType) { return true; }// end if
     }// end for
@@ -499,7 +511,7 @@ export class MdapiConfig {
 
     if ((metaItem && metaItem.manageableState) &&
       (metaItem.manageableState === MdapiConfig.installed)) {
-      for (var x: number = 0; x < MdapiConfig.hiddenOrNonEditableInstalledMetaTypes.length; x++) {
+      for (let x: number = 0; x < MdapiConfig.hiddenOrNonEditableInstalledMetaTypes.length; x++) {
         let hiddenMetaType: string = MdapiConfig.hiddenOrNonEditableInstalledMetaTypes[x];
         if (hiddenMetaType === metaItem.type) {
           return true;
@@ -519,7 +531,8 @@ export class MdapiConfig {
 
   protected static isIgnoreNamespaces(metaItem: FileProperties): boolean {
 
-    return (metaItem.namespacePrefix && (metaItem.namespacePrefix !== null) &&
+    return (metaItem.namespacePrefix &&
+      (metaItem.namespacePrefix !== null) &&
       (metaItem.namespacePrefix !== '')); // pi or Finserv etc
 
   }// end method 
@@ -549,7 +562,7 @@ export class MdapiConfig {
 
   public static toSortedMembers(fileProperties: Array<FileProperties>): Array<string> {
     let members: Array<string> = [];
-    for (var x: number = 0; (fileProperties && (x < fileProperties.length)); x++) {
+    for (let x: number = 0; (fileProperties && (x < fileProperties.length)); x++) {
       let fileProps: FileProperties = fileProperties[x];
       members.push(fileProps.fullName);
     }
@@ -563,7 +576,7 @@ export class MdapiConfig {
    */
   public static describeMetadataArray(config: IConfig, metaTypeNameArray: Array<string>) {
 
-    for (var x: number = 0; x < metaTypeNameArray.length; x++) {
+    for (let x: number = 0; x < metaTypeNameArray.length; x++) {
 
       let metaTypeName: string = metaTypeNameArray[x];
       config.metadataTypes.push(metaTypeName);
@@ -602,7 +615,7 @@ export class MdapiConfig {
           let metadataObjects: Array<MetadataObject> = result.metadataObjects;
           config.metadataObjects = metadataObjects;
 
-          for (var x: number = 0; x < metadataObjects.length; x++) {
+          for (let x: number = 0; x < metadataObjects.length; x++) {
 
             let metadataObject: MetadataObject = metadataObjects[x];
             let metaTypeName: string = metadataObject.xmlName;
@@ -637,7 +650,7 @@ export class MdapiConfig {
             // setup child metadata
             if (metadataObject.childXmlNames && (metadataObject.childXmlNames instanceof Array)) {
 
-              for (var y: number = 0; y < metadataObject.childXmlNames.length; y++) {
+              for (let y: number = 0; y < metadataObject.childXmlNames.length; y++) {
                 let childXmlName = metadataObject.childXmlNames[y];
                 if (MdapiConfig.isUnsupportedMetaType(childXmlName)) { continue; }
                 config.metadataTypeChildren.push(childXmlName);
@@ -663,6 +676,7 @@ export class MdapiConfig {
           config.metadataTypes.sort();
 
           resolve();
+
         } catch (exception) {
           console.error(exception);
           reject(exception);
@@ -684,7 +698,7 @@ export class MdapiConfig {
    */
   public static setStandardValueSets(config: IConfig): void {
 
-    for (var x: number = 0; x < MdapiConfig.standardValueSets.length; x++) {
+    for (let x: number = 0; x < MdapiConfig.standardValueSets.length; x++) {
       config.metadataObjectMembersLookup[MdapiConfig.StandardValueSet].push((<FileProperties>
         {
           "type": MdapiConfig.StandardValueSet,
@@ -719,7 +733,7 @@ export class MdapiConfig {
 
           if (result.records) {
 
-            for (var x: number = 0; x < result.records.length; x++) {
+            for (let x: number = 0; x < result.records.length; x++) {
 
               let record: Object = result.records[x];
               let personRecordType: string = (MdapiConfig.PersonAccount + MdapiCommon.DOT + record[MdapiConfig.DeveloperName]);
@@ -758,7 +772,7 @@ export class MdapiConfig {
   public static repositionSettings(config: IConfig): void {
 
     let found: boolean = false;
-    for (var x: number = 0; x < config.metadataTypes.length; x++) {
+    for (let x: number = 0; x < config.metadataTypes.length; x++) {
       if (config.metadataTypes[x] === MdapiConfig.Settings) {
         config.metadataTypes.splice(x, 1);
         found = true;
@@ -795,25 +809,43 @@ export class MdapiConfig {
 
     return MdapiCommon.join(items, MdapiCommon.DOT);
 
-    //let offset: number = 1;
-    //let fileSuffix: string = items[items.length - 1];
-
-    /* if (fileSuffix === 'xml') {// metatype
-        let fileSub = items[items.length - 2];
-        if (fileSub.endsWith("-meta")) {
-            offset = 2;
-        }// end if
-        for (var x: number = 1; x < (items.length - offset); x++) {
-            returned += ('.' + items[x]);
-        }// end for
-    }// end if
-    else if (fileSuffix === 'md') { // handle custom metadata
-        for (var x: number = 1; x < (items.length - offset); x++) {
-            returned += ('.' + items[x]);
-        }// end for
-    }// end if */
-
   }// end method
+
+  public static createPackageFile(config: IConfig, settings: ISettings, packageXmlPath: string): void {
+
+    let xmlContent: string = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xmlContent += '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
+
+    MdapiConfig.repositionSettings(config);
+
+    for (let x: number = 0; x < config.metadataTypes.length; x++) {
+
+      let metaType: string = config.metadataTypes[x];
+
+      if (config.metadataObjectMembersLookup[metaType].length === 0) { continue; }
+
+      let metaItems: Array<FileProperties> = config.metadataObjectMembersLookup[metaType];
+
+      let sortedMembers: Array<string> = MdapiConfig.toSortedMembers(metaItems);
+
+      xmlContent += (MdapiCommon.TWO_SPACE + '<types>\n');
+
+      for (let y: number = 0; y < sortedMembers.length; y++) {
+        let item: string = sortedMembers[y];
+        xmlContent += (MdapiCommon.FOUR_SPACE + '<members>' + item + '</members>\n');
+      }// end for
+
+      xmlContent += (MdapiCommon.FOUR_SPACE + '<name>' + metaType + '</name>\n');
+      xmlContent += (MdapiCommon.TWO_SPACE + '</types>\n');
+
+    }// end for
+
+    xmlContent += (MdapiCommon.TWO_SPACE + '<version>' + settings.apiVersion + '</version>\n');
+    xmlContent += '</Package>\n';
+
+    writeFileSync(packageXmlPath, xmlContent);
+
+  }// end function
 
   public static getMetadataObjectFromDirectoryName(config: IConfig, directoryName: string, metaFile?: string): MetadataObject {
 
@@ -822,7 +854,7 @@ export class MdapiConfig {
     if (metadataObjects.length == 1) {
       return metadataObjects[0]; // if one only return one
     }// end if
-    for (var x: number = 0; x < metadataObjects.length; x++) {
+    for (let x: number = 0; x < metadataObjects.length; x++) {
       let metaObject: MetadataObject = metadataObjects[x];
       if (metaFile.endsWith(metaObject.suffix) ||
         metaFile.endsWith(metaObject.suffix + MdapiConfig.metaXmlSuffix)) { // e.g. for moderation different types
@@ -853,6 +885,76 @@ export class MdapiConfig {
       ignoreFolders: false,
       apiVersion: null
     });
-  }
+  }// end method
+
+  public static async unzipUnpackaged(zipFilePath: string, targetDirectoryUnpackaged: string): Promise<any> {
+
+    return new Promise((resolve, reject) => {
+
+      yauzl.open(zipFilePath, { lazyEntries: true }, (openErr, zipfile) => {
+
+        if (openErr) {
+          reject(openErr);
+          return;
+        }// end if
+
+        zipfile.readEntry();
+
+        zipfile.once("close", () => {
+          resolve();
+          return;
+        });// end close
+
+        zipfile.on("entry", (entry: any) => {
+          zipfile.openReadStream(entry, (unzipErr, readStream) => {
+            if (unzipErr) {
+              return reject(unzipErr);
+            }// end if
+            else if (/\/$/.test(entry.fileName)) { // read directory
+              zipfile.readEntry();
+              return;
+            }// end else if
+            let outputDir = path.join(targetDirectoryUnpackaged, path.dirname(entry.fileName));
+            let outputFile = path.join(targetDirectoryUnpackaged, entry.fileName);
+            mkdirp(outputDir, (mkdirErr: any) => {
+              if (mkdirErr) {
+                reject(mkdirErr);
+                return;
+              }// end if
+              readStream.pipe(createWriteStream(outputFile));
+              readStream.on("end", () => {
+                zipfile.readEntry();
+              });
+            }); // end mkdirp
+          }); // end open stream 
+        }); // end on
+      }); // end open
+    }); // end promise 
+
+  }// end method
+
+  public static async querylistMetadata(org: Org, metadataType: string, config: IConfig, settings: ISettings): Promise<void> {
+
+    return new Promise((resolve, reject) => {
+
+      let metaQueries: Array<ListMetadataQuery> = [{ "type": metadataType }];
+
+      org.getConnection().metadata.list(metaQueries, settings.apiVersion).then((result: Array<FileProperties>) => {
+
+        result = MdapiCommon.objectToArray(result);
+
+        for (let x: number = 0; x < result.length; x++) {
+          let metaItem: FileProperties = result[x];
+          config.metadataObjectMembersLookup[metadataType].push(metaItem);
+        }// end for
+
+        resolve();
+
+      }, (error: any) => {
+        reject(error);
+      });// end promise
+    });
+
+  }// end method
 
 }// end class
