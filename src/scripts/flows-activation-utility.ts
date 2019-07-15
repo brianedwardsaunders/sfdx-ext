@@ -1,8 +1,7 @@
 /**
- * @name MdapiRetrieveUtility
+ * @name FlowsActivationUtility (activate or deactivate)
  * @author brianewardsaunders 
  * @date 2019-07-10
- * @acknowledgement amtrack/force-dev-tool (author acknowledgement)
  */
 
 import {
@@ -17,17 +16,6 @@ import { UX } from '@salesforce/command';
 import { MdapiConfig, IConfig, ISettings } from './mdapi-config';
 import { MdapiCommon } from './mdapi-common';
 import path = require('path');
-
-export interface BatchCtrl {
-    counter: number;
-    resolve: Function;
-    reject: Function;
-}
-
-export interface Params {
-    metaType: string;
-    folder?: string;
-}
 
 export interface Flow {
     flowId: string,
@@ -51,8 +39,6 @@ export class FlowsActivationUtility {
     protected includedFlows: Record<string, Flow> = {};
     protected ignoredFlows: Record<string, Flow> = {};
 
-    protected BATCH_SIZE: number = 30;
-
     // define working folders
     protected stageOrgAliasDirectoryPath: string = (MdapiCommon.stageRoot + MdapiCommon.PATH_SEP + this.orgAlias);
     protected retrievePath: string = (this.stageOrgAliasDirectoryPath + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot);
@@ -64,8 +50,6 @@ export class FlowsActivationUtility {
 
     protected config: IConfig;
     protected settings: ISettings;
-
-    protected transientMetadataTypes: Array<string> = [];
 
     protected async retrieveMetadata(): Promise<any> {
 
@@ -171,7 +155,6 @@ export class FlowsActivationUtility {
     protected updateFlowDefinitionFilesToDeactivate(): void {
 
         let directory: string = (this.targetDirectorySource + MdapiCommon.PATH_SEP + MdapiConfig.flowDefinitions);
-
         let fileItems: Array<string> = readdirSync(directory);
 
         for (let x: number = 0; x < fileItems.length; x++) {
@@ -274,8 +257,7 @@ export class FlowsActivationUtility {
                 this.ux.log(result);
                 resolve();
             }, (error) => {
-                console.log(error);
-                // this.ux.error(error);
+                this.ux.error(error);
                 reject(error);
             });
 
@@ -321,7 +303,7 @@ export class FlowsActivationUtility {
                     "versionNumber": versionNumber,
                     "status": status
                 }// end else
-            }
+            }// end else
 
         }// end for
 
