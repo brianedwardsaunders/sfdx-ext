@@ -22,12 +22,20 @@ export default class Changeset extends SfdxCommand {
     `,
     `
     $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com
+    `,
     `
+    $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --revisionfrom 9b834dbeec28b21f39756ad4b0183e8568ef7a7c --revisionto feature/SprintX
+    `,
+    `
+    $ sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6
+    `,
   ];
 
   protected static flagsConfig = {
     sourceusername: flags.string({ char: 's', description: messages.getMessage('sourceusernameFlagDescription') }),
-    ignorecomments: flags.boolean({ char: 'x', description: messages.getMessage('ignorecommentsFlagDescription') })
+    ignorecomments: flags.boolean({ char: 'x', description: messages.getMessage('ignorecommentsFlagDescription') }),
+    revisionfrom: flags.string({ char: 'r', description: messages.getMessage('revisionfromFlagDescription') }),
+    revisionto: flags.string({ char: 't', description: messages.getMessage('revisionfromFlagDescription') })
   };
 
   // requires user alias
@@ -38,12 +46,17 @@ export default class Changeset extends SfdxCommand {
 
     let defaultApiVersion: string = await this.org.retrieveMaxApiVersion();
     let ignorecomments: boolean = this.flags.ignorecomments || false;
-    let sourceusername: string = this.flags.sourceusername;
     let targetusername: string = this.flags.targetusername;
+    let sourceusername: string = this.flags.sourceusername;
+    let revisionfrom: string = this.flags.revisionfrom || null;
+    let revisionto: string = this.flags.revisionto || null;
     let apiversion: string = this.flags.apiversion || defaultApiVersion;
 
     if (sourceusername === undefined) {
       throw new SfdxError(messages.getMessage('errorSourceusernameRequired'));
+    }// end if
+    else if ((revisionfrom === null && revisionto !== null) || (revisionfrom !== null && revisionto === null)) {
+      throw new SfdxError(messages.getMessage('errorBothRevisionsRequired'));
     }// end if
 
     this.ux.log("-----------------------------");
@@ -53,6 +66,8 @@ export default class Changeset extends SfdxCommand {
     this.ux.log("targetusername   : " + targetusername);
     this.ux.log("apiversion       : " + apiversion);
     this.ux.log("ignorecomments   : " + ignorecomments);
+    this.ux.log("revisionfrom     : " + revisionfrom);
+    this.ux.log("revisionto       : " + revisionto);
     this.ux.log("-----------------------------");
 
     let util = new MdapiChangesetUtility(
@@ -61,7 +76,9 @@ export default class Changeset extends SfdxCommand {
       sourceusername,
       targetusername,
       apiversion,
-      ignorecomments);
+      ignorecomments,
+      revisionfrom,
+      revisionto);
 
     util.process().then(() => {
       this.ux.log('success.');

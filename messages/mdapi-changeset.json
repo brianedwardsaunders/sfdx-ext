@@ -2,5 +2,8 @@
   "commandDescription": "Generates a changeset by comparing differences between two mdapi source directories",
   "sourceusernameFlagDescription": "(Required) source org username or alias",
   "ignorecommentsFlagDescription": "Ignore compare differences comments in deployment package.xml",
-  "errorSourceusernameRequired": "Source org username is required"
+  "revisionfromFlagDescription": "base revision to generate the diff e.g. 9b834dbeec28b21f39756ad4b0183e8568ef7a7c",
+  "revisiontoFlagDescription": "target revision to generate the diff e.g. HEAD or feature/SprintX",
+  "errorSourceusernameRequired": "Source org username is required",
+  "errorBothRevisionsRequired": "Both revisionfrom and revisionto values required"
 }

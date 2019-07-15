@@ -47,9 +47,11 @@ export class MdapiChangesetUtility {
 
     protected sourceBaseDir: string;
     protected targetBaseDir: string;
+    protected sourceRetrieveBaseDir: string;
     protected sourceRetrieveDir: string;
     protected sourceRetrieveDirBackup: string;
     protected sourceConfigDir: string;
+    protected targetRetrieveBaseDir: string;
     protected targetRetrieveDir: string;
     protected sourceDeployDir: string;
     protected sourceDeployDirTarget: string;
@@ -214,7 +216,9 @@ export class MdapiChangesetUtility {
         protected sourceOrgAlias: string, // left (source)
         protected targetOrgAlias: string, // right (target)
         protected apiVersion: string,
-        protected ignoreComments: boolean) {
+        protected ignoreComments: boolean,
+        protected revisionFrom?: string,  // git revision
+        protected revisionTo?: string, ) { // git revision
         // noop
     }// end constructor
 
@@ -240,41 +244,78 @@ export class MdapiChangesetUtility {
 
     protected setupFolders(): void {
 
+        // e.g. stage
         if (!existsSync(MdapiCommon.stageRoot)) {
-            throw "stageRoot folder provided doesn't exist - cannot compare (retrieved) contents";
+            mkdirSync(MdapiCommon.stageRoot);
+            this.ux.warn(MdapiCommon.stageRoot + ' directory created.');
         }// end if
 
         // e.g. stage/DevOrg
         this.sourceBaseDir = (MdapiCommon.stageRoot + MdapiCommon.PATH_SEP + this.sourceOrgAlias);
+        if (!existsSync(this.sourceBaseDir)) {
+            mkdirSync(this.sourceBaseDir);
+            this.ux.warn(this.sourceBaseDir + ' directory created.');
+        }// end if
+
         // e.g. stage/ReleaseOrg
         this.targetBaseDir = (MdapiCommon.stageRoot + MdapiCommon.PATH_SEP + this.targetOrgAlias);
+        if (!existsSync(this.targetBaseDir)) {
+            mkdirSync(this.targetBaseDir);
+            this.ux.warn(this.targetBaseDir + ' directory created.');
+        }// end if
+
+        // e.g. stage/DevOrg/retrieve
+        this.sourceRetrieveBaseDir = (this.sourceBaseDir + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot);
+        if (!existsSync(this.sourceRetrieveBaseDir)) {
+            mkdirSync(this.sourceRetrieveBaseDir);
+            this.ux.warn(this.sourceRetrieveBaseDir + ' directory created.');
+        }// end if
+
         // e.g. stage/DevOrg/retrieve/src
-        this.sourceRetrieveDir = (this.sourceBaseDir + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
+        this.sourceRetrieveDir = (this.sourceRetrieveBaseDir + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
+        if (!existsSync(this.sourceRetrieveDir)) {
+            mkdirSync(this.sourceRetrieveDir);
+            this.ux.warn(this.sourceRetrieveDir + ' directory created.');
+        }// end if
+
+        // e.g. stage/ReleaseOrg/retrieve
+        this.targetRetrieveBaseDir = (this.targetBaseDir + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot);
+        if (!existsSync(this.targetRetrieveBaseDir)) {
+            mkdirSync(this.targetRetrieveBaseDir);
+            this.ux.warn(this.targetRetrieveBaseDir + ' directory created.');
+        }// end if
+
+        // e.g. stage/ReleaseOrg/retrieve/src
+        this.targetRetrieveDir = (this.targetRetrieveBaseDir + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
+        if (!existsSync(this.targetRetrieveDir)) {
+            mkdirSync(this.targetRetrieveDir);
+            this.ux.warn(this.targetRetrieveDir + ' directory created.');
+        }// end if
+
         // e.g. stage/DevOrg/retrieve/src.backup
         this.sourceRetrieveDirBackup = (this.sourceRetrieveDir + MdapiCommon.backupExt);
-        // e.g. stage/ReleaseOrg/retrieve/src
-        this.targetRetrieveDir = (this.targetBaseDir + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
+
         // e.g. stage/DevOrg/deploy
         this.sourceDeployDir = (this.sourceBaseDir + MdapiCommon.PATH_SEP + MdapiCommon.deployRoot);
-        // e.g. stage/DevOrg/deploy/ReleaseOrg
-        this.sourceDeployDirTarget = (this.sourceDeployDir + MdapiCommon.PATH_SEP + this.targetOrgAlias);
-        // e.g. stage/DevOrg/deploy/ReleaseOrg/src
-        this.sourceDeployDirTargetSource = (this.sourceDeployDirTarget + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
-
         // check deploy exists else create
         if (!existsSync(this.sourceDeployDir)) {
             mkdirSync(this.sourceDeployDir);
         }// end if
 
+        // e.g. stage/DevOrg/deploy/ReleaseOrg
+        this.sourceDeployDirTarget = (this.sourceDeployDir + MdapiCommon.PATH_SEP + this.targetOrgAlias);
         // delete old staging deploy folder
         if (existsSync(this.sourceDeployDirTarget)) {
             removeSync(this.sourceDeployDirTarget);
             this.ux.log('source deploy target directory: [' + this.sourceDeployDirTarget + '] cleaned.');
         }// end if
-
         // create staging deploy folder
+
         mkdirSync(this.sourceDeployDirTarget);
         this.ux.log(this.sourceDeployDirTarget + ' directory created.');
+
+        // e.g. stage/DevOrg/deploy/ReleaseOrg/src
+        this.sourceDeployDirTargetSource = (this.sourceDeployDirTarget + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
 
         this.emptyPackageXml = (this.sourceDeployDirTarget + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
         this.filePackageXml = (this.sourceDeployDirTarget + MdapiCommon.PATH_SEP + MdapiConfig.packageManifest);
@@ -1301,26 +1342,72 @@ export class MdapiChangesetUtility {
         this.settings.apiVersion = this.apiVersion;
     }// end method
 
+    protected async checkoutRevisions(): Promise<any> {
+
+        return new Promise((resolve, reject) => {
+
+            if (this.revisionFrom && this.revisionTo) {
+
+                this.ux.log('git checkout ' + this.revisionFrom);
+                MdapiCommon.command('git checkout ' + this.revisionFrom).then((result) => {
+
+                    this.ux.log(result);
+
+                    this.ux.log('copying ' + MdapiConfig.srcFolder + ' to ' + this.sourceRetrieveDir);
+                    copySync(MdapiConfig.srcFolder, this.sourceRetrieveDir);
+
+                    this.ux.log('git checkout ' + this.revisionTo);
+                    MdapiCommon.command('git checkout ' + this.revisionTo).then((result) => {
+
+                        this.ux.log(result);
+
+                        this.ux.log('copying ' + MdapiConfig.srcFolder + ' to ' + this.targetRetrieveDir);
+                        copySync(MdapiConfig.srcFolder, this.targetRetrieveDir);
+
+                        resolve();
+
+                    }, (error) => {
+                        this.ux.error(error);
+                        reject(error);
+                    });
+
+                }, (error) => {
+                    this.ux.error(error);
+                    reject(error);
+                });
+
+            }// end if
+            else {
+                resolve();
+            }// end else
+
+        });
+    }// end method
+
     public async process(): Promise<void> {
 
         this.init();
 
-        this.setupFolders(); // ok
+        this.setupFolders();
 
-        this.checkLocalBackupAndRestore(); // ok
+        this.ux.startSpinner('checkRevisions');
+        await this.checkoutRevisions();
+        this.ux.stopSpinner();
+
+        this.checkLocalBackupAndRestore();
 
         // async calls
         this.ux.startSpinner('describemetadata');
-        await MdapiConfig.describeMetadata(this.org, this.config, this.settings); // ok
+        await MdapiConfig.describeMetadata(this.org, this.config, this.settings);
         this.ux.stopSpinner();
 
-        this.deleteExcludedDirectories(); // ok
+        this.deleteExcludedDirectories();
 
-        this.deleteExcludedFiles(); // ok
+        this.deleteExcludedFiles();
 
-        this.setupDiffRecords(); // ok
+        this.setupDiffRecords();
 
-        this.walkDirectories(); // ok
+        this.walkDirectories();
 
         this.compareSourceAndTarget();
 
