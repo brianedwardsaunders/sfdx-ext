@@ -94,6 +94,9 @@ export class MdapiConfig {
   public static documents: string = "documents";
   public static profiles: string = "profiles";
   public static settings: string = "settings";
+  public static _name: string = "name"; // reserved es6 property
+  public static tab: string = "tab";
+  public static settingName: string = "settingName";
 
   // Bot related
   // https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_bot.htm
@@ -149,6 +152,7 @@ export class MdapiConfig {
   public static activeVersionNumber: string = "activeVersionNumber";
   public static attributes: string = "attributes";
 
+  public static field: string = "field";
   public static fields: string = "fields";
   public static indexes: string = "indexes";
   public static businessProcesses: string = "businessProcesses";
@@ -217,6 +221,22 @@ export class MdapiConfig {
     // 'HomePageComponent',
     // 'CustomSetting 
   ];
+
+  // prod specific variables
+  public static ActiveScratchOrg: string = 'ActiveScratchOrg';
+  public static NamespaceRegistry: string = 'NamespaceRegistry';
+  public static ScratchOrgInfo: string = 'ScratchOrgInfo';
+  public static standard__LightningInstrumentation: string = 'standard__LightningInstrumentation';
+
+  public static destructiveExceptions = {
+    Workflow: [MdapiCommon.ASTERIX],
+    AssignmentRules: [MdapiCommon.ASTERIX],
+    CustomObjectTranslation: [MdapiCommon.ASTERIX],
+    Flow: [MdapiCommon.ASTERIX],
+    FlowDefinition: [MdapiCommon.ASTERIX],
+    CustomObject: [MdapiConfig.ActiveScratchOrg, MdapiConfig.NamespaceRegistry, MdapiConfig.ScratchOrgInfo], // prod specific 
+    CustomApplication: [MdapiConfig.standard__LightningInstrumentation] // prod specific 
+  };
 
   public static unsupportedMetadataTypes = [
     MdapiConfig.ManagedTopic
@@ -418,47 +438,6 @@ export class MdapiConfig {
     BotVersions: MdapiConfig.botVersions
   };
 
-  /* public static childMetadataObjectLookup = {
-    //label
-    "labels": MdapiConfig.CustomLabel,
-    //object
-    "fields": MdapiConfig.CustomField,
-    "indexes": MdapiConfig.Index,
-    "businessProcesses": MdapiConfig.BusinessProcess,
-    "recordTypes": MdapiConfig.RecordType,
-    "compactLayouts": MdapiConfig.CompactLayout,
-    "webLinks": MdapiConfig.WebLink,
-    "validationRules": MdapiConfig.ValidationRule,
-    "sharingReasons": MdapiConfig.SharingReason,
-    "listViews": MdapiConfig.ListView,
-    "fieldSets": MdapiConfig.FieldSet,
-    //workflow
-    "alerts": MdapiConfig.WorkflowAlert,
-    "fieldUpdates": MdapiConfig.WorkflowFieldUpdate,
-    "flowActions": MdapiConfig.WorkflowSend, // check this
-    "knowledgePublishes": MdapiConfig.WorkflowKnowledgePublish,
-    "outboundMessages": MdapiConfig.WorkflowOutboundMessage,
-    "rules": MdapiConfig.WorkflowRule,
-    "tasks": MdapiConfig.WorkflowTask,
-    //assignment rule (singular)
-    "assignmentRule": MdapiConfig.AssignmentRule,
-    //auto Response Rule (singular)
-    "autoResponseRule": MdapiConfig.AutoResponseRule,
-    //escalation Rule (singular)
-    "escalationRule": MdapiConfig.EscalationRule,
-    //matching Rules (plural)
-    "matchingRules": MdapiConfig.MatchingRule,
-    //SharingOwnerRule
-    "sharingOwnerRules": MdapiConfig.SharingOwnerRule,
-    "sharingCriteriaRules": MdapiConfig.SharingCriteriaRule,
-    "sharingTerritoryRules": MdapiConfig.SharingTerritoryRule,
-    //ManagedTopic
-    "ManagedTopic": MdapiConfig.ManagedTopic,
-    //botversions
-    "botVersions": MdapiConfig.BotVersion
-  };
-  */
-
   public static isFolderDirectory(directory: string): boolean {
     let returned: boolean = false;
     MdapiConfig.folderDirectories.forEach((element: string) => {
@@ -537,7 +516,7 @@ export class MdapiConfig {
 
     return (metaItem.namespacePrefix &&
       (metaItem.namespacePrefix !== null) &&
-      (metaItem.namespacePrefix !== '')); // pi or Finserv etc
+      (metaItem.namespacePrefix !== MdapiCommon.BLANK)); // pi or Finserv etc
 
   }// end method 
 
@@ -569,7 +548,7 @@ export class MdapiConfig {
     for (let x: number = 0; (fileProperties && (x < fileProperties.length)); x++) {
       let fileProps: FileProperties = fileProperties[x];
       members.push(fileProps.fullName);
-    }
+    }// end for
     return members.sort();
   }// end method
 
@@ -728,7 +707,7 @@ export class MdapiConfig {
    * @param org 
    * @param config 
    */
-  public static async resolvePersonAccountRecordTypes(org: Org, config: IConfig): Promise<any> {
+  public static async resolvePersonAccountRecordTypes(org: Org, config: IConfig): Promise<void> {
 
     return new Promise((resolve, reject) => {
 
@@ -941,7 +920,7 @@ export class MdapiConfig {
 
     return new Promise((resolve, reject) => {
 
-      let metaQueries: Array<ListMetadataQuery> = [{ "type": metadataType }];
+      let metaQueries: Array<ListMetadataQuery> = [{ type: metadataType }];
 
       org.getConnection().metadata.list(metaQueries, settings.apiVersion).then((result: Array<FileProperties>) => {
 

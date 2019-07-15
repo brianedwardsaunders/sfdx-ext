@@ -64,7 +64,7 @@ export class MdapiRetrieveUtility {
 
     protected transientMetadataTypes: Array<string> = [];
 
-    protected listMetadataFolderBatch(config: IConfig, metaType: string): Promise<any> {
+    protected listMetadataFolderBatch(config: IConfig, metaType: string): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
@@ -101,43 +101,6 @@ export class MdapiRetrieveUtility {
         });// end promse
 
     }// end method
-
-    /* protected createPackageFile(config: IConfig, packageFile: string): void {
-
-        let xmlContent: string = '<?xml version="1.0" encoding="UTF-8"?>\n';
-        xmlContent += '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
-
-        MdapiConfig.repositionSettings(config);
-
-        for (let x: number = 0; x < config.metadataTypes.length; x++) {
-
-            let metaType: string = config.metadataTypes[x];
-
-            if (config.metadataObjectMembersLookup[metaType].length === 0) { continue; }
-
-            let metaItems: Array<FileProperties> = config.metadataObjectMembersLookup[metaType];
-
-            let sortedMembers: Array<string> = MdapiConfig.toSortedMembers(metaItems);
-
-            xmlContent += (MdapiCommon.TWO_SPACE + '<types>\n');
-
-            for (let y: number = 0; y < sortedMembers.length; y++) {
-                let item: string = sortedMembers[y];
-                xmlContent += (MdapiCommon.FOUR_SPACE + '<members>' + item + '</members>\n');
-            }// end for
-
-            xmlContent += (MdapiCommon.FOUR_SPACE + '<name>' + metaType + '</name>\n');
-            xmlContent += (MdapiCommon.TWO_SPACE + '</types>\n');
-
-        }// end for
-
-        xmlContent += (MdapiCommon.TWO_SPACE + '<version>' + this.apiVersion + '</version>\n');
-        xmlContent += '</Package>\n';
-
-        writeFileSync(packageFile, xmlContent);
-        this.ux.log(packageFile + ' file successfully saved.');
-
-    }// end function */
 
     // create backup of retrieve meta in-case needed later
     protected backup(): void {
@@ -178,7 +141,7 @@ export class MdapiRetrieveUtility {
 
     }// end method
 
-    protected async unzipUnpackaged(): Promise<any> {
+    protected async unzipUnpackaged(): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
@@ -224,7 +187,7 @@ export class MdapiRetrieveUtility {
 
     }// end method
 
-    protected async retrieveMetadata(): Promise<any> {
+    protected async retrieveMetadata(): Promise<void> {
 
         this.ux.log('retrieve directory: ' + this.retrievePath);
 
@@ -290,7 +253,7 @@ export class MdapiRetrieveUtility {
 
     }// end method
 
-    protected async unzip(): Promise<any> {
+    protected async unzip(): Promise<void> {
 
         if (existsSync(this.targetDirectorySource)) {
             removeSync(this.targetDirectorySource);
@@ -308,10 +271,10 @@ export class MdapiRetrieveUtility {
         let metaQueries: Array<ListMetadataQuery>;
 
         const metaType: string = params.metaType;
-        const folder: string = params.folder;
+        const folderName: string = params.folder;
 
-        if (folder) { metaQueries = [{ "type": metaType, "folder": folder }]; }
-        else { metaQueries = [{ "type": metaType }]; }
+        if (folderName) { metaQueries = [{ type: metaType, folder: folderName }]; }
+        else { metaQueries = [{ type: metaType }]; }
 
         this.org.getConnection().metadata.list(metaQueries, this.apiVersion).then((result: Array<FileProperties>) => {
 
@@ -473,7 +436,6 @@ export class MdapiRetrieveUtility {
 
         // sync calls
         MdapiConfig.setStandardValueSets(this.config);
-
         MdapiConfig.repositionSettings(this.config);
 
         // create package.xml

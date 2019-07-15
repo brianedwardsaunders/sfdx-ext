@@ -42,12 +42,12 @@ export class PackageSyncUtility {
     protected comparePackageList(): void {
 
         // left to right
-        for (var i: number = 0; i < this.leftPackageList.length; i++) {
+        for (let i: number = 0; i < this.leftPackageList.length; i++) {
 
             let leftPackage: PackageVersion = this.leftPackageList[i];
             let found: boolean = false;
 
-            for (var j: number = 0; j < this.rightPackageList.length; j++) {
+            for (let j: number = 0; j < this.rightPackageList.length; j++) {
 
                 let rightPackage = this.rightPackageList[j];
 
@@ -70,12 +70,12 @@ export class PackageSyncUtility {
         }// end for
 
         // right to left
-        for (var x: number = 0; x < this.rightPackageList.length; x++) {
+        for (let x: number = 0; x < this.rightPackageList.length; x++) {
 
             let rightPackage: PackageVersion = this.rightPackageList[x];
             let found: boolean = false;
 
-            for (var y: number = 0; y < this.leftPackageList.length; y++) {
+            for (let y: number = 0; y < this.leftPackageList.length; y++) {
 
                 let leftPackage = this.leftPackageList[y];
 
@@ -96,7 +96,7 @@ export class PackageSyncUtility {
     }// end method
 
     // syncPackage by installing or uninstalling
-    protected async syncPackages(): Promise<any> {
+    protected async syncPackages(): Promise<string> {
 
         return new Promise((resolve, reject) => {
 
@@ -149,11 +149,11 @@ export class PackageSyncUtility {
     }// end method
 
     // process compareSyncPackages
-    protected async compareSyncPackages(): Promise<any> {
+    protected async compareSyncPackages(): Promise<void> {
 
         return new Promise((resolve, reject) => {
             // get packagelist on left as json
-            const commandSfdxLeftPackageList = 'sfdx force:package:installed:list -u ' + this.sourceOrgAlias + ' --json';
+            let commandSfdxLeftPackageList: string = 'sfdx force:package:installed:list -u ' + this.sourceOrgAlias + ' --json';
             //this.ux.log(commandSfdxLeftPackageList);
             //commandSfdxLeftPackageList 
             this.ux.startSpinner('retrieving installed packages from ' + this.sourceOrgAlias);
@@ -162,11 +162,11 @@ export class PackageSyncUtility {
 
                 this.ux.stopSpinner();
                 this.ux.log(result);
-                let jsonObject = JSON.parse(result);
-                this.leftPackageList = jsonObject.result;
+                let jsonObject: Object = JSON.parse(result);
+                this.leftPackageList = jsonObject["result"];
 
                 // commandSfdxRightPackageList 
-                const commandSfdxRightPackageList = 'sfdx force:package:installed:list -u ' + this.targetOrgAlias + ' --json';
+                let commandSfdxRightPackageList: string = 'sfdx force:package:installed:list -u ' + this.targetOrgAlias + ' --json';
                 //this.ux.log(commandSfdxRightPackageList);
                 this.ux.startSpinner('retrieving installed packages from ' + this.targetOrgAlias);
 
@@ -185,10 +185,10 @@ export class PackageSyncUtility {
 
                     // syncPackages
                     this.ux.startSpinner('syncPackages');
-                    this.syncPackages().then((result: any) => {
+                    this.syncPackages().then((result: string) => {
                         this.ux.stopSpinner();
                         this.ux.log(result);
-                        resolve(result);
+                        resolve();
                     }, (error: any) => {
                         this.ux.error(error);
                         reject(error);

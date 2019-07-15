@@ -132,7 +132,7 @@ export class FlowsActivationUtility {
 
         return new Promise((resolve, reject) => {
 
-            let metaQueries: Array<ListMetadataQuery> = [{ "type": metadataType }];
+            let metaQueries: Array<ListMetadataQuery> = [{ type: metadataType }];
 
             this.org.getConnection().metadata.list(metaQueries, this.apiVersion).then((result: Array<FileProperties>) => {
 

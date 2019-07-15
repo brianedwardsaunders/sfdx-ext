@@ -14,6 +14,7 @@ import { MdapiCommon } from "./mdapi-common";
 import { MdapiConfig, IConfig, ISettings } from "./mdapi-config";
 import { UX } from "@salesforce/command";
 import path = require('path');
+import { ChangesetExcludeDefaults } from "../config/changeset-exclude-defaults";
 
 export enum ChangeType {
     Package,
@@ -45,6 +46,9 @@ export interface DiffRecord {
 
 export class MdapiChangesetUtility {
 
+    // local org to org deploy if false
+    protected versionControlled: boolean = false;
+
     protected sourceBaseDir: string;
     protected targetBaseDir: string;
     protected sourceRetrieveBaseDir: string;
@@ -72,143 +76,17 @@ export class MdapiChangesetUtility {
     protected destructiveIgnoreResults: Record<string, Array<DiffRecord>> = {};
     protected destructiveMatchResults: Record<string, Array<DiffRecord>> = {};
 
-    protected destructiveExceptions = {
-        "Workflow": ["*"],
-        "AssignmentRules": ["*"],
-        "CustomObjectTranslation": ["*"],
-        "Flow": ["*"],
-        "FlowDefinition": ["*"],
-        "CustomObject": ["ActiveScratchOrg", "NamespaceRegistry", "ScratchOrgInfo"], // prod specific 
-        "CustomApplication": ["standard__LightningInstrumentation"] // prod specific 
-    };
+    protected destructiveExceptions = MdapiConfig.destructiveExceptions;
 
+    // MAKE EXCLUDE CONFIGURABLE
     // PROFILES ARE HANDLED IN ProfileDiff.js as this folder likely contains partial profile only.
-    protected directoryRemoveList: Array<string> = [
-        "/profilePasswordPolicies", // get all kinds of issues with this org specific
-        "/profileSessionSettings", // get all kinds of issues with this org specific
-        "/animationRules", // cannot deploy
-        "/flowDefinitions", // not required
-        "/reports/LeadInsightsReports", // salesforce sales einstein can't modify
-        "/dashboards/LeadInsightsDashboards"
-    ];
+    protected directoryExcludeList: Array<string> = ChangesetExcludeDefaults.defaultDirectoryExcludeList;
 
     // SFDC WONT ALLOW THE MIGRATION OF THESE FILES (FIELDS PART OF MANAGED PACKAGE)
     // ERROR Cannot modify managed object: entity=FieldAttributes, component=0DH4J0000001LaB, field=BusinessStatus, state=installed
     // manually check field history tracking
     // IqScore is EMPTY AND EISTEING ACTIVATION DEPENDENT
-    protected fileRemoveList: Array<string> = [
-        "/applications/FinServ__BankingConsoleFinancialServicesCloud.app",
-        "/applications/FinServ__FinancialServicesCloudRetailBanking.app",
-        "/applications/FinServ__FSC_Lightning.app",
-        "/applications/FinServ__InsuranceConsoleFinancialServicesCloud.app",
-        "/appMenus/AppSwitcher.appMenu", // can't migrate AppSwitcher
-        "/classes/FinServ__MoiConstants.cls", // can't migrate managed package classes
-        "/classes/FinServ__MoiConstants.cls-meta.xml",
-        //these signed certificates can be migrated
-        "/certs/mulesoft_entities_api_certificate.crt-meta.xml",
-        "/certs/mulesoft_entities_api_certificate.crt",
-        "/certs/aw_mulesoft.crt-meta.xml",
-        "/certs/aw_mulesoft.crt",
-        "/connectedApps/GitLab.connectedApp", // will differ from org to org manual setup once
-        "/profiles/B2BMA Integration User.profile", //'B2BMA Integration User': You may not turn off permission Read All RetailVisitTemplate for this License Type
-        "/pathAssistants/Default_Opportunity.pathAssistant", // has domain hard coded and can't migrate this thing
-        //Cannot modify managed object: entity=CustomPermissionSet
-        "/permissionsets/FinServ__Advisor.permissionset",
-        "/permissionsets/FinServ__AdvisorPartnerCommunity.permissionset",
-        "/permissionsets/FinServ__CustomerCommunityReadOnly.permissionset",
-        "/permissionsets/FinServ__FinancialServicesCloudBasic.permissionset",
-        "/permissionsets/FinServ__FinancialServicesCloudStandard.permissionset",
-        "/permissionsets/FinServ__FSCWaveIntegration.permissionset",
-        "/permissionsets/FinServ__InsuranceAccess.permissionset",
-        "/permissionsets/FinServ__LendingAssistant.permissionset",
-        "/permissionsets/FinServ__PersonalBanker.permissionset",
-        "/permissionsets/FinServ__RelationshipManager.permissionset",
-        "/permissionsets/FinServ__Teller.permissionset",
-        "/permissionsets/pi__Pardot.permissionset",
-        "/permissionsets/pi__Pardot_Connector_User.permissionset",
-        "/permissionsets/pi__Pardot_Integration_User.permissionset",
-        "/permissionsets/pi__Sales_Edge.permissionset",
-        //static resources from managed packages ignore can't be migrated
-        "/staticresources/FinServ__industryresources.resource-meta.xml",
-        "/staticresources/FinServ__industryresources.resource",
-        "/staticresources/FinServ__wealthresources.resource-meta.xml",
-        "/staticresources/FinServ__wealthresources.resource",
-        "/staticresources/pi__EngageAlertsDownload.resource-meta.xml",
-        "/staticresources/pi__EngageAlertsDownload.resource",
-        "/staticresources/pi__EngageSalesTools.resource-meta.xml",
-        "/staticresources/pi__EngageSalesTools.resource",
-        "/staticresources/pi__EngagementHistory.resource-meta.xml",
-        "/staticresources/pi__EngagementHistory.resource",
-        "/staticresources/pi__Error.resource-meta.xml",
-        "/staticresources/pi__Error.resource",
-        "/staticresources/pi__LeadDeck.resource-meta.xml",
-        "/staticresources/pi__LeadDeck.resource",
-        "/staticresources/pi__LegacyPardot.resource-meta.xml",
-        "/staticresources/pi__LegacyPardot.resource",
-        "/staticresources/pi__MarketingActions.resource-meta.xml",
-        "/staticresources/pi__MarketingActions.resource",
-        "/staticresources/pi__MicroCampaign.resource-meta.xml",
-        "/staticresources/pi__MicroCampaign.resource",
-        "/staticresources/pi__Mobile_Design_Templates.resource-meta.xml",
-        "/staticresources/pi__Mobile_Design_Templates.resource",
-        "/staticresources/pi__Outlook.resource-meta.xml",
-        "/staticresources/pi__Outlook.resource",
-        "/staticresources/pi__PardotLightningDesignSystem_unversioned.resource-meta.xml",
-        "/staticresources/pi__PardotLightningDesignSystem_unversioned.resource",
-        "/staticresources/pi__Promise.resource-meta.xml",
-        "/staticresources/pi__Promise.resource",
-        "/staticresources/pi__ProximaNovaSoft.resource-meta.xml",
-        "/staticresources/pi__ProximaNovaSoft.resource",
-        "/staticresources/pi__SalesEdgeErrPage.resource-meta.xml",
-        "/staticresources/pi__SalesEdgeErrPage.resource",
-        "/staticresources/pi__ckeditorSalesReach.resource-meta.xml",
-        "/staticresources/pi__ckeditorSalesReach.resource",
-        "/staticresources/pi__font_awesome_4_2_0.resource-meta.xml",
-        "/staticresources/pi__font_awesome_4_2_0.resource",
-        "/staticresources/pi__icon_utility.resource-meta.xml",
-        "/staticresources/pi__icon_utility.resource",
-        "/staticresources/pi__jquery_time_ago.resource-meta.xml",
-        "/staticresources/pi__jquery_time_ago.resource",
-        "/staticresources/pi__jquery_ui_1_11_1_custom_has_dialog.resource-meta.xml",
-        "/staticresources/pi__jquery_ui_1_11_1_custom_has_dialog.resource",
-        "/staticresources/pi__jquery_ui_1_12_1.resource-meta.xml",
-        "/staticresources/pi__jquery_ui_1_12_1.resource",
-        //test community should not be transported
-        "/sites/testcommunity.site",
-        "/siteDotComSites/testcommunity1.site",
-        "/siteDotComSites/testcommunity1.site-meta.xml",
-        "/moderation/testcommunity.Banned.keywords",
-        "/moderation/testcommunity.Block_banned_keywords.rule",
-        "/moderation/testcommunity.Flag_banned.rule",
-        "/moderation/testcommunity.Freeze_for_frequent_posting.rule",
-        "/moderation/testcommunity.Replace_banned.rule",
-        "/moderation/testcommunity.Review_the_first_post.rule",
-        "/managedTopics/testcommunity.managedTopics",
-        "/networks/testcommunity.network",
-        "/networkBranding/cbtestcommunity.networkBranding",
-        "/networkBranding/cbtestcommunity.networkBranding-meta.xml",
-        "/profiles/testcommunity Profile.profile",
-        "/userCriteria/testcommunity.Customer_Members.userCriteria",
-        "/userCriteria/testcommunity.Members_without_contribution.userCriteria",
-        "/userCriteria/testcommunity.Partner_and_Customer_members.userCriteria",
-        // installed as part of package always causing issues. e.g. the values of chartSummary and/or groupingColumn are not compatible
-        "/dashboards/Sales_and_Marketing_Dashboards/Best_Practices_Dashboard6.dashboard",
-        // used by standard apps
-        "/contentassets/elliegif1.asset",
-        "/contentassets/elliegif1.asset-meta.xml",
-        "/contentassets/online_pay_final.asset",
-        "/contentassets/online_pay_final.asset-meta.xml"
-        /* 
-        // default pathAssistant has domain hard coded and can't migrate this thing
-        /dashboards/Sales_and_Marketing_Dashboards/Best_Practices_Dashboard6.dashboard
-        "/reports/LeadInsightsReports/SampleReportLeadScoreConversion"
-        "/pathAssistants/Default_Opportunity.pathAssistant-meta.xml", 
-        "/dashboards/AdviserPerformanceDashboard/Best_Practices_Dashboard611.dashboard"
-        "/objects/Account/fields/FinServ__ReferredByUser__c.field-meta.xml",
-        "/objects/Lead/fields/FinServ__ReferredByUser__c.field-meta.xml",
-        "/objects/Opportunity/fields/FinServ__ReferredByUser__c.field-meta.xml" 
-        */
-    ];
+    protected fileExcludeList: Array<string> = ChangesetExcludeDefaults.defaultFileExcludeList;
 
     constructor(
         protected org: Org,
@@ -227,6 +105,7 @@ export class MdapiChangesetUtility {
 
     // because diff is left sfdx destructive return left to original state
     protected checkLocalBackupAndRestore(): void {
+        if (this.versionControlled) { return; }//no need to backup if version controlled
         this.ux.log('checking for local backup [' + this.sourceRetrieveDirBackup + '] ...');
         if (!existsSync(this.sourceRetrieveDirBackup)) { // first time
             mkdirSync(this.sourceRetrieveDirBackup);
@@ -244,52 +123,61 @@ export class MdapiChangesetUtility {
 
     protected setupFolders(): void {
 
+        //check if local staging exist (org to org)
+        if (!this.versionControlled && !existsSync(MdapiCommon.stageRoot)) {
+            throw "stage source and target retrieve folders required (hint: ext:mdapi:retrieve)";
+        }// end if
+        else if (this.versionControlled && existsSync(MdapiCommon.stageRoot)) {
+            removeSync(MdapiCommon.stageRoot);
+            this.ux.log(MdapiCommon.stageRoot + ' cleaned.');
+        }// end if
+
         // e.g. stage
         if (!existsSync(MdapiCommon.stageRoot)) {
             mkdirSync(MdapiCommon.stageRoot);
-            this.ux.warn(MdapiCommon.stageRoot + ' directory created.');
+            this.ux.log(MdapiCommon.stageRoot + ' directory created.');
         }// end if
 
         // e.g. stage/DevOrg
         this.sourceBaseDir = (MdapiCommon.stageRoot + MdapiCommon.PATH_SEP + this.sourceOrgAlias);
         if (!existsSync(this.sourceBaseDir)) {
             mkdirSync(this.sourceBaseDir);
-            this.ux.warn(this.sourceBaseDir + ' directory created.');
+            this.ux.log(this.sourceBaseDir + ' directory created.');
         }// end if
 
         // e.g. stage/ReleaseOrg
         this.targetBaseDir = (MdapiCommon.stageRoot + MdapiCommon.PATH_SEP + this.targetOrgAlias);
         if (!existsSync(this.targetBaseDir)) {
             mkdirSync(this.targetBaseDir);
-            this.ux.warn(this.targetBaseDir + ' directory created.');
+            this.ux.log(this.targetBaseDir + ' directory created.');
         }// end if
 
         // e.g. stage/DevOrg/retrieve
         this.sourceRetrieveBaseDir = (this.sourceBaseDir + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot);
         if (!existsSync(this.sourceRetrieveBaseDir)) {
             mkdirSync(this.sourceRetrieveBaseDir);
-            this.ux.warn(this.sourceRetrieveBaseDir + ' directory created.');
+            this.ux.log(this.sourceRetrieveBaseDir + ' directory created.');
         }// end if
 
         // e.g. stage/DevOrg/retrieve/src
         this.sourceRetrieveDir = (this.sourceRetrieveBaseDir + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
         if (!existsSync(this.sourceRetrieveDir)) {
             mkdirSync(this.sourceRetrieveDir);
-            this.ux.warn(this.sourceRetrieveDir + ' directory created.');
+            this.ux.log(this.sourceRetrieveDir + ' directory created.');
         }// end if
 
         // e.g. stage/ReleaseOrg/retrieve
         this.targetRetrieveBaseDir = (this.targetBaseDir + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot);
         if (!existsSync(this.targetRetrieveBaseDir)) {
             mkdirSync(this.targetRetrieveBaseDir);
-            this.ux.warn(this.targetRetrieveBaseDir + ' directory created.');
+            this.ux.log(this.targetRetrieveBaseDir + ' directory created.');
         }// end if
 
         // e.g. stage/ReleaseOrg/retrieve/src
         this.targetRetrieveDir = (this.targetRetrieveBaseDir + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
         if (!existsSync(this.targetRetrieveDir)) {
             mkdirSync(this.targetRetrieveDir);
-            this.ux.warn(this.targetRetrieveDir + ' directory created.');
+            this.ux.log(this.targetRetrieveDir + ' directory created.');
         }// end if
 
         // e.g. stage/DevOrg/retrieve/src.backup
@@ -300,6 +188,7 @@ export class MdapiChangesetUtility {
         // check deploy exists else create
         if (!existsSync(this.sourceDeployDir)) {
             mkdirSync(this.sourceDeployDir);
+            this.ux.log(this.sourceDeployDir + ' directory created.');
         }// end if
 
         // e.g. stage/DevOrg/deploy/ReleaseOrg
@@ -316,7 +205,6 @@ export class MdapiChangesetUtility {
 
         // e.g. stage/DevOrg/deploy/ReleaseOrg/src
         this.sourceDeployDirTargetSource = (this.sourceDeployDirTarget + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
-
         this.emptyPackageXml = (this.sourceDeployDirTarget + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
         this.filePackageXml = (this.sourceDeployDirTarget + MdapiCommon.PATH_SEP + MdapiConfig.packageManifest);
         this.fileDestructiveChangesXml = (this.sourceDeployDirTarget + MdapiCommon.PATH_SEP + MdapiConfig.destructiveChangesXml);
@@ -332,7 +220,7 @@ export class MdapiChangesetUtility {
 
             let excludeElements: Array<string> = this.destructiveExceptions[metaType];
 
-            if (this.destructiveExceptions[0] === "*") { // all
+            if (this.destructiveExceptions[0] === MdapiCommon.ASTERIX) { // all
                 exception = true;
             } else {
                 for (let x: number = 0; x < excludeElements.length; x++) {
@@ -350,7 +238,7 @@ export class MdapiChangesetUtility {
 
     protected isGlobalDestructiveException(metaType: string): boolean {
         if (this.destructiveExceptions[metaType] &&
-            (this.destructiveExceptions[metaType][0] === "*")) {
+            (this.destructiveExceptions[metaType][0] === MdapiCommon.ASTERIX)) {
             return true;
         }// end if
         return false;
@@ -504,6 +392,7 @@ export class MdapiChangesetUtility {
         for (let x: number = 0; x < childXmlNames.length; x++) {
 
             let childMetaName: string = childXmlNames[x];
+
             if (MdapiConfig.isUnsupportedMetaType(childMetaName)) { continue; }
 
             let childMetadataObject: MetadataObject = this.config.metadataObjectLookup[childMetaName];
@@ -784,7 +673,7 @@ export class MdapiChangesetUtility {
                 this.packageMatchResults[leftItem.metadataName].push(leftItem);
             }// end else if
 
-            // for audit / check / recon
+            // for audit (check or recon)
             this.packageCombinedResults[leftItem.metadataName].push(leftItem);
 
         }// end for
@@ -823,7 +712,6 @@ export class MdapiChangesetUtility {
 
     }// end method
 
-    // console.log(destructiveDiffRecords);
     protected sortDiffRecordsTypes(DiffRecords: Record<string, Array<DiffRecord>>): Array<string> {
 
         let metadataObjectNames: Array<string> = [];
@@ -849,7 +737,7 @@ export class MdapiChangesetUtility {
             let metadataObjectName: string = metadataObjectNames[i];
 
             if (diffRecords[metadataObjectName].length === 0) {
-                this.ux.log('ignoring no diff metaType: ' + metadataObjectName);
+                // this.ux.log('ignoring no diff metaType: ' + metadataObjectName);
                 continue;
             }// end if
 
@@ -1129,10 +1017,10 @@ export class MdapiChangesetUtility {
                 for (let x: number = 0; x < listViews.length; x++) {
                     let count: number = 0;
                     let listView = listViews[x];
-                    let listViewLabel: string = listView["fullName"]._text;
+                    let listViewLabel: string = listView[MdapiConfig.fullName]._text;
                     for (let y: number = 0; y < listViews.length; y++) {
                         let listViewCompare = listViews[y];
-                        let listViewCompareLabel: string = listViewCompare["fullName"]._text;
+                        let listViewCompareLabel: string = listViewCompare[MdapiConfig.fullName]._text;
                         if (listViewLabel === listViewCompareLabel) {
                             count++;
                             if (count > 1) {
@@ -1172,7 +1060,7 @@ export class MdapiChangesetUtility {
         // check profile issues
         else if (typeFolder === MdapiConfig.profiles) {
             /* 
-             //once deploy add this to ignored as user is full username and not email
+              once deploy add this to ignored as user is full username and not email
               <AuthProvider xmlns="http://soap.sforce.com/2006/04/metadata">
                  <executionUser>andre.locke@liberty.co.za.dev</executionUser> 
              */
@@ -1208,7 +1096,7 @@ export class MdapiChangesetUtility {
 
             for (let x: number = 0; x < userPermissions.length; x++) {
                 let userPerm = userPermissions[x];
-                if (userPerm["name"]._text === 'ManageSandboxes') {
+                if (userPerm[MdapiConfig._name]._text === 'ManageSandboxes') {
                     userPermissions.splice(x, 1); // pop
                     break;
                 }// end if
@@ -1220,7 +1108,7 @@ export class MdapiChangesetUtility {
             for (let x: number = 0; x < tabVisibilities.length; x++) {
                 let tabVisibility = tabVisibilities[x];
                 // You can't edit tab settings for SocialPersona, as it's not a valid tab.
-                if (tabVisibility["tab"]._text === 'standard-SocialPersona') {
+                if (tabVisibility[MdapiConfig.tab]._text === 'standard-SocialPersona') {
                     tabVisibilities.splice(x, 1); // pop
                     break;
                 }// end if
@@ -1231,7 +1119,7 @@ export class MdapiChangesetUtility {
             // field service field being injected in to PersonLifeEvent object (remove)
             for (let x: number = 0; x < fieldPermissions.length; x++) {
                 let fieldPermission = fieldPermissions[x];
-                if (fieldPermission["field"]._text === 'PersonLifeEvent.LocationId') {
+                if (fieldPermission[MdapiConfig.field]._text === 'PersonLifeEvent.LocationId') {
                     fieldPermissions.splice(x, 1); // pop
                     break;
                 }// end if
@@ -1244,7 +1132,7 @@ export class MdapiChangesetUtility {
         else if (grandParentFolder === MdapiConfig.dashboards) {
 
             let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
-            let dashboard = jsonObject["Dashboard"];
+            let dashboard = jsonObject[MdapiConfig.Dashboard];
 
             if (dashboard.runningUser) {
                 delete dashboard.runningUser;
@@ -1253,7 +1141,7 @@ export class MdapiChangesetUtility {
             MdapiCommon.jsonToXmlFile(jsonObject, filePath);
 
         }// end if (dashboards)
-        else if (typeFolder === 'settings') {
+        else if (typeFolder === MdapiConfig.settings) {
 
             if (filePath.endsWith('OrgPreference.settings')) {
 
@@ -1263,7 +1151,7 @@ export class MdapiChangesetUtility {
                 for (let x: number = 0; x < preferences.length; x++) {
                     let preference = preferences[x];
                     ////You do not have sufficient rights to access the organization setting: CompileOnDeploy
-                    if (preference["settingName"]._text === 'CompileOnDeploy') {
+                    if (preference[MdapiConfig.settingName]._text === 'CompileOnDeploy') {
                         preferences.splice(x, 1);
                     }// end if
                 }// end for
@@ -1292,46 +1180,38 @@ export class MdapiChangesetUtility {
         this.ux.log('DELETE EXCLUDED DIRECTORIES');
         this.ux.log('-----------------------------');
 
-        this.directoryRemoveList.forEach(folder => {
+        this.directoryExcludeList.forEach(folder => {
 
-            let leftDir = (this.sourceRetrieveDir + folder);
-            this.ux.log('Deleting ' + leftDir + ' (if exists) ...');
+            let leftDir = (this.sourceRetrieveDir + MdapiCommon.PATH_SEP + folder);
 
             if (existsSync(leftDir)) {
                 removeSync(leftDir);
-                this.ux.log(leftDir + ' deleted.');
             }// end if
 
-            let rightDir = (this.targetRetrieveDir + folder);
-            this.ux.log('Deleting ' + rightDir + ' (if exists) ...');
+            let rightDir = (this.targetRetrieveDir + MdapiCommon.PATH_SEP + folder);
             if (existsSync(rightDir)) {
                 removeSync(rightDir);
-                this.ux.log(rightDir + ' deleted.');
             }// end if
         });
     }// end method
 
-    protected deleteExcludedFiles() {
+    protected deleteExcludedFiles(): void {
 
         this.ux.log('-----------------------------');
         this.ux.log('DELETE EXCLUDED FILES');
         this.ux.log('-----------------------------');
 
-        this.fileRemoveList.forEach(filePath => {
+        this.fileExcludeList.forEach(filePath => {
 
-            let leftFile = (this.sourceRetrieveDir + filePath);
-            this.ux.log('Deleting ' + leftFile + ' (if exists) ...');
+            let leftFile = (this.sourceRetrieveDir + MdapiCommon.PATH_SEP + filePath);
 
             if (existsSync(leftFile)) {
                 unlinkSync(leftFile);
-                this.ux.log(leftFile + ' deleted.');
             }// end if
 
-            let rightFile = (this.targetRetrieveDir + filePath);
-            this.ux.log('Deleting ' + rightFile + ' (if exists) ...');
+            let rightFile = (this.targetRetrieveDir + MdapiCommon.PATH_SEP + filePath);
             if (existsSync(rightFile)) {
                 unlinkSync(rightFile);
-                this.ux.log(rightFile + ' deleted.');
             }// end if
         });
     }// end method
@@ -1340,16 +1220,19 @@ export class MdapiChangesetUtility {
         this.config = MdapiConfig.createConfig();
         this.settings = MdapiConfig.createSettings();
         this.settings.apiVersion = this.apiVersion;
+        if (this.revisionFrom && this.revisionTo) { this.versionControlled = true; }
     }// end method
 
-    protected async checkoutRevisions(): Promise<any> {
+    protected async checkoutRevisions(): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
-            if (this.revisionFrom && this.revisionTo) {
+            if (this.versionControlled) {
 
-                this.ux.log('git checkout ' + this.revisionFrom);
-                MdapiCommon.command('git checkout ' + this.revisionFrom).then((result) => {
+                let command: string = 'git checkout ' + this.revisionFrom;
+
+                this.ux.log(command);
+                MdapiCommon.command(command).then((result) => {
 
                     this.ux.log(result);
 
@@ -1388,11 +1271,12 @@ export class MdapiChangesetUtility {
 
         this.init();
 
+        this.ux.startSpinner('setupFolders');
         this.setupFolders();
-
-        this.ux.startSpinner('checkRevisions');
-        await this.checkoutRevisions();
         this.ux.stopSpinner();
+
+        this.ux.log('checking revisions (standby)...');
+        await this.checkoutRevisions();
 
         this.checkLocalBackupAndRestore();
 

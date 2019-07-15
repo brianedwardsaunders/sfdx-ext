@@ -103,7 +103,7 @@ export class MdapiConvertUtility {
             let metaType = metaTypes[x];
             for (let y: number = 0; y < MdapiConfig.nonSfdxSupportedMetaTypes.length; y++) {
                 let metaName: string = MdapiConfig.nonSfdxSupportedMetaTypes[y];
-                if (metaType["name"]._text === metaName) {
+                if (metaType[MdapiConfig._name]._text === metaName) {
                     this.ux.log('removing unsupported metatype [' + metaName + '] from package.xml...');
                     metaTypes.splice(x, 1); // pop
                     break;
@@ -137,12 +137,12 @@ export class MdapiConvertUtility {
 
     }// end method
 
-    protected async convert(): Promise<any> {
+    protected async convert(): Promise<void> {
 
         let sourcePath: string = resolve(this.targetStageSrcPath);
 
         chdir(this.targetDirectory);
-        console.info(cwd());
+        this.ux.log(cwd());
 
         let command: string = ('sfdx force:mdapi:convert -r ' + sourcePath);
         this.ux.log(command);
@@ -157,7 +157,7 @@ export class MdapiConvertUtility {
 
     }// end process 
 
-    public async process(): Promise<any> {
+    public async process(): Promise<void> {
 
         let startDirectory: string = cwd();
 

@@ -22,6 +22,7 @@ export class MdapiCommon {
     public static UTF8: string = 'utf8';
     public static PATH_SEP: string = '/';
     public static DOT: string = '.';
+    public static ASTERIX: string = '*';
     public static BLANK: string = '';
     public static DASH: string = '-';
     public static TWO_SPACE: string = '  ';
@@ -31,7 +32,6 @@ export class MdapiCommon {
     public static convertOptions: Object = { compact: true, spaces: 4 };
 
     public static command(cmd: string): Promise<any> {
-
         return new Promise((resolve, reject) => {
             exec(cmd, MdapiCommon.bufferOptions, (error: any, stdout: any, stderr: any) => {
                 if (error) {
@@ -42,14 +42,13 @@ export class MdapiCommon {
                     resolve(stdout);
                 }// end else
             });
-        });
-
+        });// end promise
     }// end method
 
     public static hashCode(input: string): number {
         let hash: number = 0;
         if (input.length === 0) return hash;
-        for (var i: number = 0; i < input.length; i++) {
+        for (let i: number = 0; i < input.length; i++) {
             let chr = input.charCodeAt(i);
             hash = ((hash << 5) - hash) + chr;
             hash |= 0;
@@ -84,7 +83,7 @@ export class MdapiCommon {
 
     public static join(segments: Array<string>, joinChar: string): string {
         let returned: string = MdapiCommon.BLANK;
-        for (var x: number = 0; (segments && x < segments.length); x++) {
+        for (let x: number = 0; (segments && x < segments.length); x++) {
             returned += segments[x];
             if (x < (segments.length - 1)) {
                 returned += joinChar;
