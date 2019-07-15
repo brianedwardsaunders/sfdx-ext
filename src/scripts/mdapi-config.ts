@@ -77,6 +77,9 @@ export class MdapiConfig {
   public static DeveloperName: string = 'DeveloperName';
   public static LatestVersion: string = 'LatestVersion';
   public static VersionNumber: string = 'VersionNumber';
+  public static Status: string = 'Status';
+  public static Active: string = 'Active';
+  public static Obsolete: string = 'Obsolete';
 
   // special case e.g. static resources
   public static metaXmlSuffix: string = "-meta.xml";
@@ -144,6 +147,7 @@ export class MdapiConfig {
   public static status: string = "status";
   public static flowDefinitions: string = "flowDefinitions";
   public static activeVersionNumber: string = "activeVersionNumber";
+  public static attributes: string = "attributes";
 
   public static fields: string = "fields";
   public static indexes: string = "indexes";

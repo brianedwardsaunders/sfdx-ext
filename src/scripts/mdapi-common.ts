@@ -74,11 +74,14 @@ export class MdapiCommon {
         writeFileSync(filePath, json2xml(JSON.stringify(jsonObject), MdapiCommon.convertOptions));
     }// end method
 
-    public static isolateLeafNode(parentDir: string): string {
-        var items: Array<string> = parentDir.split(path.sep);
+    public static isolateLeafNode(parentDir: string, pathSeperator?: string): string {
+        if (!pathSeperator) {
+            pathSeperator = path.sep;
+        }
+        let items: Array<string> = parentDir.split(pathSeperator);
         return items[items.length - 1];
     }// end method
-    
+
     public static join(segments: Array<string>, joinChar: string): string {
         let returned: string = MdapiCommon.BLANK;
         for (var x: number = 0; (segments && x < segments.length); x++) {
