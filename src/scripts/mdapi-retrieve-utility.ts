@@ -462,7 +462,7 @@ export class MdapiRetrieveUtility {
             this.ux.stopSpinner();
 
             // check if staging only or clean for src dev only
-            this.ux.startSpinner('finalising');
+            this.ux.startSpinner('finishing up');
             this.checkStageOrDevModeFiles();
             this.ux.stopSpinner();
 
