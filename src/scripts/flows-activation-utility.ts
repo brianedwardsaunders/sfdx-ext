@@ -317,11 +317,11 @@ export class FlowsActivationUtility {
         this.ux.stopSpinner();
 
         // async calls
-        this.ux.startSpinner('describemetadata');
+        this.ux.startSpinner('describe metadata');
         await MdapiConfig.describeMetadata(this.org, this.config, this.settings);
         this.ux.stopSpinner();
 
-        this.ux.startSpinner('listmetadata');
+        this.ux.startSpinner('list metadata');
         await MdapiConfig.querylistMetadata(this.org, MdapiConfig.FlowDefinition, this.config, this.settings);
         this.ux.stopSpinner();
 
@@ -342,20 +342,20 @@ export class FlowsActivationUtility {
 
         // iterate FlowDefinitions files and update
         if (this.deactivate) {
-            this.ux.startSpinner('updateFlowDefinitionFilesToDeactivate');
+            this.ux.startSpinner('deactivate flow definition files');
             this.updateFlowDefinitionFilesToDeactivate();
             this.ux.stopSpinner();
         }// end if 
         else {
-            this.ux.startSpinner('queryLatestAndActivateFlows');
+            this.ux.startSpinner('query latest flows');
             await this.queryLatestAndActivateFlows();
             this.ux.stopSpinner();
 
-            this.ux.startSpinner('updateFlowDefinitionFilesToActivate');
+            this.ux.startSpinner('activate flow definition files');
             this.updateFlowDefinitionFilesToActivate();
             this.ux.stopSpinner();
 
-            this.ux.startSpinner('updateIncludedPackageXml');
+            this.ux.startSpinner('update package.xml');
             this.updateIncludedPackageXml();
             this.ux.stopSpinner();
         }// end else

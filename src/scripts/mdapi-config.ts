@@ -5,10 +5,10 @@
  */
 
 import { DescribeMetadataResult, MetadataObject, FileProperties, QueryResult, ListMetadataQuery } from "jsforce";
+import { writeFileSync, mkdirp, createWriteStream, readFileSync, statSync, Stats } from "fs-extra";
 import { Org } from "@salesforce/core";
 import { MdapiCommon } from "./mdapi-common";
 import path = require('path');
-import { writeFileSync, mkdirp, createWriteStream } from "fs-extra";
 import yauzl = require('yauzl');
 
 export interface IConfig {
@@ -29,6 +29,34 @@ export interface ISettings {
   ignoreFolders?: boolean;
   apiVersion: string;
 }
+
+export enum ChangeType {
+  Package,
+  DestructiveChanges
+};
+
+export enum DiffType {
+  Left = 'Left',
+  Right = 'Right',
+  Match = 'Match',
+  Diff = 'Diff',
+  None = 'None'
+};
+
+export interface DiffRecord {
+  memberKey: string;
+  memberName: string, // e.g. Account
+  filePath: string;
+  fileHash: number; // only hash as contents is large
+  directory: string; // sfdx directory e.g. triggers
+  folderXml: boolean;
+  metadataName: string;
+  metadataObject: MetadataObject;
+  fileSize: number;
+  lastModified: Date;
+  diffType: DiffType;
+  diffSize: number; // init
+};
 
 export class MdapiConfig {
 
@@ -238,6 +266,7 @@ export class MdapiConfig {
     CustomApplication: [MdapiConfig.standard__LightningInstrumentation] // prod specific 
   };
 
+  // unsupported both sfdx and mdapi as at 46.0
   public static unsupportedMetadataTypes = [
     MdapiConfig.ManagedTopic
   ]; // cannot query listmetadata (error invalid parameter value) with api 46.0
@@ -938,6 +967,168 @@ export class MdapiConfig {
       });// end promise
     });
 
+  }// end method
+
+  public static inspectMdapiFile(config: IConfig, filePath: string, metaRegister: Object, parentDirectory: string): void {
+
+    let directory: string = MdapiCommon.isolateLeafNode(parentDirectory); //objects
+    let fileName: string = MdapiCommon.isolateLeafNode(filePath); // Account.meta-object.xml
+    let memberName: string = MdapiConfig.isolateMetadataObjectName(fileName); //Account
+    let anchorName: string = MdapiCommon.BLANK; // ''
+    let folderXml: boolean = false;
+
+    // don't process top level directories (from excluded list)
+    if (MdapiConfig.isExcludedDirectory(directory) || MdapiConfig.isExcludedFile(fileName)) {
+      return;
+    }// end if
+
+    let metadataObject: MetadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(config, directory, fileName);
+
+    if (MdapiConfig.isFolderDirectory(directory)) { folderXml = true; } // required to exclude from descructive changes
+
+    // check for unresolve type
+    if (!metadataObject) { // if null attempt to resolve
+
+      let metadataParentName = MdapiConfig.getMetadataNameFromParentDirectory(parentDirectory);
+
+      // special handle for object name folder (handle for fields etc.)
+      if (MdapiConfig.isBundleDirectory(metadataParentName)) {
+        metadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(config, metadataParentName);
+        memberName = MdapiConfig.getMetadataNameFromCurrentDirectory(parentDirectory);
+      }// end else if
+      // special handle for folder types
+      else if (MdapiConfig.isFolderDirectory(metadataParentName)) {
+        metadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(config, metadataParentName);
+        anchorName = MdapiConfig.getMetadataNameFromCurrentDirectory(parentDirectory);
+        memberName = (anchorName + MdapiCommon.PATH_SEP + MdapiConfig.isolateMetadataObjectName(fileName));
+      } // end else if
+      else {
+        //fatal
+        console.error('Unexpected MetaType found at parent directory: ' + parentDirectory
+          + ' Please check metaobject definitions are up to date. Unresolved file path: ' + filePath);
+        throw parentDirectory; // terminate 
+      }// end else
+    }// end if
+
+    // without extension for comparison later may not be unique (e.g. a pair)
+    let memberKey: string = (directory + MdapiCommon.PATH_SEP + memberName);
+    let relativeFilePath: string = (directory + MdapiCommon.PATH_SEP + fileName);
+
+    // saftey check
+    if ((!fileName) || (!directory) || (!metadataObject)) {
+      //fatal
+      console.error('Unexpected unresolved metaobject - key: ', memberKey +
+        ' (fileName: ' + fileName + ') directory: (' + directory + '), ' +
+        ' parentDirectory: ' + parentDirectory + ', metadataObject: ' + metadataObject);
+      throw 'unresolved metadataObject';
+    }// end if
+
+    let fileContents: string = readFileSync(filePath, MdapiCommon.UTF8);
+    let stats: Stats = statSync(filePath);
+
+    let DiffRecord: DiffRecord = (<DiffRecord>{
+      "memberKey": memberKey,
+      "memberName": memberName, // e.g. Account
+      "filePath": filePath,
+      "fileHash": MdapiCommon.hashCode(fileContents), // only hash as contents is large
+      "directory": directory, // sfdx directory e.g. triggers
+      "folderXml": folderXml,
+      "metadataName": metadataObject.xmlName,
+      "metadataObject": metadataObject,
+      "fileSize": stats.size,
+      "diffType": DiffType.None,
+      "diffSize": 0 // init
+    });
+
+    // add unique entry
+    metaRegister[relativeFilePath] = DiffRecord;
+
+  }// end method
+
+  // children only present on one side so no compare needed but do list
+  public static inspectMetaChildren(config: IConfig, packageDiffRecords: Record<string, Array<DiffRecord>>, parent: DiffRecord): void {
+
+    let childMetaObject: Object = MdapiCommon.xmlFileToJson(parent.filePath);
+    let childXmlNames: Array<string> = parent.metadataObject.childXmlNames;
+
+    for (let x: number = 0; x < childXmlNames.length; x++) {
+
+      let childMetaName: string = childXmlNames[x];
+
+      if (MdapiConfig.isUnsupportedMetaType(childMetaName)) { continue; }
+
+      let childMetadataObject: MetadataObject = config.metadataObjectLookup[childMetaName];
+      let childDirectoryName: string = MdapiConfig.childMetadataDirectoryLookup[childMetaName];
+      let parentContents: Object = childMetaObject[parent.metadataName];
+      let children: Array<Object> = MdapiCommon.objectToArray(parentContents[childDirectoryName]);
+
+      for (let y: number = 0; y < children.length; y++) {
+
+        let child: Object = children[y];
+        let memberName: string = (parent.memberName + MdapiCommon.DOT + child[MdapiConfig.fullName]._text);
+        let memberKey: string = (childDirectoryName + MdapiCommon.PATH_SEP + parent.metadataName + MdapiCommon.PATH_SEP + memberName);
+        let childString: string = JSON.stringify(child);
+
+        let childItem: DiffRecord = (<DiffRecord>{
+          "memberKey": memberKey,
+          "memberName": memberName,
+          "filePath": (parent.filePath + MdapiCommon.PATH_SEP + childMetaName + MdapiCommon.PATH_SEP + memberName),
+          "fileHash": MdapiCommon.hashCode(childString),
+          "directory": childDirectoryName,
+          "folderXml": false,
+          "metadataName": childMetadataObject.xmlName,
+          "metadataObject": childMetadataObject,
+          "fileSize": childString.length,
+          "diffType": parent.diffType,
+          "diffSize": 0
+        });
+
+        packageDiffRecords[childMetaName].push(childItem);
+
+      }// end for
+
+    }// end for
+
+  }// end method
+
+  public static metadataObjectHasChildren(metadataObject: MetadataObject): boolean {
+    if (metadataObject.childXmlNames &&
+      (metadataObject.childXmlNames.length > 0)) {
+      return true;
+    }// end if
+    return false
+  }// end method
+
+  public static initDiffRecordsLookup(config: IConfig, diffRecordsLookup: Record<string, Array<DiffRecord>>): void {
+
+    config.metadataTypes.forEach(metaTypeKey => {
+      diffRecordsLookup[metaTypeKey] = [];
+    });// end for
+
+  }// end method
+
+  public static sortDiffRecordTypes(DiffRecords: Record<string, Array<DiffRecord>>): Array<string> {
+
+    let metadataObjectNames: Array<string> = [];
+
+    for (let metadataObjectName in DiffRecords) {
+      metadataObjectNames.push(metadataObjectName);
+    }// end for
+
+    metadataObjectNames.sort();
+    return metadataObjectNames;
+
+  }// end method
+
+  public static packageXmlHeader(): string {
+    let xmlContent: string = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xmlContent += '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
+    return xmlContent;
+  }// end method
+
+  public static packageXmlFooter(): string {
+    let xmlContent: string = '</Package>\n';
+    return xmlContent;
   }// end method
 
 }// end class

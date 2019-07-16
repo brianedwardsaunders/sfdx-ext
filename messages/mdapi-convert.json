@@ -1,7 +1,7 @@
 {
   "commandDescription": "Convert from mdapi to sfdx",
   "sourcedirectoryFlagDescription": "(Required) source mdapi retrieve directory e.g. unpackaged/src",
-  "targetdirectoryFlagDescription": "(Required) target sfdx root directory  e.g. sfdx-project and not sfdx-project/force-app",
+  "targetdirectoryFlagDescription": "(Required) target sfdx root directory e.g. sfdx-project and not sfdx-project/force-app",
   "errorSourceDirectoryRequired": "Source directory is required",
   "errorTargetDirectoryRequired": "Target root directory is required"
 

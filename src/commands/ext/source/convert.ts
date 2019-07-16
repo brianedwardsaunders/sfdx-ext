@@ -6,11 +6,11 @@
 
 import { SfdxCommand, flags } from '@salesforce/command';
 import { Messages, SfdxError } from '@salesforce/core';
-import { MdapiConvertUtility } from '../../../scripts/mdapi-convert-utility';
+import { SourceConvertUtility } from '../../../scripts/source-convert-utility';
 
 Messages.importMessagesDirectory(__dirname);
 
-const messages = Messages.loadMessages('sfdx-ext', 'mdapi-convert');
+const messages = Messages.loadMessages('sfdx-ext', 'source-convert');
 
 export default class Convert extends SfdxCommand {
 
@@ -18,7 +18,10 @@ export default class Convert extends SfdxCommand {
 
   public static examples = [
     `
-    $ sfdx ext:mdapi:convert --sourcedirectory mdapi/src --targetdirectory ../sfdx
+    $ sfdx ext:mdapi:convert --targetusername user@target.com --sourcedirectory force-app --targetdirectory ../unmanaged
+    `,
+    `
+    $ sfdx ext:mdapi:convert -u user@target.com -r force-app -d ../unmanaged
     `
   ];
 
@@ -27,33 +30,37 @@ export default class Convert extends SfdxCommand {
     targetdirectory: flags.string({ char: 'd', description: messages.getMessage('targetdirectoryFlagDescription') }),
   };
 
-  protected static requiresUsername = false;
-  protected static requiresProject = false;
+  protected static requiresUsername = true;
+  protected static requiresProject = true;
 
   public async run(): Promise<any> {
 
-    let sourcedirectory: string = this.flags.sourcedirectory;
+    let defaultSourceDirectory: string = 'force-app';
+    let defaultApiVersion: string = await this.org.retrieveMaxApiVersion();
+    let targetusername: string = this.flags.targetusername;
+    let sourcedirectory: string = this.flags.sourcedirectory || defaultSourceDirectory;
     let targetdirectory: string = this.flags.targetdirectory;
+    let apiVersion: string = this.flags.apiVersion || defaultApiVersion;
 
-    if (sourcedirectory === undefined) {
-      throw new SfdxError(messages.getMessage('errorSourceDirectoryRequired', []));
-    }// end if
-    else if (targetdirectory === undefined) {
+    if (targetdirectory === undefined) {
       throw new SfdxError(messages.getMessage('errorTargetDirectoryRequired', []));
     }// end else if
 
     this.ux.log("-----------------------------");
-    this.ux.log("sfdx ext:mdapi:convert");
+    this.ux.log("sfdx ext:source:convert");
     this.ux.log("-----------------------------");
-    this.ux.log("sourcedirectory  : " + sourcedirectory);
-    this.ux.log("targetdirectory  : " + targetdirectory);
+    this.ux.log("targetusername    : " + targetusername);
+    this.ux.log("sourcedirectory   : " + sourcedirectory);
+    this.ux.log("targetdirectory   : " + targetdirectory);
+    this.ux.log("apiVersion        : " + apiVersion);
     this.ux.log("-----------------------------");
 
-    let util = new MdapiConvertUtility(
+    let util = new SourceConvertUtility(
       this.org,
       this.ux,
       sourcedirectory,
-      targetdirectory);
+      targetdirectory,
+      apiVersion);
 
     util.process().then(() => {
       this.ux.log('success.');

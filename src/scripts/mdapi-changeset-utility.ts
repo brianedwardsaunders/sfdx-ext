@@ -6,43 +6,15 @@
 
 import {
     existsSync, mkdirSync, removeSync, copySync, readdirSync, statSync,
-    writeFileSync, readFileSync, unlinkSync, copyFileSync, Stats
+    writeFileSync, unlinkSync, copyFileSync
 } from "fs-extra";
+import { ChangesetExcludeDefaults } from "../config/changeset-exclude-defaults";
 import { MetadataObject } from "jsforce";
 import { Org } from "@salesforce/core";
 import { MdapiCommon } from "./mdapi-common";
-import { MdapiConfig, IConfig, ISettings } from "./mdapi-config";
+import { MdapiConfig, IConfig, ISettings, DiffRecord, DiffType, ChangeType } from "./mdapi-config";
 import { UX } from "@salesforce/command";
 import path = require('path');
-import { ChangesetExcludeDefaults } from "../config/changeset-exclude-defaults";
-
-export enum ChangeType {
-    Package,
-    DestructiveChanges
-};
-
-export enum DiffType {
-    Left = 'Left',
-    Right = 'Right',
-    Match = 'Match',
-    Diff = 'Diff',
-    None = 'None'
-};
-
-export interface DiffRecord {
-    memberKey: string;
-    memberName: string, // e.g. Account
-    filePath: string;
-    fileHash: number; // only hash as contents is large
-    directory: string; // sfdx directory e.g. triggers
-    folderXml: boolean;
-    metadataName: string;
-    metadataObject: MetadataObject;
-    fileSize: number;
-    lastModified: Date;
-    diffType: DiffType;
-    diffSize: number; // init
-};
 
 export class MdapiChangesetUtility {
 
@@ -85,7 +57,6 @@ export class MdapiChangesetUtility {
     // SFDC WONT ALLOW THE MIGRATION OF THESE FILES (FIELDS PART OF MANAGED PACKAGE)
     // ERROR Cannot modify managed object: entity=FieldAttributes, component=0DH4J0000001LaB, field=BusinessStatus, state=installed
     // manually check field history tracking
-    // IqScore is EMPTY AND EISTEING ACTIVATION DEPENDENT
     protected fileExcludeList: Array<string> = ChangesetExcludeDefaults.defaultFileExcludeList;
 
     constructor(
@@ -214,7 +185,7 @@ export class MdapiChangesetUtility {
 
     protected isDestructiveException(metaType: string, element: string) {
 
-        let exception = false;
+        let exception: boolean = false;
 
         if (this.destructiveExceptions[metaType]) {
 
@@ -244,13 +215,6 @@ export class MdapiChangesetUtility {
         return false;
     }// end method
 
-    protected initDiffRecords(diffRecords: Object): void {
-
-        this.config.metadataTypes.forEach(metaTypeKey => {
-            diffRecords[metaTypeKey] = [];
-        });// end for
-
-    }// end method
 
     protected setupDiffRecords(): void {
 
@@ -259,89 +223,14 @@ export class MdapiChangesetUtility {
         this.ux.log('-----------------------------');
 
         //package
-        this.initDiffRecords(this.packageDiffRecords);
-        this.initDiffRecords(this.packageMatchResults);
-        this.initDiffRecords(this.packageCombinedResults);
+        MdapiConfig.initDiffRecordsLookup(this.config, this.packageDiffRecords);
+        MdapiConfig.initDiffRecordsLookup(this.config, this.packageMatchResults);
+        MdapiConfig.initDiffRecordsLookup(this.config, this.packageCombinedResults);
 
         //destructive
-        this.initDiffRecords(this.destructiveDiffRecords);
-        this.initDiffRecords(this.destructiveIgnoreResults);
-        this.initDiffRecords(this.destructiveMatchResults);
-
-    }// end method
-
-    protected inspectFile(instance: MdapiChangesetUtility, filePath: string, metaRegister: Object, parentDirectory: string): void {
-
-        let directory: string = MdapiCommon.isolateLeafNode(parentDirectory); //objects
-        let fileName: string = MdapiCommon.isolateLeafNode(filePath); // Account.meta-object.xml
-        let memberName: string = MdapiConfig.isolateMetadataObjectName(fileName); //Account
-        let anchorName: string = MdapiCommon.BLANK; // ''
-        let folderXml: boolean = false;
-
-        // don't process top level directories (from excluded list)
-        if (MdapiConfig.isExcludedDirectory(directory) || MdapiConfig.isExcludedFile(fileName)) {
-            instance.ux.log("ignoring: " + filePath);
-            return;
-        }// end if
-
-        let metadataObject: MetadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(instance.config, directory, fileName);
-
-        if (MdapiConfig.isFolderDirectory(directory)) { folderXml = true; } // required to exclude from descructive changes
-
-        // check for unresolve type
-        if (!metadataObject) { // if null attempt to resolve
-
-            let metadataParentName = MdapiConfig.getMetadataNameFromParentDirectory(parentDirectory);
-
-            // special handle for object name folder (handle for fields etc.)
-            if (MdapiConfig.isBundleDirectory(metadataParentName)) {
-                metadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(instance.config, metadataParentName);
-                memberName = MdapiConfig.getMetadataNameFromCurrentDirectory(parentDirectory);
-            }// end else if
-            // special handle for folder types
-            else if (MdapiConfig.isFolderDirectory(metadataParentName)) {
-                metadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(instance.config, metadataParentName);
-                anchorName = MdapiConfig.getMetadataNameFromCurrentDirectory(parentDirectory);
-                memberName = (anchorName + MdapiCommon.PATH_SEP + MdapiConfig.isolateMetadataObjectName(fileName));
-            } // end else if
-            else {
-                instance.ux.error('Unexpected MetaType found at parent directory: ' + parentDirectory
-                    + ' Please check metaobject definitions are up to date. Unresolved file path: ' + filePath);
-                throw parentDirectory; // terminate 
-            }// end else
-        }// end if
-
-        // without extension for comparison later may not be unique (e.g. a pair)
-        let memberKey: string = (directory + MdapiCommon.PATH_SEP + memberName);
-        let relativeFilePath: string = (directory + MdapiCommon.PATH_SEP + fileName);
-
-        // saftey check
-        if ((!fileName) || (!directory) || (!metadataObject)) {
-            instance.ux.error('Unexpected unresolved metaobject - key: ', memberKey +
-                ' (fileName: ' + fileName + ') directory: (' + directory + '), ' +
-                ' parentDirectory: ' + parentDirectory + ', metadataObject: ' + metadataObject);
-            throw 'unresolved metadataObject';
-        }// end if
-
-        let fileContents: string = readFileSync(filePath, MdapiCommon.UTF8);
-        let stats: Stats = statSync(filePath);
-
-        let DiffRecord: DiffRecord = (<DiffRecord>{
-            "memberKey": memberKey,
-            "memberName": memberName, // e.g. Account
-            "filePath": filePath,
-            "fileHash": MdapiCommon.hashCode(fileContents), // only hash as contents is large
-            "directory": directory, // sfdx directory e.g. triggers
-            "folderXml": folderXml,
-            "metadataName": metadataObject.xmlName,
-            "metadataObject": metadataObject,
-            "fileSize": stats.size,
-            "diffType": DiffType.None,
-            "diffSize": 0 // init
-        });
-
-        // add unique entry
-        metaRegister[relativeFilePath] = DiffRecord;
+        MdapiConfig.initDiffRecordsLookup(this.config, this.destructiveDiffRecords);
+        MdapiConfig.initDiffRecordsLookup(this.config, this.destructiveIgnoreResults);
+        MdapiConfig.initDiffRecordsLookup(this.config, this.destructiveMatchResults);
 
     }// end method
 
@@ -360,7 +249,7 @@ export class MdapiChangesetUtility {
                 this.walkDir(dirPath, metaRegister, callback);
             }// end if
             else {
-                callback(this, path.join(dir, fileItem), metaRegister, dir);
+                callback(this.config, path.join(dir, fileItem), metaRegister, dir);
             }// end else
 
         }// end for
@@ -373,13 +262,13 @@ export class MdapiChangesetUtility {
         this.ux.log('WALK SOURCE FOR COMPARE ');
         this.ux.log('-----------------------------');
 
-        this.walkDir(this.sourceRetrieveDir, this.leftFilePathDiffRecordRegister, this.inspectFile);
+        this.walkDir(this.sourceRetrieveDir, this.leftFilePathDiffRecordRegister, MdapiConfig.inspectMdapiFile);
 
         this.ux.log('-----------------------------');
         this.ux.log('WALK TARGET FOR COMPARE ');
         this.ux.log('-----------------------------');
 
-        this.walkDir(this.targetRetrieveDir, this.rightFilePathDiffRecordRegister, this.inspectFile);
+        this.walkDir(this.targetRetrieveDir, this.rightFilePathDiffRecordRegister, MdapiConfig.inspectMdapiFile);
 
     }// end method
 
@@ -432,7 +321,9 @@ export class MdapiChangesetUtility {
                 } else {
                     throw "unexpected child diff edge event - only allows left or right";
                 }// end else
+
                 this.packageCombinedResults[childMetaName].push(diffRecord);
+
             }// end for
 
         }// end for
@@ -455,6 +346,7 @@ export class MdapiChangesetUtility {
 
             let parentMetadataName: string = leftItem.metadataName;
             let childMetaName: string = childXmlNames[x];
+            
             if (MdapiConfig.isUnsupportedMetaType(childMetaName)) { continue; }
 
             let childMetadataObject: MetadataObject = this.config.metadataObjectLookup[childMetaName];
@@ -631,13 +523,6 @@ export class MdapiChangesetUtility {
 
     }// end method
 
-    protected metadataObjectHasChildren(metadataObject: MetadataObject): boolean {
-        if (metadataObject.childXmlNames &&
-            (metadataObject.childXmlNames.length > 0)) {
-            return true;
-        }// end if
-        return false
-    }// end method
 
     protected compareSourceAndTarget(): void {
 
@@ -655,7 +540,7 @@ export class MdapiChangesetUtility {
                 leftItem.diffType = DiffType.Left;
                 leftItem.diffSize = leftItem.fileSize;
                 this.packageDiffRecords[leftItem.metadataName].push(leftItem);
-                if (this.metadataObjectHasChildren(leftItem.metadataObject)) {
+                if (MdapiConfig.metadataObjectHasChildren(leftItem.metadataObject)) {
                     this.compareEdgeChildren(leftItem);
                 }// end if
             }// end if
@@ -663,7 +548,7 @@ export class MdapiChangesetUtility {
                 leftItem.diffType = DiffType.Diff;
                 leftItem.diffSize = (leftItem.fileSize - rightItem.fileSize);
                 this.packageDiffRecords[leftItem.metadataName].push(leftItem);
-                if (this.metadataObjectHasChildren(leftItem.metadataObject)) {
+                if (MdapiConfig.metadataObjectHasChildren(leftItem.metadataObject)) {
                     this.compareChildMetadata(leftItem, rightItem);
                 }// end if
             }// end if
@@ -691,7 +576,7 @@ export class MdapiChangesetUtility {
                 rightItem.diffType = DiffType.Right; // 
                 rightItem.diffSize = rightItem.fileSize;
                 this.destructiveDiffRecords[rightItem.metadataName].push(rightItem);
-                if (this.metadataObjectHasChildren(rightItem.metadataObject)) {
+                if (MdapiConfig.metadataObjectHasChildren(rightItem.metadataObject)) {
                     this.compareEdgeChildren(rightItem);
                 }// end if
             }
@@ -712,32 +597,17 @@ export class MdapiChangesetUtility {
 
     }// end method
 
-    protected sortDiffRecordsTypes(DiffRecords: Record<string, Array<DiffRecord>>): Array<string> {
-
-        let metadataObjectNames: Array<string> = [];
-
-        for (let metadataObjectName in DiffRecords) {
-            metadataObjectNames.push(metadataObjectName);
-        }// end for
-
-        metadataObjectNames.sort();
-        return metadataObjectNames;
-
-    }// end method
-
     protected createPackageFile(packageFile: string, diffRecords: Record<string, Array<DiffRecord>>, changeType: ChangeType): void {
 
-        let xmlContent: string = '<?xml version="1.0" encoding="UTF-8"?>\n';
-        xmlContent += '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
+        let xmlContent: string = MdapiConfig.packageXmlHeader();
 
-        let metadataObjectNames: Array<string> = this.sortDiffRecordsTypes(diffRecords);
+        let metadataObjectNames: Array<string> = MdapiConfig.sortDiffRecordTypes(diffRecords);
 
         for (let i: number = 0; i < metadataObjectNames.length; i++) {
 
             let metadataObjectName: string = metadataObjectNames[i];
 
             if (diffRecords[metadataObjectName].length === 0) {
-                // this.ux.log('ignoring no diff metaType: ' + metadataObjectName);
                 continue;
             }// end if
 
@@ -792,7 +662,7 @@ export class MdapiChangesetUtility {
                 for (let y = 0; y < members.length; y++) {
                     let member = members[y];
                     if (!(member)) {
-                        this.ux.error(metadataObjectName + " member unexpected blank")
+                        this.ux.error(metadataObjectName + " member unexpected blank");
                         throw "unexpected blank member";
                     } // no blanks
                     else if (MdapiConfig.isExcludedFile(member)) { continue; } // e.g. lwc tech files.
@@ -816,7 +686,7 @@ export class MdapiChangesetUtility {
         }// end for
 
         xmlContent += (MdapiCommon.TWO_SPACE + '<version>' + this.apiVersion + '</version>\n');
-        xmlContent += '</Package>\n';
+        xmlContent += MdapiConfig.packageXmlFooter();
 
         if (!existsSync(this.sourceDeployDirTarget)) {
             mkdirSync(this.sourceDeployDirTarget);
@@ -829,16 +699,13 @@ export class MdapiChangesetUtility {
 
     protected createEmptyPackageFile(): void {
 
-        let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';
-        xmlContent += '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
-
+        let xmlContent = MdapiConfig.packageXmlHeader();
         xmlContent += (MdapiCommon.TWO_SPACE + '<version>' + this.apiVersion + '</version>\n');
-        xmlContent += '</Package>\n';
+        xmlContent += MdapiConfig.packageXmlFooter();
 
         if (!existsSync(this.sourceDeployDirTarget)) {
             mkdirSync(this.sourceDeployDirTarget);
-            this.ux.log(this.sourceDeployDirTarget + ' directory created.');
-        }
+        }// end if
 
         writeFileSync(this.emptyPackageXml, xmlContent);
 

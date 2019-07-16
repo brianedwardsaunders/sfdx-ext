@@ -84,20 +84,11 @@ export class MdapiConvertUtility {
 
     }// end method
 
-    protected objectToArray(objectOrArray: any): Array<Object> {
-        let returned: Array<Object> = [];
-        if (objectOrArray) {
-            if (objectOrArray instanceof Array) { return objectOrArray; }
-            else { returned.push(objectOrArray); }// end else
-        }// end if
-        return returned;
-    }// end method
-
     protected removeUnsupportedMetaTypesFromManifestPackageXml(): void {
 
         let jsonObject: Object = MdapiCommon.xmlFileToJson(this.targetManifestPackageXmlPath);
 
-        let metaTypes: Array<Object> = this.objectToArray(jsonObject["types"]);
+        let metaTypes: Array<Object> = MdapiCommon.objectToArray(jsonObject["types"]);
 
         for (let x: number = 0; x < metaTypes.length; x++) {
             let metaType = metaTypes[x];
