@@ -75,12 +75,12 @@ export class MdapiConvertUtility {
         this.ux.log('created ' + this.targetStageSrcPath);
 
         copySync(this.sourceDirectory, this.targetStageSrcPath);
-        this.ux.log(this.sourceDirectory + ' copied to [' + this.targetStageSrcPath + '].');
+        this.ux.log(this.sourceDirectory + ' copied to ' + this.targetStageSrcPath);
 
         let packageXmlPath = (this.targetStageSrcPath + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
         this.targetManifestPackageXmlPath = (targetManifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
         copyFileSync(packageXmlPath, this.targetManifestPackageXmlPath);
-        this.ux.log(packageXmlPath + ' copied to [' + this.targetManifestPackageXmlPath + '].');
+        this.ux.log(packageXmlPath + ' copied to ' + this.targetManifestPackageXmlPath);
 
     }// end method
 
@@ -95,7 +95,7 @@ export class MdapiConvertUtility {
             for (let y: number = 0; y < MdapiConfig.nonSfdxSupportedMetaTypes.length; y++) {
                 let metaName: string = MdapiConfig.nonSfdxSupportedMetaTypes[y];
                 if (metaType[MdapiConfig._name]._text === metaName) {
-                    this.ux.log('removing unsupported metatype [' + metaName + '] from package.xml...');
+                    this.ux.log('removing unsupported metatype (' + metaName + ') from package.xml...');
                     metaTypes.splice(x, 1); // pop
                     break;
                 }// end if
@@ -117,7 +117,7 @@ export class MdapiConvertUtility {
 
             let directoryPath = (this.targetStageSrcPath + MdapiCommon.PATH_SEP + directory);
 
-            this.ux.log('deleting sfdx unsupported directory [' + directoryPath + '] if exists...');
+            this.ux.log('deleting sfdx unsupported directory (' + directoryPath + ') if exists...');
 
             if (existsSync(directoryPath)) {
                 removeSync(directoryPath);
@@ -161,7 +161,7 @@ export class MdapiConvertUtility {
         this.ux.log('deleting unsupported directories...');
         this.deleteUnsupportedDirectories();
 
-        this.ux.log('removing Unsupported MetaTypes from Manifest package.xml...');
+        this.ux.log('removing unsupported metatypes from manifest package.xml...');
         this.removeUnsupportedMetaTypesFromManifestPackageXml();
 
         this.ux.startSpinner('converting');

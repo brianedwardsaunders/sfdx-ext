@@ -220,7 +220,7 @@ export class MdapiRetrieveUtility {
 
         if (!existsSync(this.manifestDirectory)) {
             mkdirSync(this.manifestDirectory);
-            this.ux.log('created manifest directory [' + this.manifestDirectory + '].');
+            this.ux.log('created manifest directory: ' + this.manifestDirectory);
         }// end if
 
         MdapiConfig.createPackageFile(this.config, this.settings, this.filePackageXmlPath);
@@ -242,13 +242,13 @@ export class MdapiRetrieveUtility {
 
         if (!existsSync(MdapiCommon.stageRoot)) {
             mkdirSync(MdapiCommon.stageRoot);
-            this.ux.log('staging [' + MdapiCommon.stageRoot + '] directory created.');
+            this.ux.log('staging (' + MdapiCommon.stageRoot + ') directory created');
         }// end if
 
         // check if working directory exists
         if (!existsSync(this.stageOrgAliasDirectoryPath)) {
             mkdirSync(this.stageOrgAliasDirectoryPath);
-            this.ux.log('staging alias [' + this.stageOrgAliasDirectoryPath + '] directory created.');
+            this.ux.log('staging alias (' + this.stageOrgAliasDirectoryPath + ') directory created');
         }// end if
 
     }// end method
@@ -286,7 +286,7 @@ export class MdapiRetrieveUtility {
 
                 if (metaItem.manageableState === MdapiConfig.deleted ||
                     metaItem.manageableState === MdapiConfig.deprecated) {
-                    this.ux.log('ignoring [' + metaType + '] ' + metaItem.manageableState + ' item ' + metaItem.fullName);
+                    this.ux.log('ignoring (' + metaType + ') ' + metaItem.manageableState + ' item ' + metaItem.fullName);
                     continue;
                 }// end if
 
@@ -392,7 +392,7 @@ export class MdapiRetrieveUtility {
             mkdirSync(MdapiConfig.srcFolder);
 
             copySync(this.targetDirectorySource, MdapiConfig.srcFolder);
-            this.ux.log('copied ' + MdapiConfig.srcFolder);
+            this.ux.log('copied to ' + MdapiConfig.srcFolder);
 
             if (existsSync(MdapiCommon.stageRoot)) {
                 removeSync(MdapiCommon.stageRoot);
@@ -418,19 +418,19 @@ export class MdapiRetrieveUtility {
         this.ux.stopSpinner();
 
         // async calls
-        this.ux.startSpinner('describemetadata');
+        this.ux.startSpinner('describe metadata');
         await MdapiConfig.describeMetadata(this.org, this.config, this.settings);
         this.ux.stopSpinner();
 
-        this.ux.startSpinner('listmetadata');
+        this.ux.startSpinner('list metadata');
         await this.listMetadata();
         this.ux.stopSpinner();
 
-        this.ux.startSpinner('metadatafolders');
+        this.ux.startSpinner('list folders');
         await this.listMetadataFolders();
         this.ux.stopSpinner();
 
-        this.ux.startSpinner('personaccount recordtypes');
+        this.ux.startSpinner('resolve personaccount recordtypes');
         await MdapiConfig.resolvePersonAccountRecordTypes(this.org, this.config);
         this.ux.stopSpinner();
 
@@ -439,7 +439,7 @@ export class MdapiRetrieveUtility {
         MdapiConfig.repositionSettings(this.config);
 
         // create package.xml
-        this.ux.startSpinner('package.xml file');
+        this.ux.startSpinner('create package.xml file');
         this.packageFile();
         this.ux.stopSpinner();
 
@@ -453,12 +453,12 @@ export class MdapiRetrieveUtility {
             this.ux.stopSpinner();
 
             // unzip retrieved zip
-            this.ux.startSpinner('unzipping');
+            this.ux.startSpinner('unzipping package');
             await this.unzip();
             this.ux.stopSpinner();
 
             // backup zip
-            this.ux.startSpinner('backup');
+            this.ux.startSpinner('backup zip');
             await this.backup();
             this.ux.stopSpinner();
 

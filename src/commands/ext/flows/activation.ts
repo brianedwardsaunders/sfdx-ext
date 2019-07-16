@@ -1,5 +1,5 @@
 /**
- * @name FlowsActivation (deactivate or activate all flows in org)
+ * @name FlowsActivation (deactivate or activate all flows and process builders in target org)
  * @author brianewardsaunders 
  * @date 2019-07-10
  */

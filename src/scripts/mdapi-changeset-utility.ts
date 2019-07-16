@@ -96,7 +96,7 @@ export class MdapiChangesetUtility {
 
         //check if local staging exist (org to org)
         if (!this.versionControlled && !existsSync(MdapiCommon.stageRoot)) {
-            throw "stage source and target retrieve folders required (hint: ext:mdapi:retrieve)";
+            throw "stage source and target retrieve folders required (hint: use ext:mdapi:retrieve -z)";
         }// end if
         else if (this.versionControlled && existsSync(MdapiCommon.stageRoot)) {
             removeSync(MdapiCommon.stageRoot);
@@ -346,7 +346,7 @@ export class MdapiChangesetUtility {
 
             let parentMetadataName: string = leftItem.metadataName;
             let childMetaName: string = childXmlNames[x];
-            
+
             if (MdapiConfig.isUnsupportedMetaType(childMetaName)) { continue; }
 
             let childMetadataObject: MetadataObject = this.config.metadataObjectLookup[childMetaName];
@@ -628,7 +628,7 @@ export class MdapiChangesetUtility {
 
                 if ((changeType === ChangeType.DestructiveChanges) && diffRecord.folderXml) {
                     let excludeFolderMessage: string = 'NOTE: Excluding folder type from destructiveChanges ['
-                        + diffRecord.memberName + '], review and delete manually in target org.';
+                        + diffRecord.memberName + '], review manually in target org.';
                     this.ux.log(excludeFolderMessage);
                     comments += (excludeFolderMessage + '\n');
                 }// end if
@@ -651,7 +651,7 @@ export class MdapiChangesetUtility {
                 if (isGlobalException) { // comment out type which throws error when deploying.
                     xmlContent += "<!-- \n";
                     let exceptionMessage = 'NOTE: Excluding meta type from destructiveChanges ['
-                        + metadataObjectName + '], review and delete manually in target org.';
+                        + metadataObjectName + '], review manually in target org.';
                     this.ux.log(exceptionMessage);
                     xmlContent += (exceptionMessage + '\n');
                 }// end if
@@ -675,9 +675,7 @@ export class MdapiChangesetUtility {
 
                 xmlContent += (MdapiCommon.TWO_SPACE + '</types>\n');
 
-                if (isGlobalException) {
-                    xmlContent += " -->";
-                }// end if
+                if (isGlobalException) { xmlContent += " -->"; }// end if
 
             }// end if
 
@@ -752,7 +750,7 @@ export class MdapiChangesetUtility {
 
             for (let x: number = 0; x < matchResults.length; x++) {
 
-                let matchResult = matchResults[x];
+                let matchResult: DiffRecord = matchResults[x];
                 let found: boolean = false;
                 // before deleting make sure not part of diff results (e.g. nested bundle).
                 let diffRecords: Array<DiffRecord> = this.packageDiffRecords[metaType];
@@ -760,7 +758,7 @@ export class MdapiChangesetUtility {
                 // check if diff entry exists
                 for (let y: number = 0; y < diffRecords.length; y++) {
 
-                    let diffRecord = diffRecords[y];
+                    let diffRecord: DiffRecord = diffRecords[y];
 
                     if (matchResult.memberKey === diffRecord.memberKey) { // the path and meta name is key
                         found = true;
@@ -772,7 +770,7 @@ export class MdapiChangesetUtility {
                 if (!found) {
                     // delete left file if no diff found
                     try {
-                        let filePath = matchResult.filePath;
+                        let filePath: string = matchResult.filePath;
                         if (existsSync(filePath)) { // dummy inner meta types (e.g. fields) wont be deleted
                             unlinkSync(filePath);
                         }// end if
@@ -1138,7 +1136,7 @@ export class MdapiChangesetUtility {
 
         this.init();
 
-        this.ux.startSpinner('setupFolders');
+        this.ux.startSpinner('setup folders');
         this.setupFolders();
         this.ux.stopSpinner();
 
@@ -1148,7 +1146,7 @@ export class MdapiChangesetUtility {
         this.checkLocalBackupAndRestore();
 
         // async calls
-        this.ux.startSpinner('describemetadata');
+        this.ux.startSpinner('describe metadata');
         await MdapiConfig.describeMetadata(this.org, this.config, this.settings);
         this.ux.stopSpinner();
 
