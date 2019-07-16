@@ -464,7 +464,7 @@ export class MdapiConfig {
     //ManagedTopic
     ManagedTopic: MdapiConfig.ManagedTopic,
     //Botversion
-    BotVersions: MdapiConfig.botVersions
+    BotVersion: MdapiConfig.botVersions
   };
 
   public static isFolderDirectory(directory: string): boolean {
@@ -1092,11 +1092,8 @@ export class MdapiConfig {
   }// end method
 
   public static metadataObjectHasChildren(metadataObject: MetadataObject): boolean {
-    if (metadataObject.childXmlNames &&
-      (metadataObject.childXmlNames.length > 0)) {
-      return true;
-    }// end if
-    return false
+    return ((metadataObject.childXmlNames) &&
+      MdapiCommon.objectToArray(metadataObject.childXmlNames).length > 0);
   }// end method
 
   public static initDiffRecordsLookup(config: IConfig, diffRecordsLookup: Record<string, Array<DiffRecord>>): void {

@@ -276,7 +276,7 @@ export class MdapiChangesetUtility {
     protected compareEdgeChildren(item: DiffRecord): void {
 
         let childMetaObject: Object = MdapiCommon.xmlFileToJson(item.filePath);
-        let childXmlNames: Array<string> = item.metadataObject.childXmlNames;
+        let childXmlNames: Array<string> = MdapiCommon.objectToArray(item.metadataObject.childXmlNames);
 
         for (let x: number = 0; x < childXmlNames.length; x++) {
 
@@ -285,7 +285,6 @@ export class MdapiChangesetUtility {
             if (MdapiConfig.isUnsupportedMetaType(childMetaName)) { continue; }
 
             let childMetadataObject: MetadataObject = this.config.metadataObjectLookup[childMetaName];
-
             let childDirectoryName: string = MdapiConfig.childMetadataDirectoryLookup[childMetaName];
 
             let parentContents: Object = childMetaObject[item.metadataName];
@@ -319,7 +318,7 @@ export class MdapiChangesetUtility {
                     diffRecord.diffSize = (-childString.length);
                     this.destructiveIgnoreResults[childMetaName].push(diffRecord);
                 } else {
-                    throw "unexpected child diff edge event - only allows left or right";
+                    throw "unexpected child diff edge event - only allows left or right members";
                 }// end else
 
                 this.packageCombinedResults[childMetaName].push(diffRecord);
@@ -340,7 +339,7 @@ export class MdapiChangesetUtility {
 
         let leftMetaObject: Object = MdapiCommon.xmlFileToJson(leftItem.filePath);
         let rightMetaObject: Object = MdapiCommon.xmlFileToJson(rightItem.filePath);
-        let childXmlNames: Array<string> = leftItem.metadataObject.childXmlNames;
+        let childXmlNames: Array<string> = MdapiCommon.objectToArray(leftItem.metadataObject.childXmlNames);
 
         for (let x: number = 0; x < childXmlNames.length; x++) {
 
@@ -378,7 +377,7 @@ export class MdapiChangesetUtility {
                     rightChild = rightChildren[right];
                     let rightFullName: string = rightChild[MdapiConfig.fullName]._text;
 
-                    if (leftFullName === rightFullName) {
+                    if ((leftFullName === rightFullName) || (leftFullName.localeCompare(rightFullName) === 0)) {
                         rightChildString = JSON.stringify(rightChild);
                         rightCheckSum = MdapiCommon.hashCode(rightChildString);
                         rightIndex = right;
@@ -401,7 +400,7 @@ export class MdapiChangesetUtility {
                     "fileHash": leftCheckSum,
                     "directory": childDirectoryName,
                     "folderXml": false,
-                    "metadataName": childMetadataObject.xmlName,
+                    "metadataName": childMetaName,
                     "metadataObject": childMetadataObject,
                     "fileSize": leftChildString.length,
                     "diffType": DiffType.None,
@@ -463,7 +462,7 @@ export class MdapiChangesetUtility {
                     let leftChild: Object = leftChildren[left];
                     let leftFullName: string = leftChild[MdapiConfig.fullName]._text;
 
-                    if (rightFullName === leftFullName) {
+                    if ((rightFullName === leftFullName) || (rightFullName.localeCompare(leftFullName) === 0)) {
                         leftChildString = JSON.stringify(rightChild);
                         leftCheckSum = MdapiCommon.hashCode(leftChildString);
                         found = true;
@@ -482,10 +481,10 @@ export class MdapiChangesetUtility {
                     "memberKey": rightMemberKey,
                     "memberName": rightMemberName,
                     "filePath": rightFilePath,
-                    "fileHash": leftCheckSum,
+                    "fileHash": rightCheckSum,
                     "directory": childDirectoryName,
                     "folderXml": false,
-                    "metadataName": childMetadataObject.xmlName,
+                    "metadataName": childMetaName,
                     "metadataObject": childMetadataObject,
                     "fileSize": rightChildString.length,
                     "diffType": DiffType.None, //init
@@ -523,7 +522,6 @@ export class MdapiChangesetUtility {
 
     }// end method
 
-
     protected compareSourceAndTarget(): void {
 
         this.ux.log('-----------------------------');
@@ -555,6 +553,7 @@ export class MdapiChangesetUtility {
             else if (leftItem.fileHash === rightItem.fileHash) {
                 leftItem.diffType = DiffType.Match;
                 leftItem.diffSize = (leftItem.fileSize - rightItem.fileSize); // should be zero
+                if (leftItem.diffSize !== 0) { throw "unexpected left to right filehash equal but length diff not zero"; }
                 this.packageMatchResults[leftItem.metadataName].push(leftItem);
             }// end else if
 
@@ -573,7 +572,7 @@ export class MdapiChangesetUtility {
             let rightItem: DiffRecord = this.rightFilePathDiffRecordRegister[filePathKey];
 
             if (!leftItem) {
-                rightItem.diffType = DiffType.Right; // 
+                rightItem.diffType = DiffType.Right;
                 rightItem.diffSize = rightItem.fileSize;
                 this.destructiveDiffRecords[rightItem.metadataName].push(rightItem);
                 if (MdapiConfig.metadataObjectHasChildren(rightItem.metadataObject)) {
@@ -589,6 +588,7 @@ export class MdapiChangesetUtility {
             else if (rightItem.fileHash === leftItem.fileHash) {
                 rightItem.diffType = DiffType.Match;
                 rightItem.diffSize = (rightItem.fileSize - leftItem.fileSize); // should be zero
+                if (rightItem.diffSize !== 0) { throw "unexpected right to left filehash equal but length diff not zero"; }
                 this.destructiveMatchResults[rightItem.metadataName].push(rightItem);
                 // excluded not need to transport. ignore details inner comparisons already done before
             }// end else if
