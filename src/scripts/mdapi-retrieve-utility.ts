@@ -48,8 +48,6 @@ export class MdapiRetrieveUtility {
         // noop
     }// end constructor
 
-    protected BATCH_SIZE: number = 30;
-
     // define working folders
     protected stageOrgAliasDirectoryPath: string = (MdapiCommon.stageRoot + MdapiCommon.PATH_SEP + this.orgAlias);
     protected retrievePath: string = (this.stageOrgAliasDirectoryPath + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot);
@@ -62,6 +60,7 @@ export class MdapiRetrieveUtility {
     protected config: IConfig;
     protected settings: ISettings;
 
+    protected BATCH_SIZE: number = 30;
     protected transientMetadataTypes: Array<string> = [];
 
     protected listMetadataFolderBatch(config: IConfig, metaType: string): Promise<void> {
@@ -94,6 +93,7 @@ export class MdapiRetrieveUtility {
                 config.metadataObjectMembersLookup[metaType].push(
                     folderArray[x]
                 );
+
                 this.queryListMetadata(params, batchCtrl);
 
             }// end for
@@ -127,16 +127,15 @@ export class MdapiRetrieveUtility {
                 mkdirSync(backupOrgFolder);
             }// end if
 
-            this.ux.log('backing up from: ' + sourceProjectFile + ' to: ' + backupProjectFile);
-
+            this.ux.log('backing up from ' + sourceProjectFile + ' to ' + backupProjectFile);
             copyFileSync(sourceProjectFile, backupProjectFile);
-            this.ux.log('backup finished to file: ' + backupProjectFile);
+            this.ux.log('backup finished to file ' + backupProjectFile);
 
         }// end if
 
-        if (!existsSync(sourceProjectFile)) {
+        if (existsSync(sourceProjectFile)) {
             unlinkSync(sourceProjectFile);
-            this.ux.log('deleting temp file: ' + sourceProjectFile);
+            this.ux.log('deleting file ' + sourceProjectFile);
         }// end if
 
     }// end method
@@ -242,13 +241,13 @@ export class MdapiRetrieveUtility {
 
         if (!existsSync(MdapiCommon.stageRoot)) {
             mkdirSync(MdapiCommon.stageRoot);
-            this.ux.log('staging (' + MdapiCommon.stageRoot + ') directory created');
+            this.ux.log('staging ' + MdapiCommon.stageRoot + ' directory created');
         }// end if
 
         // check if working directory exists
         if (!existsSync(this.stageOrgAliasDirectoryPath)) {
             mkdirSync(this.stageOrgAliasDirectoryPath);
-            this.ux.log('staging alias (' + this.stageOrgAliasDirectoryPath + ') directory created');
+            this.ux.log('staging alias ' + this.stageOrgAliasDirectoryPath + ' directory created');
         }// end if
 
     }// end method
@@ -286,7 +285,7 @@ export class MdapiRetrieveUtility {
 
                 if (metaItem.manageableState === MdapiConfig.deleted ||
                     metaItem.manageableState === MdapiConfig.deprecated) {
-                    this.ux.log('ignoring (' + metaType + ') ' + metaItem.manageableState + ' item ' + metaItem.fullName);
+                    this.ux.log('ignoring ' + metaType + ' ' + metaItem.manageableState + ' item ' + metaItem.fullName);
                     continue;
                 }// end if
 

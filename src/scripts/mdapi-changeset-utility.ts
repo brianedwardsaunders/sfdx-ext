@@ -8,11 +8,11 @@ import {
     existsSync, mkdirSync, removeSync, copySync, readdirSync, statSync,
     writeFileSync, unlinkSync, copyFileSync
 } from "fs-extra";
-import { ChangesetExcludeDefaults } from "../config/changeset-exclude-defaults";
 import { MetadataObject } from "jsforce";
 import { Org } from "@salesforce/core";
 import { MdapiCommon } from "./mdapi-common";
-import { MdapiConfig, IConfig, ISettings, DiffRecord, DiffType, ChangeType } from "./mdapi-config";
+import { ChangesetExcludeDefault } from "../config/changeset-exclude-default";
+import { MdapiConfig, IConfig, ISettings, DiffRecord, DiffType, ChangeType, ChangesetExclude } from "./mdapi-config";
 import { UX } from "@salesforce/command";
 import path = require('path');
 
@@ -50,14 +50,9 @@ export class MdapiChangesetUtility {
 
     protected destructiveExceptions = MdapiConfig.destructiveExceptions;
 
-    // MAKE EXCLUDE CONFIGURABLE
-    // PROFILES ARE HANDLED IN ProfileDiff.js as this folder likely contains partial profile only.
-    protected directoryExcludeList: Array<string> = ChangesetExcludeDefaults.defaultDirectoryExcludeList;
-
-    // SFDC WONT ALLOW THE MIGRATION OF THESE FILES (FIELDS PART OF MANAGED PACKAGE)
-    // ERROR Cannot modify managed object: entity=FieldAttributes, component=0DH4J0000001LaB, field=BusinessStatus, state=installed
-    // manually check field history tracking
-    protected fileExcludeList: Array<string> = ChangesetExcludeDefaults.defaultFileExcludeList;
+    // configurable see config/changeset-exclude-template.json and ignorePath
+    protected directoryExcludeList: Array<string> = [];
+    protected fileExcludeList: Array<string> = [];
 
     constructor(
         protected org: Org,
@@ -66,6 +61,7 @@ export class MdapiChangesetUtility {
         protected targetOrgAlias: string, // right (target)
         protected apiVersion: string,
         protected ignoreComments: boolean,
+        protected ignorePath?: string,
         protected revisionFrom?: string,  // git revision
         protected revisionTo?: string, ) { // git revision
         // noop
@@ -77,18 +73,18 @@ export class MdapiChangesetUtility {
     // because diff is left sfdx destructive return left to original state
     protected checkLocalBackupAndRestore(): void {
         if (this.versionControlled) { return; }//no need to backup if version controlled
-        this.ux.log('checking for local backup [' + this.sourceRetrieveDirBackup + '] ...');
+        this.ux.log('checking for local backup ' + this.sourceRetrieveDirBackup + '...');
         if (!existsSync(this.sourceRetrieveDirBackup)) { // first time
             mkdirSync(this.sourceRetrieveDirBackup);
             copySync(this.sourceRetrieveDir, this.sourceRetrieveDirBackup);
-            this.ux.log('Initial backup [' + this.sourceRetrieveDirBackup + '] created.');
+            this.ux.log('initial backup ' + this.sourceRetrieveDirBackup + 'created');
         }// end if
         else {
-            this.ux.log('restoring [' + this.sourceRetrieveDir + '] from local backup ' + this.sourceRetrieveDirBackup);
+            this.ux.log('restoring ' + this.sourceRetrieveDir + ' from local backup ' + this.sourceRetrieveDirBackup);
             removeSync(this.sourceRetrieveDir);
             mkdirSync(this.sourceRetrieveDir);
             copySync(this.sourceRetrieveDirBackup, this.sourceRetrieveDir);
-            this.ux.log('backup [' + this.sourceRetrieveDir + '] restored.');
+            this.ux.log('backup ' + this.sourceRetrieveDir + ' restored');
         }// end else
     }// end method
 
@@ -100,55 +96,55 @@ export class MdapiChangesetUtility {
         }// end if
         else if (this.versionControlled && existsSync(MdapiCommon.stageRoot)) {
             removeSync(MdapiCommon.stageRoot);
-            this.ux.log(MdapiCommon.stageRoot + ' cleaned.');
+            this.ux.log(MdapiCommon.stageRoot + ' cleaned');
         }// end if
 
         // e.g. stage
         if (!existsSync(MdapiCommon.stageRoot)) {
             mkdirSync(MdapiCommon.stageRoot);
-            this.ux.log(MdapiCommon.stageRoot + ' directory created.');
+            this.ux.log(MdapiCommon.stageRoot + ' directory created');
         }// end if
 
         // e.g. stage/DevOrg
         this.sourceBaseDir = (MdapiCommon.stageRoot + MdapiCommon.PATH_SEP + this.sourceOrgAlias);
         if (!existsSync(this.sourceBaseDir)) {
             mkdirSync(this.sourceBaseDir);
-            this.ux.log(this.sourceBaseDir + ' directory created.');
+            this.ux.log(this.sourceBaseDir + ' directory created');
         }// end if
 
         // e.g. stage/ReleaseOrg
         this.targetBaseDir = (MdapiCommon.stageRoot + MdapiCommon.PATH_SEP + this.targetOrgAlias);
         if (!existsSync(this.targetBaseDir)) {
             mkdirSync(this.targetBaseDir);
-            this.ux.log(this.targetBaseDir + ' directory created.');
+            this.ux.log(this.targetBaseDir + ' directory created');
         }// end if
 
         // e.g. stage/DevOrg/retrieve
         this.sourceRetrieveBaseDir = (this.sourceBaseDir + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot);
         if (!existsSync(this.sourceRetrieveBaseDir)) {
             mkdirSync(this.sourceRetrieveBaseDir);
-            this.ux.log(this.sourceRetrieveBaseDir + ' directory created.');
+            this.ux.log(this.sourceRetrieveBaseDir + ' directory created');
         }// end if
 
         // e.g. stage/DevOrg/retrieve/src
         this.sourceRetrieveDir = (this.sourceRetrieveBaseDir + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
         if (!existsSync(this.sourceRetrieveDir)) {
             mkdirSync(this.sourceRetrieveDir);
-            this.ux.log(this.sourceRetrieveDir + ' directory created.');
+            this.ux.log(this.sourceRetrieveDir + ' directory created');
         }// end if
 
         // e.g. stage/ReleaseOrg/retrieve
         this.targetRetrieveBaseDir = (this.targetBaseDir + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot);
         if (!existsSync(this.targetRetrieveBaseDir)) {
             mkdirSync(this.targetRetrieveBaseDir);
-            this.ux.log(this.targetRetrieveBaseDir + ' directory created.');
+            this.ux.log(this.targetRetrieveBaseDir + ' directory created');
         }// end if
 
         // e.g. stage/ReleaseOrg/retrieve/src
         this.targetRetrieveDir = (this.targetRetrieveBaseDir + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
         if (!existsSync(this.targetRetrieveDir)) {
             mkdirSync(this.targetRetrieveDir);
-            this.ux.log(this.targetRetrieveDir + ' directory created.');
+            this.ux.log(this.targetRetrieveDir + ' directory created');
         }// end if
 
         // e.g. stage/DevOrg/retrieve/src.backup
@@ -159,7 +155,7 @@ export class MdapiChangesetUtility {
         // check deploy exists else create
         if (!existsSync(this.sourceDeployDir)) {
             mkdirSync(this.sourceDeployDir);
-            this.ux.log(this.sourceDeployDir + ' directory created.');
+            this.ux.log(this.sourceDeployDir + ' directory created');
         }// end if
 
         // e.g. stage/DevOrg/deploy/ReleaseOrg
@@ -167,12 +163,12 @@ export class MdapiChangesetUtility {
         // delete old staging deploy folder
         if (existsSync(this.sourceDeployDirTarget)) {
             removeSync(this.sourceDeployDirTarget);
-            this.ux.log('source deploy target directory: [' + this.sourceDeployDirTarget + '] cleaned.');
+            this.ux.log('source deploy target directory ' + this.sourceDeployDirTarget + ' cleaned');
         }// end if
         // create staging deploy folder
 
         mkdirSync(this.sourceDeployDirTarget);
-        this.ux.log(this.sourceDeployDirTarget + ' directory created.');
+        this.ux.log(this.sourceDeployDirTarget + ' directory created');
 
         // e.g. stage/DevOrg/deploy/ReleaseOrg/src
         this.sourceDeployDirTargetSource = (this.sourceDeployDirTarget + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
@@ -208,19 +204,16 @@ export class MdapiChangesetUtility {
     }// end method
 
     protected isGlobalDestructiveException(metaType: string): boolean {
+
         if (this.destructiveExceptions[metaType] &&
             (this.destructiveExceptions[metaType][0] === MdapiCommon.ASTERIX)) {
             return true;
         }// end if
         return false;
+
     }// end method
 
-
     protected setupDiffRecords(): void {
-
-        this.ux.log('-----------------------------');
-        this.ux.log('SETUP DIFF RESULTS');
-        this.ux.log('-----------------------------');
 
         //package
         MdapiConfig.initDiffRecordsLookup(this.config, this.packageDiffRecords);
@@ -258,15 +251,7 @@ export class MdapiChangesetUtility {
 
     protected walkDirectories(): void {
 
-        this.ux.log('-----------------------------');
-        this.ux.log('WALK SOURCE FOR COMPARE ');
-        this.ux.log('-----------------------------');
-
         this.walkDir(this.sourceRetrieveDir, this.leftFilePathDiffRecordRegister, MdapiConfig.inspectMdapiFile);
-
-        this.ux.log('-----------------------------');
-        this.ux.log('WALK TARGET FOR COMPARE ');
-        this.ux.log('-----------------------------');
 
         this.walkDir(this.targetRetrieveDir, this.rightFilePathDiffRecordRegister, MdapiConfig.inspectMdapiFile);
 
@@ -492,7 +477,7 @@ export class MdapiChangesetUtility {
                 });
 
                 if (!diffRecord.metadataName) {
-                    throw "unexpected scenario child metaType is undefined";
+                    throw "unexpected scenario child metatype is undefined";
                 }// end if
 
                 if (((rightCheckSum === leftCheckSum) && (leftChildString !== rightChildString)) ||
@@ -523,10 +508,6 @@ export class MdapiChangesetUtility {
     }// end method
 
     protected compareSourceAndTarget(): void {
-
-        this.ux.log('-----------------------------');
-        this.ux.log('COMPARE SOURCE WITH TARGET ');
-        this.ux.log('-----------------------------');
 
         //compare left to right
         for (let filePath in this.leftFilePathDiffRecordRegister) {
@@ -562,9 +543,6 @@ export class MdapiChangesetUtility {
 
         }// end for
 
-        this.ux.log('-----------------------------');
-        this.ux.log('COMPARE TARGET WITH SOURCE ');
-        this.ux.log('-----------------------------');
         //compare right to left
         for (let filePathKey in this.rightFilePathDiffRecordRegister) {
 
@@ -624,11 +602,11 @@ export class MdapiChangesetUtility {
                 comments += (diffRecord.diffType + ": " + diffRecord.directory +
                     MdapiCommon.PATH_SEP + MdapiCommon.isolateLeafNode(diffRecord.filePath)
                     + ", delta-size " + diffRecord.diffSize + " (bytes)" + ", file-size "
-                    + diffRecord.fileSize + " (bytes), file-hash [" + diffRecord.fileHash + "]. \n");
+                    + diffRecord.fileSize + " (bytes), file-hash (" + diffRecord.fileHash + ") \n");
 
                 if ((changeType === ChangeType.DestructiveChanges) && diffRecord.folderXml) {
-                    let excludeFolderMessage: string = 'NOTE: Excluding folder type from destructiveChanges ['
-                        + diffRecord.memberName + '], review manually in target org.';
+                    let excludeFolderMessage: string = 'NOTE: Excluding folder type from destructiveChanges.xml ('
+                        + diffRecord.memberName + '), review manually in target org';
                     this.ux.log(excludeFolderMessage);
                     comments += (excludeFolderMessage + '\n');
                 }// end if
@@ -650,8 +628,8 @@ export class MdapiChangesetUtility {
 
                 if (isGlobalException) { // comment out type which throws error when deploying.
                     xmlContent += "<!-- \n";
-                    let exceptionMessage = 'NOTE: Excluding meta type from destructiveChanges ['
-                        + metadataObjectName + '], review manually in target org.';
+                    let exceptionMessage = 'NOTE: excluding meta type from destructiveChanges.xml ('
+                        + metadataObjectName + '), review manually in target org';
                     this.ux.log(exceptionMessage);
                     xmlContent += (exceptionMessage + '\n');
                 }// end if
@@ -668,7 +646,7 @@ export class MdapiChangesetUtility {
                     else if (MdapiConfig.isExcludedFile(member)) { continue; } // e.g. lwc tech files.
                     else if (((changeType === ChangeType.DestructiveChanges) &&
                         this.isDestructiveException(metadataObjectName, member))) {
-                        xmlContent += '<!-- EXCLUDED    <members>' + member + '</members> -->\n';
+                        xmlContent += '<!-- EXCLUDED:    <members>' + member + '</members> -->\n';
                     }
                     else { xmlContent += MdapiCommon.FOUR_SPACE + '<members>' + member + '</members>\n'; }
                 }// end for
@@ -688,7 +666,7 @@ export class MdapiChangesetUtility {
 
         if (!existsSync(this.sourceDeployDirTarget)) {
             mkdirSync(this.sourceDeployDirTarget);
-            this.ux.log(this.sourceDeployDirTarget + ' directory created.');
+            this.ux.log(this.sourceDeployDirTarget + ' directory created');
         }// end if
 
         writeFileSync(packageFile, xmlContent);
@@ -711,37 +689,21 @@ export class MdapiChangesetUtility {
 
     protected createPackageXmls(): void {
 
-        this.ux.log('-----------------------------');
-        this.ux.log('CREATE PACKAGE.XML');
-        this.ux.log('-----------------------------');
-
         this.createPackageFile(
             this.filePackageXml,
             this.packageDiffRecords,
             ChangeType.Package);
-
-        this.ux.log('-----------------------------');
-        this.ux.log('CREATE DESTRUCTIVECHANGES.XML');
-        this.ux.log('-----------------------------');
 
         this.createPackageFile(
             this.fileDestructiveChangesXml,
             this.destructiveDiffRecords,
             ChangeType.DestructiveChanges);
 
-        this.ux.log('-----------------------------');
-        this.ux.log('DIFF PROCESS COMPLETED  ');
-        this.ux.log('-----------------------------');
-
         this.createEmptyPackageFile();
 
     }// end method
 
     protected preparePackageDirectory(): void {
-
-        this.ux.log('-----------------------------');
-        this.ux.log('DELETING SOURCE FILE MATCHES ');
-        this.ux.log('-----------------------------');
 
         // only want to transport what is necessary
         for (let metaType in this.packageMatchResults) {
@@ -789,16 +751,12 @@ export class MdapiChangesetUtility {
     protected copyDeploymentFiles(): void {
 
         copySync(this.sourceRetrieveDir, this.sourceDeployDirTargetSource);
-        this.ux.log(this.sourceRetrieveDir + ' moved to [' + this.sourceDeployDirTargetSource + '].');
+        this.ux.log(this.sourceRetrieveDir + ' moved to ' + this.sourceDeployDirTargetSource);
         removeSync(this.sourceRetrieveDir);
 
         copyFileSync(this.filePackageXml, this.deploymentFilePackageXml);
-        this.ux.log(this.deploymentFilePackageXml + ' file created.');
+        this.ux.log(this.deploymentFilePackageXml + ' file created');
         unlinkSync(this.filePackageXml);
-
-        this.ux.log('-----------------------------');
-        this.ux.log('CHANGESET PROCESS COMPLETE  ');
-        this.ux.log('-----------------------------');
 
     }// end process
 
@@ -950,7 +908,7 @@ export class MdapiChangesetUtility {
                     let layoutAssignmentCompare = JSON.stringify(layoutAssignments[y]);
                     if (layoutAssignment.localeCompare(layoutAssignmentCompare) === 0) { count++; }
                     if (count > 1) {
-                        instance.ux.warn('removing duplicate layoutAssignment in: ' + filePath);
+                        instance.ux.warn('removing duplicate layoutAssignment in ' + filePath);
                         layoutAssignments.splice(y, 1);
                         break;
                     }// end if
@@ -1033,17 +991,9 @@ export class MdapiChangesetUtility {
 
         this.postWalkDir(this.sourceDeployDirTargetSource, this.postInspectFile);
 
-        this.ux.log('-----------------------------');
-        this.ux.log('POST SCREENING COMPLETE  ');
-        this.ux.log('-----------------------------');
-
     }// end process
 
     protected deleteExcludedDirectories(): void {
-
-        this.ux.log('-----------------------------');
-        this.ux.log('DELETE EXCLUDED DIRECTORIES');
-        this.ux.log('-----------------------------');
 
         this.directoryExcludeList.forEach(folder => {
 
@@ -1062,10 +1012,6 @@ export class MdapiChangesetUtility {
 
     protected deleteExcludedFiles(): void {
 
-        this.ux.log('-----------------------------');
-        this.ux.log('DELETE EXCLUDED FILES');
-        this.ux.log('-----------------------------');
-
         this.fileExcludeList.forEach(filePath => {
 
             let leftFile = (this.sourceRetrieveDir + MdapiCommon.PATH_SEP + filePath);
@@ -1082,10 +1028,27 @@ export class MdapiChangesetUtility {
     }// end method
 
     protected init(): void {
+
         this.config = MdapiConfig.createConfig();
         this.settings = MdapiConfig.createSettings();
+        let changesetExclude: ChangesetExclude = null;
         this.settings.apiVersion = this.apiVersion;
+
         if (this.revisionFrom && this.revisionTo) { this.versionControlled = true; }
+
+        if (this.ignorePath) {
+            if (!existsSync(this.ignorePath)) { throw "ignorepath file not found - please check path to file is correct"; }
+            changesetExclude = MdapiCommon.fileToJson<ChangesetExclude>(this.ignorePath);
+        }// end if
+        else {
+            // load from default
+            changesetExclude = new ChangesetExcludeDefault();
+        }// end else
+
+        this.directoryExcludeList = changesetExclude.directoryExcludes;
+        this.fileExcludeList = changesetExclude.fileExcludes;
+        this.ux.log('changeset exclude items loaded');
+
     }// end method
 
     protected async checkoutRevisions(): Promise<void> {
@@ -1134,15 +1097,17 @@ export class MdapiChangesetUtility {
 
     public async process(): Promise<void> {
 
+        this.ux.log('initialising...');
         this.init();
 
         this.ux.startSpinner('setup folders');
         this.setupFolders();
         this.ux.stopSpinner();
 
-        this.ux.log('checking revisions (standby)...');
+        this.ux.log('checking revisions (please standby)...');
         await this.checkoutRevisions();
 
+        this.ux.log('check local backup and restore...');
         this.checkLocalBackupAndRestore();
 
         // async calls
@@ -1150,22 +1115,31 @@ export class MdapiChangesetUtility {
         await MdapiConfig.describeMetadata(this.org, this.config, this.settings);
         this.ux.stopSpinner();
 
+        this.ux.log('deleting excluded directories');
         this.deleteExcludedDirectories();
 
+        this.ux.log('deleting excluded files');
         this.deleteExcludedFiles();
 
+        this.ux.log('setup diff records...');
         this.setupDiffRecords();
 
+        this.ux.log('walk directories...');
         this.walkDirectories();
 
+        this.ux.log('compare source and target...');
         this.compareSourceAndTarget();
 
+        this.ux.log('prepare package directory...');
         this.preparePackageDirectory();
 
+        this.ux.log('prepare destructiveChanges.xml and package.xml...');
         this.createPackageXmls();
 
+        this.ux.log('copy deployment files...');
         this.copyDeploymentFiles();
 
+        this.ux.log('post file screening...');
         this.postScreenDeploymentFiles();
 
     }// end process

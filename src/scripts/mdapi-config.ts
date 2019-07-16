@@ -58,6 +58,11 @@ export interface DiffRecord {
   diffSize: number; // init
 };
 
+export interface ChangesetExclude {
+  directoryExcludes: Array<string>;
+  fileExcludes: Array<string>;
+};
+
 export class MdapiConfig {
 
   public static forceapp: string = 'force-app';
@@ -377,7 +382,8 @@ export class MdapiConfig {
 
   // exclude from diff compare
   public static directoryExcludes = [
-    "src"
+    "src",
+    "force-app"
   ];
 
   // exclude from diff compare
@@ -421,7 +427,7 @@ export class MdapiConfig {
     MdapiConfig.sharingOwnerRules,
     MdapiConfig.sharingCriteriaRules,
     MdapiConfig.sharingTerritoryRules,
-    //ManagedTopic (is uppercase) - weird
+    //ManagedTopic (is uppercase) - weird also part of excludes
     MdapiConfig.ManagedTopic,
     //botversions
     MdapiConfig.botVersions
@@ -444,7 +450,7 @@ export class MdapiConfig {
     //Workflow
     WorkflowAlert: MdapiConfig.alerts,
     WorkflowFieldUpdate: MdapiConfig.fieldUpdates,
-    WorkflowSend: MdapiConfig.flowActions, // check this
+    WorkflowSend: MdapiConfig.flowActions, // TODO: double check this is correct
     WorkflowKnowledgePublish: MdapiConfig.knowledgePublishes,
     WorkflowOutboundMessage: MdapiConfig.outboundMessages,
     WorkflowRule: MdapiConfig.rules,
@@ -825,8 +831,7 @@ export class MdapiConfig {
 
   public static createPackageFile(config: IConfig, settings: ISettings, packageXmlPath: string): void {
 
-    let xmlContent: string = '<?xml version="1.0" encoding="UTF-8"?>\n';
-    xmlContent += '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
+    let xmlContent: string = this.packageXmlHeader();
 
     MdapiConfig.repositionSettings(config);
 
@@ -853,7 +858,7 @@ export class MdapiConfig {
     }// end for
 
     xmlContent += (MdapiCommon.TWO_SPACE + '<version>' + settings.apiVersion + '</version>\n');
-    xmlContent += '</Package>\n';
+    xmlContent += this.packageXmlFooter();
 
     writeFileSync(packageXmlPath, xmlContent);
 
@@ -1004,8 +1009,8 @@ export class MdapiConfig {
       } // end else if
       else {
         //fatal
-        console.error('Unexpected MetaType found at parent directory: ' + parentDirectory
-          + ' Please check metaobject definitions are up to date. Unresolved file path: ' + filePath);
+        console.error('unexpected metatype found at parent directory: ' + parentDirectory
+          + ' please check metaobject definitions are up to date - unresolved file path: ' + filePath);
         throw parentDirectory; // terminate 
       }// end else
     }// end if
@@ -1017,9 +1022,9 @@ export class MdapiConfig {
     // saftey check
     if ((!fileName) || (!directory) || (!metadataObject)) {
       //fatal
-      console.error('Unexpected unresolved metaobject - key: ', memberKey +
-        ' (fileName: ' + fileName + ') directory: (' + directory + '), ' +
-        ' parentDirectory: ' + parentDirectory + ', metadataObject: ' + metadataObject);
+      console.error('unexpected unresolved metaobject - key: ', memberKey +
+        ' (filename: ' + fileName + ') directory: (' + directory + '), ' +
+        ' parentdirectory: ' + parentDirectory + ', metadataobject: ' + metadataObject);
       throw 'unresolved metadataObject';
     }// end if
 

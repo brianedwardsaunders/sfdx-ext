@@ -53,7 +53,7 @@ export class FlowsActivationUtility {
 
     protected async retrieveMetadata(): Promise<any> {
 
-        this.ux.log('retrieve directory: ' + this.retrievePath);
+        this.ux.log('retrieve directory ' + this.retrievePath);
 
         return new Promise((resolve, reject) => {
 
@@ -84,7 +84,7 @@ export class FlowsActivationUtility {
 
         if (!existsSync(this.manifestDirectory)) {
             mkdirSync(this.manifestDirectory);
-            this.ux.log('created manifest directory [' + this.manifestDirectory + '].');
+            this.ux.log('created manifest directory ' + this.manifestDirectory);
         }// end if
 
         MdapiConfig.createPackageFile(this.config, this.settings, this.filePackageXmlPath);
@@ -101,13 +101,13 @@ export class FlowsActivationUtility {
 
         if (!existsSync(MdapiCommon.stageRoot)) {
             mkdirSync(MdapiCommon.stageRoot);
-            this.ux.log('staging [' + MdapiCommon.stageRoot + '] directory created.');
+            this.ux.log('staging ' + MdapiCommon.stageRoot + ' directory created');
         }// end if
 
         // check if working directory exists
         if (!existsSync(this.stageOrgAliasDirectoryPath)) {
             mkdirSync(this.stageOrgAliasDirectoryPath);
-            this.ux.log('staging alias [' + this.stageOrgAliasDirectoryPath + '] directory created.');
+            this.ux.log('staging alias ' + this.stageOrgAliasDirectoryPath + ' directory created');
         }// end if
 
     }// end method
@@ -211,7 +211,7 @@ export class FlowsActivationUtility {
                 }// end if
             }// end if
             else {
-                throw "Unexpected event could not resolve FlowDefinition developerName";
+                throw "unexpected event could not resolve flow definition developer name";
             }// end else
 
         }// end for

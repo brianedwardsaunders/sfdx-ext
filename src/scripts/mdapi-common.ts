@@ -65,6 +65,10 @@ export class MdapiCommon {
         return returned;
     }// end method
 
+    public static fileToJson<T>(filePath: string): T {
+        return JSON.parse(readFileSync(filePath, MdapiCommon.UTF8));
+    }// end method
+
     public static xmlFileToJson<T>(filePath: string): T {
         return JSON.parse(xml2json(readFileSync(filePath, MdapiCommon.UTF8), MdapiCommon.convertOptions));
     }// end method

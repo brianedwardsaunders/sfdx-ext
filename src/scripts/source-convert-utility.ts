@@ -166,7 +166,7 @@ export class SourceConvertUtility {
         this.ux.stopSpinner();
 
         //inspectMdapiChildren
-        this.ux.startSpinner('update package file');
+        this.ux.startSpinner('update package.xml file');
         this.updatePackageFile(this.targetPackageXmlPath, this.packageDiffRecords);
         copyFileSync(this.targetPackageXmlPath, this.targetSrcPackageXmlPath);
         this.ux.stopSpinner();

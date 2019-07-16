@@ -29,11 +29,15 @@ export default class Changeset extends SfdxCommand {
     `
     $ sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6
     `,
+    `
+    $ sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -i config/changeset-exclude.json -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6
+    `,
   ];
 
   protected static flagsConfig = {
     sourceusername: flags.string({ char: 's', description: messages.getMessage('sourceusernameFlagDescription') }),
     ignorecomments: flags.boolean({ char: 'x', description: messages.getMessage('ignorecommentsFlagDescription') }),
+    ignorepath: flags.string({ char: 'i', description: messages.getMessage('ignorepathFlagDescription') }),
     revisionfrom: flags.string({ char: 'r', description: messages.getMessage('revisionfromFlagDescription') }),
     revisionto: flags.string({ char: 't', description: messages.getMessage('revisionfromFlagDescription') })
   };
@@ -48,6 +52,7 @@ export default class Changeset extends SfdxCommand {
     let ignorecomments: boolean = this.flags.ignorecomments || false;
     let targetusername: string = this.flags.targetusername;
     let sourceusername: string = this.flags.sourceusername;
+    let excludepath: string = this.flags.excludepath || null;
     let revisionfrom: string = this.flags.revisionfrom || null;
     let revisionto: string = this.flags.revisionto || null;
     let apiversion: string = this.flags.apiversion || defaultApiVersion;
@@ -66,6 +71,7 @@ export default class Changeset extends SfdxCommand {
     this.ux.log("targetusername   : " + targetusername);
     this.ux.log("apiversion       : " + apiversion);
     this.ux.log("ignorecomments   : " + ignorecomments);
+    this.ux.log("excludepath      : " + excludepath)
     this.ux.log("revisionfrom     : " + revisionfrom);
     this.ux.log("revisionto       : " + revisionto);
     this.ux.log("-----------------------------");
@@ -77,6 +83,7 @@ export default class Changeset extends SfdxCommand {
       targetusername,
       apiversion,
       ignorecomments,
+      excludepath,
       revisionfrom,
       revisionto);
 

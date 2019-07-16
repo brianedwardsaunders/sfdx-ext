@@ -1,37 +1,36 @@
+import { ChangesetExclude } from "../scripts/mdapi-config";
+
 /**
- * @name ChangesetExcludeDefaults (see mdapi-changeset-utility)
+ * @name ChangesetExcludeDefault (see mdapi-changeset-utility)
  * @author brianewardsaunders 
  * @date 2019-07-10
  */
 
-export class ChangesetExcludeDefaults {
+export class ChangesetExcludeDefault implements ChangesetExclude {
 
-    public static defaultDirectoryExcludeList: Array<string> = [
-        "profilePasswordPolicies", // get all kinds of issues with this org specific
-        "profileSessionSettings", // get all kinds of issues with this org specific
-        "animationRules", // cannot deploy
-        "flowDefinitions", // not required
-        "reports/LeadInsightsReports", // salesforce sales einstein can't modify
+    public directoryExcludes: Array<string> = [
+        "profilePasswordPolicies",
+        "profileSessionSettings",
+        "animationRules",
+        "flowDefinitions",
+        "reports/LeadInsightsReports",
         "dashboards/LeadInsightsDashboards"
     ];
-
-    public static defaultFileExcludeList: Array<string> = [
+    public fileExcludes: Array<string> = [
         "applications/FinServ__BankingConsoleFinancialServicesCloud.app",
         "applications/FinServ__FinancialServicesCloudRetailBanking.app",
         "applications/FinServ__FSC_Lightning.app",
         "applications/FinServ__InsuranceConsoleFinancialServicesCloud.app",
-        "appMenus/AppSwitcher.appMenu", // can't migrate AppSwitcher
-        "classes/FinServ__MoiConstants.cls", // can't migrate managed package classes
+        "appMenus/AppSwitcher.appMenu",
+        "classes/FinServ__MoiConstants.cls",
         "classes/FinServ__MoiConstants.cls-meta.xml",
-        //these signed certificates can be migrated
         "certs/mulesoft_entities_api_certificate.crt-meta.xml",
         "certs/mulesoft_entities_api_certificate.crt",
         "certs/aw_mulesoft.crt-meta.xml",
         "certs/aw_mulesoft.crt",
-        "connectedApps/GitLab.connectedApp", // will differ from org to org manual setup once
-        "profiles/B2BMA Integration User.profile", //'B2BMA Integration User': You may not turn off permission Read All RetailVisitTemplate for this License Type
-        "pathAssistants/Default_Opportunity.pathAssistant", // has domain hard coded and can't migrate this thing
-        //Cannot modify managed object: entity=CustomPermissionSet
+        "connectedApps/GitLab.connectedApp",
+        "profiles/B2BMA Integration User.profile",
+        "pathAssistants/Default_Opportunity.pathAssistant",
         "permissionsets/FinServ__Advisor.permissionset",
         "permissionsets/FinServ__AdvisorPartnerCommunity.permissionset",
         "permissionsets/FinServ__CustomerCommunityReadOnly.permissionset",
@@ -47,7 +46,6 @@ export class ChangesetExcludeDefaults {
         "permissionsets/pi__Pardot_Connector_User.permissionset",
         "permissionsets/pi__Pardot_Integration_User.permissionset",
         "permissionsets/pi__Sales_Edge.permissionset",
-        //static resources from managed packages ignore can't be migrated
         "staticresources/FinServ__industryresources.resource-meta.xml",
         "staticresources/FinServ__industryresources.resource",
         "staticresources/FinServ__wealthresources.resource-meta.xml",
@@ -92,7 +90,6 @@ export class ChangesetExcludeDefaults {
         "staticresources/pi__jquery_ui_1_11_1_custom_has_dialog.resource",
         "staticresources/pi__jquery_ui_1_12_1.resource-meta.xml",
         "staticresources/pi__jquery_ui_1_12_1.resource",
-        //test community should not be transported
         "sites/testcommunity.site",
         "siteDotComSites/testcommunity1.site",
         "siteDotComSites/testcommunity1.site-meta.xml",
@@ -110,23 +107,38 @@ export class ChangesetExcludeDefaults {
         "userCriteria/testcommunity.Customer_Members.userCriteria",
         "userCriteria/testcommunity.Members_without_contribution.userCriteria",
         "userCriteria/testcommunity.Partner_and_Customer_members.userCriteria",
-        // installed as part of package always causing issues. e.g. the values of chartSummary and/or groupingColumn are not compatible
         "dashboards/Sales_and_Marketing_Dashboards/Best_Practices_Dashboard6.dashboard",
-        // used by standard apps
         "contentassets/elliegif1.asset",
         "contentassets/elliegif1.asset-meta.xml",
         "contentassets/online_pay_final.asset",
         "contentassets/online_pay_final.asset-meta.xml"
-        /* 
-        // default pathAssistant has domain hard coded and can't migrate this thing
-        "dashboards/Sales_and_Marketing_Dashboards/Best_Practices_Dashboard6.dashboard",
-        "reports/LeadInsightsReports/SampleReportLeadScoreConversion",
-        "pathAssistants/Default_Opportunity.pathAssistant-meta.xml", 
-        "dashboards/AdviserPerformanceDashboard/Best_Practices_Dashboard611.dashboard",
-        "objects/Account/fields/FinServ__ReferredByUser__c.field-meta.xml",
-        "objects/Lead/fields/FinServ__ReferredByUser__c.field-meta.xml",
-        "objects/Opportunity/fields/FinServ__ReferredByUser__c.field-meta.xml" 
-        */
     ];
 
 }// end class
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

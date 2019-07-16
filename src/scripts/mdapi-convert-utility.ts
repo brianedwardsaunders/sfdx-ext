@@ -95,7 +95,7 @@ export class MdapiConvertUtility {
             for (let y: number = 0; y < MdapiConfig.nonSfdxSupportedMetaTypes.length; y++) {
                 let metaName: string = MdapiConfig.nonSfdxSupportedMetaTypes[y];
                 if (metaType[MdapiConfig._name]._text === metaName) {
-                    this.ux.log('removing unsupported metatype (' + metaName + ') from package.xml...');
+                    this.ux.log('removing unsupported metatype ' + metaName + ' from package.xml...');
                     metaTypes.splice(x, 1); // pop
                     break;
                 }// end if
@@ -117,7 +117,7 @@ export class MdapiConvertUtility {
 
             let directoryPath = (this.targetStageSrcPath + MdapiCommon.PATH_SEP + directory);
 
-            this.ux.log('deleting sfdx unsupported directory (' + directoryPath + ') if exists...');
+            this.ux.log('deleting sfdx unsupported directory ' + directoryPath + ' if exists...');
 
             if (existsSync(directoryPath)) {
                 removeSync(directoryPath);

@@ -105,7 +105,7 @@ export class PackageSyncUtility {
             let total: number = counter;
 
             if (total === 0) {
-                resolve("Check or Update of (" + total + ") Package(s) complete.");
+                resolve("check/update of (" + total + ") package(s) complete");
                 return;
             }// end if
 
@@ -117,18 +117,18 @@ export class PackageSyncUtility {
                 let executeCommand: boolean = true;
 
                 if ((diffPackage.action === this.actionInstall) && canInstall) {
-                    this.ux.log('Installing ' + diffPackage.SubscriberPackageName + ' (' + diffPackage.SubscriberPackageVersionNumber + ') in ' + this.targetOrgAlias + ' please standby ...');
+                    this.ux.log('installing ' + diffPackage.SubscriberPackageName + ' (' + diffPackage.SubscriberPackageVersionNumber + ') in ' + this.targetOrgAlias + ' please standby...');
                     commandSfdxPackageUpdate = "sfdx force:package:install --package " + diffPackage.SubscriberPackageVersionId + " -u " + this.targetOrgAlias + " -w 10 --json";
                 }// end if
                 else if ((diffPackage.action === this.actionUninstall) && canUninstall) {
-                    this.ux.log('Uninstalling ' + diffPackage.SubscriberPackageName + ' (' + diffPackage.SubscriberPackageVersionNumber + ') in ' + this.targetOrgAlias + ' please standby ...');
+                    this.ux.log('uninstalling ' + diffPackage.SubscriberPackageName + ' (' + diffPackage.SubscriberPackageVersionNumber + ') in ' + this.targetOrgAlias + ' please standby...');
                     commandSfdxPackageUpdate = "sfdx force:package:uninstall --package " + diffPackage.SubscriberPackageVersionId + " -u " + this.targetOrgAlias + " -w 10 --json";
                 } // end else if
                 else {
-                    this.ux.log('Ignoring action (' + diffPackage.action + ') ' + diffPackage.SubscriberPackageName + ' (' + diffPackage.SubscriberPackageVersionNumber + ') in ' + this.targetOrgAlias + ' please standby ...');
+                    this.ux.log('ignoring action (' + diffPackage.action + ') ' + diffPackage.SubscriberPackageName + ' (' + diffPackage.SubscriberPackageVersionNumber + ') in ' + this.targetOrgAlias + ' please standby...');
                     executeCommand = false;
                     if (--counter <= 0) {
-                        resolve("Check/Update of (" + total + ") Package(s) complete.");
+                        resolve("check/update of (" + total + ") package(s) complete");
                     }// end if
                 }// end else
 
@@ -138,7 +138,7 @@ export class PackageSyncUtility {
                     MdapiCommon.command(commandSfdxPackageUpdate).then((result: any) => {
                         this.ux.log(result);
                         if (--counter <= 0) {
-                            resolve("Check/Update of (" + total + ") Package(s) complete.");
+                            resolve("check/update of (" + total + ") package(s) complete");
                         }// end if
                     }, (error: any) => {
                         reject(error);
@@ -181,7 +181,7 @@ export class PackageSyncUtility {
                     if (this.diffPackageList.length > 0) {
                         this.ux.logJson(this.diffPackageList);
                     }// end if
-                    this.ux.log('(' + this.diffPackageList.length + ') installed package version difference(s) found.');
+                    this.ux.log('(' + this.diffPackageList.length + ') installed package version difference(s) found');
 
                     // syncPackages
                     this.ux.startSpinner('syncPackages');
