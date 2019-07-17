@@ -198,3 +198,7 @@ sfdx plugins
 # More information
 brian.saunders
 Accenture (2019)
+
+# Published steps
+npm login
+npm publish
