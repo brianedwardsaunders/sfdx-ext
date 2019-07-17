@@ -31,6 +31,8 @@ export default class Changeset extends SfdxCommand {
     `,
     `
     $ sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -i config/changeset-exclude.json -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6
+    
+      FORMAT: config/changeset-exclude.json = { "directoryExcludes": [], "fileExcludes": [] }
     `,
   ];
 
