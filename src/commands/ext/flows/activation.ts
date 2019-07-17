@@ -23,6 +23,9 @@ export default class Activation extends SfdxCommand {
     `
     $ sfdx ext:flows:activation --targetusername user@targetorg.com --activate
     `,
+    `
+    $ sfdx ext:flows:activation -u ReleaseOrg --activate
+    `,
   ];
 
   protected static flagsConfig = {
@@ -53,7 +56,7 @@ export default class Activation extends SfdxCommand {
     this.ux.log("sfdx ext:flows:activation");
     this.ux.log("-----------------------------");
     this.ux.log("targetusername  : " + targetusername);
-    this.ux.log("apiVersion      : " + defaultApiVersion);
+    this.ux.log("apiversion      : " + defaultApiVersion);
     this.ux.log("activate        : " + activate);
     this.ux.log("deactivate      : " + deactivate);
     this.ux.log("-----------------------------");

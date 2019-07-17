@@ -1,8 +1,8 @@
 {
   "name": "sfdx-ext",
   "description": "sfdx extensions",
-  "version": "0.0.1",
-  "author": "Brian Saunders",
+  "version": "0.0.2",
+  "author": "Brian Edward Saunders",
   "bugs": "https://github.com/brianedwardsaunders/sfdx-ext/issues",
   "dependencies": {
     "@oclif/command": "^1",

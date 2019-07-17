@@ -447,7 +447,7 @@ export class MdapiRetrieveUtility {
         if (!this.manifestOnly) {
 
             // retrieve metadata files
-            this.ux.startSpinner('retrieve metadata');
+            this.ux.startSpinner('retrieve metadata (please standby)');
             await this.retrieveMetadata();
             this.ux.stopSpinner();
 
