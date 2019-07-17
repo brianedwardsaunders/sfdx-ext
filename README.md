@@ -34,6 +34,9 @@ EXAMPLES
 
 
        $ sfdx ext:flows:activation --targetusername user@targetorg.com --activate
+
+
+       $ sfdx ext:flows:activation -u ReleaseOrg --activate
 ```
 
 ## `ext:mdapi:changeset`
@@ -47,9 +50,9 @@ USAGE
 
 OPTIONS
   -i, --ignorepath=ignorepath                                                       (Optional) file path override to changeset-exclude.json including mdapi directory and files to exclude from changeset
-  -r, --revisionfrom=revisionfrom                                                   base revision to generate the diff e.g. 84965e9e or feature/SprintX or origin/feature/FeatureX
+  -r, --revisionfrom=revisionfrom                                                   base revision to generate the diff e.g. 84965e9e or feature/SprintX or feature/FeatureX
   -s, --sourceusername=sourceusername                                               (Required) source org username or alias
-  -t, --revisionto=revisionto                                                       base revision to generate the diff e.g. origin/release
+  -t, --revisionto=revisionto                                                       base revision to generate the diff e.g. 84965e9e or feature/SprintX or feature/FeatureX
   -u, --targetusername=targetusername                                               username or alias for the target org; overrides default target org
   -x, --ignorecomments                                                              Ignore compare differences comments in deployment package.xml
   --apiversion=apiversion                                                           override the api version used for api requests made by this command
@@ -64,7 +67,7 @@ EXAMPLES
        $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com
 
 
-       $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --revisionfrom 84965e9e or feature/SprintX or feature/FeatureX
+       $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --revisionfrom 9b834dbeec28b21f39756ad4b0183e8568ef7a7c --revisionto feature/SprintX
 
 
        $ sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6

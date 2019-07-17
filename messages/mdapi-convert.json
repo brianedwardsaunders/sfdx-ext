@@ -1,5 +1,5 @@
 {
-  "commandDescription": "Convert from mdapi to sfdx (and exclude currently non-sfdx supported metatypes)",
+  "commandDescription": "Convert from mdapi to sfdx (and exclude currently non-sfdx supported metatypes).",
   "sourcedirectoryFlagDescription": "(Required) source mdapi retrieve directory e.g. unpackaged/src",
   "targetdirectoryFlagDescription": "(Required) target sfdx root directory e.g. sfdx-project and not sfdx-project/force-app",
   "errorSourceDirectoryRequired": "Source directory is required",
