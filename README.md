@@ -2,7 +2,8 @@ sfdx-ext
 ========
 
 # Name
-Sfdx Extensions (for Developers, Admin and DevOps) which includes common tasks when using sfdx-cli
+Sfdx Extensions (for Developers, Admin and DevOps) which includes common tasks when using sfdx-cli and working on enterprise projects.
+Additional commands may be added as this project as it evolves.
 
 ## `ext:flows:activation`
 
@@ -41,7 +42,7 @@ EXAMPLES
 
 ## `ext:mdapi:changeset`
 
-Generates a detailed changeset by comparing differences between two mdapi staged source file or source control commit versions.
+Generates a detailed changeset by comparing differences between two mdapi staged source directory files or source control commit versions.
 
 ```
 USAGE
@@ -135,7 +136,7 @@ EXAMPLES
 
 ## `ext:package:sync`
 
-Compare package versions between two orgs and/or sync (install or uninstall) packages in target org based on package version(s) in the source org. Need to be run this command from within project folder (sfdx dependancy).
+Compare package versions between two orgs and/or sync (install or uninstall) packages in target org based on package version(s) in the source org. This command needs to be run from within project folder (sfdx dependancy).
 
 ```
 USAGE
@@ -162,7 +163,7 @@ EXAMPLES
 
 ## `ext:source:convert`
 
-Convert from sfdx to mdapi src (and update the target src package.xml files).
+Convert from sfdx to mdapi src (and update target src package.xml files).
 
 ```
 USAGE
@@ -198,9 +199,15 @@ sfdx plugins
 ```
 
 # More information
-brian.saunders
-Accenture (2019)
+``` 
+    brian.saunders
+    Accenture (2019) 
+```
 
 # Published steps
-npm login
-npm publish
+``` 
+    npm login
+    npm publish 
+    publisher email brian.edward.saunders@gmail.com 
+    (brianedwardsaunders)
+```

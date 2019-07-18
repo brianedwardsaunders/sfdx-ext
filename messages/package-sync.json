@@ -1,5 +1,5 @@
 {
-  "commandDescription": "Compare package versions between two orgs and/or sync (install or uninstall) packages in target org based on package version(s) in the source org. Need to be run this command from within project folder (sfdx dependancy).",
+  "commandDescription": "Compare package versions between two orgs and/or sync (install or uninstall) packages in target org based on package version(s) in the source org. This command needs to be run from within project folder (sfdx dependancy).",
   "sourceusernameFlagDescription": "(Required) source org username or alias",
   "compareonlyFlagDescription": "flag to check package version(s) differences between orgs (Default)",
   "installonlyFlagDescription": "flag to only install package versions detected as missing or different from source org to target org",
