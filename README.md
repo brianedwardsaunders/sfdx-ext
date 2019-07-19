@@ -193,9 +193,9 @@ EXAMPLES
 ``` sfdx plugins:install sfdx-ext  ```
 
 ### Confirm the installation
-``` sh-session
-sfdx plugins
-> sfdx-ext 0.0.2 (link) /sfdx-ext
+``` 
+    sfdx plugins
+    > sfdx-ext <revision> (link) /sfdx-ext
 ```
 
 # More information
@@ -208,6 +208,7 @@ sfdx plugins
 ``` 
     npm login
     npm publish 
+    
     publisher email brian.edward.saunders@gmail.com 
-    (brianedwardsaunders)
+    github brianedwardsaunders 
 ```

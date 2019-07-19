@@ -34,8 +34,9 @@ export class MdapiChangesetUtility {
     protected sourceDeployDirTargetSource: string;
     protected emptyPackageXml: string;
     protected filePackageXml: string;
-    protected deploymentFilePackageXml: string;
     protected fileDestructiveChangesXml: string;
+    protected deploymentFilePackageXml: string;
+    protected deploymentFileDestructiveChangesXml: string;
 
     protected leftFilePathDiffRecordRegister: Record<string, DiffRecord> = {}; // e.g. {UniqueFilePath: <DiffRecord>{}}
     protected rightFilePathDiffRecordRegister: Record<string, DiffRecord> = {};
@@ -174,8 +175,9 @@ export class MdapiChangesetUtility {
         this.sourceDeployDirTargetSource = (this.sourceDeployDirTarget + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
         this.emptyPackageXml = (this.sourceDeployDirTarget + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
         this.filePackageXml = (this.sourceDeployDirTarget + MdapiCommon.PATH_SEP + MdapiConfig.packageManifest);
-        this.fileDestructiveChangesXml = (this.sourceDeployDirTarget + MdapiCommon.PATH_SEP + MdapiConfig.destructiveChangesXml);
+        this.fileDestructiveChangesXml = (this.sourceDeployDirTarget + MdapiCommon.PATH_SEP + MdapiConfig.destructiveChangesManifest);
         this.deploymentFilePackageXml = (this.sourceDeployDirTargetSource + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
+        this.deploymentFileDestructiveChangesXml = (this.sourceDeployDirTargetSource + MdapiCommon.PATH_SEP + MdapiConfig.destructiveChangesXml);
 
     }// end method
 
@@ -676,6 +678,7 @@ export class MdapiChangesetUtility {
     protected createEmptyPackageFile(): void {
 
         let xmlContent = MdapiConfig.packageXmlHeader();
+        xmlContent += (MdapiCommon.TWO_SPACE + '<!-- NOTE: ./src directory includes deployable changset files -->\n');
         xmlContent += (MdapiCommon.TWO_SPACE + '<version>' + this.apiVersion + '</version>\n');
         xmlContent += MdapiConfig.packageXmlFooter();
 
@@ -758,6 +761,10 @@ export class MdapiChangesetUtility {
         this.ux.log(this.deploymentFilePackageXml + ' file created');
         unlinkSync(this.filePackageXml);
 
+        copyFileSync(this.fileDestructiveChangesXml, this.deploymentFileDestructiveChangesXml);
+        this.ux.log(this.deploymentFileDestructiveChangesXml + ' file created');
+        unlinkSync(this.fileDestructiveChangesXml);
+
     }// end process
 
     // recursive walk directory function
@@ -772,7 +779,14 @@ export class MdapiChangesetUtility {
             let isDirectory: boolean = statSync(dirPath).isDirectory();
 
             if (isDirectory) {
-                this.postWalkDir(dirPath, callback);
+                let files: Array<string> = readdirSync(dirPath);
+                if (!files || files.length === 0) {
+                    // clean empty folders
+                    if (existsSync(dirPath)) { removeSync(dirPath); }
+                }// end if
+                else {
+                    this.postWalkDir(dirPath, callback);
+                }// end else
             }// end if
             else {
                 callback(this, path.join(dir, fileItem), dir);

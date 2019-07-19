@@ -72,6 +72,7 @@ export class MdapiConfig {
   public static unpackagedZip: string = 'unpackaged.zip';
   public static packageXml: string = 'package.xml';
   public static packageManifest: string = 'package.manifest';
+  public static destructiveChangesManifest: string = 'destructiveChanges.manifest';
   public static destructiveChangesXml: string = 'destructiveChanges.xml';
 
   public static StaticResource: string = 'StaticResource';
