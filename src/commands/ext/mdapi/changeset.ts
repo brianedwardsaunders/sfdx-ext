@@ -89,16 +89,19 @@ export default class Changeset extends SfdxCommand {
       revisionfrom,
       revisionto);
 
-    util.process().then(() => {
-      this.ux.log('success.');
-      return { "status": 'success' };
-    }, (error: any) => {
-      this.ux.error(error);
-      return {
-        "status": 'error',
-        "error": error
-      };
+    return new Promise((resolve, reject) => {
+      util.process().then(() => {
+        this.ux.log('success.');
+        resolve({ "status": 'success' });
+      }, (error: any) => {
+        this.ux.error(error);
+        reject({
+          "status": 'error',
+          "error": error
+        });
+      });
     });
+
   }// end method
 
 }// end class

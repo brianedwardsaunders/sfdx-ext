@@ -12,7 +12,7 @@ import { MetadataObject } from "jsforce";
 import { Org } from "@salesforce/core";
 import { MdapiCommon } from "./mdapi-common";
 import { ChangesetExcludeDefault } from "../config/changeset-exclude-default";
-import { MdapiConfig, IConfig, ISettings, DiffRecord, DiffType, ChangeType, ChangesetExclude } from "./mdapi-config";
+import { MdapiConfig, IConfig, ISettings, DiffRecord, DiffType, ChangeType, ChangesetExclude, LayoutAssignment } from "./mdapi-config";
 import { UX } from "@salesforce/command";
 import path = require('path');
 
@@ -910,19 +910,25 @@ export class MdapiChangesetUtility {
             }// end if
 
             // handle this wierd situation of duplicates Duplicate layoutAssignment:PersonAccount
-            let layoutAssignments = MdapiCommon.objectToArray(jsonObject[MdapiConfig.Profile].layoutAssignments);
+            let layoutAssignments: Array<LayoutAssignment> = MdapiCommon.objectToArray(jsonObject[MdapiConfig.Profile].layoutAssignments);
 
             // UPDATE THIS TO LOOK FOR Profile duplicates and remove second one (generally only applies to admin)
             // TODO pull process definition to auto activate and shutdown flows. as a tool.
 
+            // only one record type to page layout assignment per profile
             for (let x: number = 0; x < layoutAssignments.length; x++) {
-                let layoutAssignment = JSON.stringify(layoutAssignments[x]);
+                //console.log(layoutAssignments[x]);
+                let layoutAssignment: LayoutAssignment = layoutAssignments[x];
                 let count: number = 0;
                 for (let y: number = 0; y < layoutAssignments.length; y++) {
-                    let layoutAssignmentCompare = JSON.stringify(layoutAssignments[y]);
-                    if (layoutAssignment.localeCompare(layoutAssignmentCompare) === 0) { count++; }
+                    let layoutAssignmentCompare: LayoutAssignment = layoutAssignments[y];
+                    if (!(layoutAssignment.recordType && layoutAssignmentCompare.recordType)) {
+                        continue;
+                    }
+                    if (layoutAssignment.recordType._text === layoutAssignmentCompare.recordType._text) { count++; }
                     if (count > 1) {
-                        instance.ux.warn('removing duplicate layoutAssignment in ' + filePath);
+                        instance.ux.warn('removing duplicate ' + layoutAssignmentCompare.layout._text
+                            + ' layoutAssignment record type ' + layoutAssignmentCompare.recordType._text + ' in ' + filePath);
                         layoutAssignments.splice(y, 1);
                         break;
                     }// end if
@@ -1111,50 +1117,66 @@ export class MdapiChangesetUtility {
 
     public async process(): Promise<void> {
 
-        this.ux.log('initialising...');
-        this.init();
+        return new Promise((resolve, reject) => {
 
-        this.ux.startSpinner('setup folders');
-        this.setupFolders();
-        this.ux.stopSpinner();
+            this.ux.log('initialising...');
+            this.init();
 
-        this.ux.log('checking revisions (please standby)...');
-        await this.checkoutRevisions();
+            this.ux.startSpinner('setup folders');
+            this.setupFolders();
+            this.ux.stopSpinner();
 
-        this.ux.log('check local backup and restore...');
-        this.checkLocalBackupAndRestore();
+            this.ux.log('checking revisions (please standby)...');
+            this.checkoutRevisions().then(() => {
 
-        // async calls
-        this.ux.startSpinner('describe metadata');
-        await MdapiConfig.describeMetadata(this.org, this.config, this.settings);
-        this.ux.stopSpinner();
+                this.ux.log('check local backup and restore...');
+                this.checkLocalBackupAndRestore();
 
-        this.ux.log('deleting excluded directories');
-        this.deleteExcludedDirectories();
+                // async calls
+                this.ux.startSpinner('describe metadata');
+                MdapiConfig.describeMetadata(this.org, this.config, this.settings).then(() => {
 
-        this.ux.log('deleting excluded files');
-        this.deleteExcludedFiles();
+                    this.ux.stopSpinner();
 
-        this.ux.log('setup diff records...');
-        this.setupDiffRecords();
+                    this.ux.log('deleting excluded directories');
+                    this.deleteExcludedDirectories();
 
-        this.ux.log('walk directories...');
-        this.walkDirectories();
+                    this.ux.log('deleting excluded files');
+                    this.deleteExcludedFiles();
 
-        this.ux.log('compare source and target...');
-        this.compareSourceAndTarget();
+                    this.ux.log('setup diff records...');
+                    this.setupDiffRecords();
 
-        this.ux.log('prepare package directory...');
-        this.preparePackageDirectory();
+                    this.ux.log('walk directories...');
+                    this.walkDirectories();
 
-        this.ux.log('prepare destructiveChanges.xml and package.xml...');
-        this.createPackageXmls();
+                    this.ux.log('compare source and target...');
+                    this.compareSourceAndTarget();
 
-        this.ux.log('copy deployment files...');
-        this.copyDeploymentFiles();
+                    this.ux.log('prepare package directory...');
+                    this.preparePackageDirectory();
 
-        this.ux.log('post file screening...');
-        this.postScreenDeploymentFiles();
+                    this.ux.log('prepare destructiveChanges.xml and package.xml...');
+                    this.createPackageXmls();
+
+                    this.ux.log('copy deployment files...');
+                    this.copyDeploymentFiles();
+
+                    this.ux.log('post file screening...');
+                    this.postScreenDeploymentFiles();
+
+                    resolve();
+
+                }, (error) => {
+                    this.ux.stopSpinner();
+                    reject(error);
+                });
+
+            }, (error) => {
+                reject(error);
+            });
+
+        });
 
     }// end process
 

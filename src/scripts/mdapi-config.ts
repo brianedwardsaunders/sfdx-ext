@@ -10,6 +10,7 @@ import { Org } from "@salesforce/core";
 import { MdapiCommon } from "./mdapi-common";
 import path = require('path');
 import yauzl = require('yauzl');
+import { string } from "@oclif/parser/lib/flags";
 
 export interface IConfig {
   metadataTypes: Array<string>; // e.g. ['ApexClass', 'CustomObjet'] // from describeMetada also acts a key index for metadataObjectLookup and metadataObjectMembersLookup
@@ -62,6 +63,15 @@ export interface ChangesetExclude {
   directoryExcludes: Array<string>;
   fileExcludes: Array<string>;
 };
+
+export interface LayoutAssignment {
+  layout: Textable;
+  recordType: Textable;
+};
+
+export interface Textable {
+  _text: string;
+}
 
 export class MdapiConfig {
 
