@@ -28,7 +28,7 @@ export interface ISettings {
   ignoreStaticResources?: boolean;
   ignoreFolders?: boolean;
   apiVersion: string;
-}
+};
 
 export enum ChangeType {
   Package,
@@ -63,14 +63,57 @@ export interface ChangesetExclude {
   fileExcludes: Array<string>;
 };
 
+export interface Profile {
+  layoutAssignments?: LayoutAssignment | Array<LayoutAssignment>;
+  userPermissions?: UserPermission | Array<UserPermission>;
+  tabVisibilities?: TabVisibility | Array<TabVisibility>;
+  fieldPermissions?: FieldPermission | Array<FieldPermission>;
+  custom: Textable;
+};
+
+export interface FieldPermission {
+  field: Textable;
+};
+
+export interface TabVisibility {
+  tab: Textable;
+};
+
+export interface UserPermission {
+  name: Textable;
+};
+
 export interface LayoutAssignment {
   layout: Textable;
-  recordType: Textable;
+  recordType?: Textable;
+};
+
+export interface CustomObject {
+  listViews: ListView | Array<ListView>;
+};
+
+export interface ListView {
+  fullName: Textable;
+  columns: Textable | Array<Textable>;
+  label: Textable;
+};
+
+export interface Dashboard {
+  runningUser: Textable;
+};
+
+export interface OrgPreferenceSettings {
+  preferences: Preference | Array<Preference>;
+};
+
+export interface Preference {
+  settingName: Textable;
+  settingValue: Textable;
 };
 
 export interface Textable {
   _text: string;
-}
+};
 
 export class MdapiConfig {
 
@@ -103,6 +146,7 @@ export class MdapiConfig {
   public static EmailFolder: string = 'EmailFolder';
   public static DocumentFolder: string = 'DocumentFolder';
   public static DashboardFolder: string = 'DashboardFolder';
+  public static OrgPreferenceSettings: string = 'OrgPreferenceSettings';
   //https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_managedtopics.htm
   public static ManagedTopic: string = 'ManagedTopic';
   public static ApexClass: string = 'ApexClass';

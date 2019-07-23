@@ -12,7 +12,12 @@ import { MetadataObject } from "jsforce";
 import { Org } from "@salesforce/core";
 import { MdapiCommon } from "./mdapi-common";
 import { ChangesetExcludeDefault } from "../config/changeset-exclude-default";
-import { MdapiConfig, IConfig, ISettings, DiffRecord, DiffType, ChangeType, ChangesetExclude, LayoutAssignment } from "./mdapi-config";
+import {
+    MdapiConfig, IConfig, ISettings, DiffRecord, DiffType, ChangeType, ChangesetExclude, Dashboard,
+    LayoutAssignment, Profile, TabVisibility, FieldPermission, CustomObject, ListView, Textable,
+    OrgPreferenceSettings,
+    Preference
+} from "./mdapi-config";
 import { UX } from "@salesforce/command";
 import path = require('path');
 
@@ -20,7 +25,6 @@ export class MdapiChangesetUtility {
 
     // local org to org deploy if false
     protected versionControlled: boolean = false;
-
     protected sourceBaseDir: string;
     protected targetBaseDir: string;
     protected sourceRetrieveBaseDir: string;
@@ -805,15 +809,15 @@ export class MdapiChangesetUtility {
             if (filePath.endsWith('Lead.object')) {
 
                 let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
-
-                let listViews = MdapiCommon.objectToArray(jsonObject[MdapiConfig.CustomObject].listViews);
+                let customObject: CustomObject = jsonObject[MdapiConfig.CustomObject];
+                let listViews: Array<ListView> = MdapiCommon.objectToArray(customObject.listViews);
 
                 for (let x: number = 0; x < listViews.length; x++) {
                     let listView = listViews[x];
-                    let columns: Array<Object> = MdapiCommon.objectToArray(listView[MdapiConfig.columns]);
+                    let columns: Array<Textable> = MdapiCommon.objectToArray(listView.columns);
                     for (let y: number = 0; y < columns.length; y++) {
                         let column = columns[y];
-                        if (column[MdapiConfig._text] === 'LEAD_SCORE') {
+                        if (column._text === 'LEAD_SCORE') {
                             columns.splice(y, 1); // pop
                             break;
                         }// end if
@@ -826,15 +830,15 @@ export class MdapiChangesetUtility {
             if (filePath.endsWith('Opportunity.object')) {
 
                 let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
-
-                let listViews = MdapiCommon.objectToArray(jsonObject[MdapiConfig.CustomObject].listViews);
+                let customObject: CustomObject = jsonObject[MdapiConfig.CustomObject];
+                let listViews: Array<ListView> = MdapiCommon.objectToArray(customObject.listViews);
 
                 for (let x: number = 0; x < listViews.length; x++) {
                     let listView = listViews[x];
-                    let columns: Array<Object> = MdapiCommon.objectToArray(listView[MdapiConfig.columns]);
+                    let columns: Array<Textable> = MdapiCommon.objectToArray(listView.columns);
                     for (let y: number = 0; y < columns.length; y++) {
                         let column = columns[y];
-                        if (column[MdapiConfig._text] === 'OPPORTUNITY_SCORE') {
+                        if (column._text === 'OPPORTUNITY_SCORE') {
                             columns.splice(y, 1); // pop
                             break;
                         }// end if
@@ -847,17 +851,17 @@ export class MdapiChangesetUtility {
             else if (filePath.endsWith('Task.object')) {
 
                 let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
-
-                let listViews = MdapiCommon.objectToArray(jsonObject[MdapiConfig.CustomObject].listViews);
+                let customObject: CustomObject = jsonObject[MdapiConfig.CustomObject];
+                let listViews: Array<ListView> = MdapiCommon.objectToArray(customObject.listViews);
 
                 // FIXME should actually be looking for duplicates and removing. on all list views....
                 for (let x: number = 0; x < listViews.length; x++) {
                     let count: number = 0;
-                    let listView = listViews[x];
-                    let listViewLabel: string = listView[MdapiConfig.fullName]._text;
+                    let listView: ListView = listViews[x];
+                    let listViewLabel: string = listView.fullName._text;
                     for (let y: number = 0; y < listViews.length; y++) {
                         let listViewCompare = listViews[y];
-                        let listViewCompareLabel: string = listViewCompare[MdapiConfig.fullName]._text;
+                        let listViewCompareLabel: string = listViewCompare.fullName._text;
                         if (listViewLabel === listViewCompareLabel) {
                             count++;
                             if (count > 1) {
@@ -869,23 +873,23 @@ export class MdapiChangesetUtility {
 
                 // too long ENCODED:{!FilterNames.Task_DelegatedTasks} 40 charater limit
                 for (let x: number = 0; x < listViews.length; x++) {
-                    let listView = listViews[x];
+                    let listView: ListView = listViews[x];
                     // Value too long for field: Name maximum length is:40
-                    if (listView[MdapiConfig.fullName]._text === 'UnscheduledTasks' &&
-                        listView[MdapiConfig.label]._text === 'ENCODED:{!FilterNames.Task_UnscheduledTasks}') {
-                        listView[MdapiConfig.label]._text = 'Unscheduled Tasks';
+                    if (listView.fullName._text === 'UnscheduledTasks' &&
+                        listView.label._text === 'ENCODED:{!FilterNames.Task_UnscheduledTasks}') {
+                        listView.label._text = 'Unscheduled Tasks';
                     }// end if
-                    else if (listView[MdapiConfig.fullName]._text === 'CompletedTasks' &&
-                        listView[MdapiConfig.label]._text === 'ENCODED:{!FilterNames.Task_CompletedTasks}') {
-                        listView[MdapiConfig.label]._text = 'Completed Tasks';
+                    else if (listView.fullName._text === 'CompletedTasks' &&
+                        listView.label._text === 'ENCODED:{!FilterNames.Task_CompletedTasks}') {
+                        listView.label._text = 'Completed Tasks';
                     }// end if
-                    else if (listView[MdapiConfig.fullName]._text === 'DelegatedTasks' &&
-                        listView[MdapiConfig.label]._text === 'ENCODED:{!FilterNames.Task_DelegatedTasks}') {
-                        listView[MdapiConfig.label]._text = 'Delegated Tasks';
+                    else if (listView.fullName._text === 'DelegatedTasks' &&
+                        listView.label._text === 'ENCODED:{!FilterNames.Task_DelegatedTasks}') {
+                        listView.label._text = 'Delegated Tasks';
                     }// end if
-                    else if (listView[MdapiConfig.fullName]._text === 'RecurringTasks' &&
-                        listView[MdapiConfig.label]._text === 'ENCODED:{!FilterNames.Task_RecurringTasks}') {
-                        listView[MdapiConfig.label]._text = 'Recurring Tasks';
+                    else if (listView.fullName._text === 'RecurringTasks' &&
+                        listView.label._text === 'ENCODED:{!FilterNames.Task_RecurringTasks}') {
+                        listView.label._text = 'Recurring Tasks';
                     }// end if
                 }// end for
 
@@ -903,21 +907,18 @@ export class MdapiChangesetUtility {
              */
 
             let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
+            let profile: Profile = <Profile>jsonObject[MdapiConfig.Profile];
 
             //  set standard profile user permssions to blank as should not be able to change.
-            if (jsonObject[MdapiConfig.Profile].custom._text === 'false') {
-                jsonObject[MdapiConfig.Profile].userPermissions = [];
+            if (profile.custom._text === 'false') {
+                profile.userPermissions = [];
             }// end if
 
             // handle this wierd situation of duplicates Duplicate layoutAssignment:PersonAccount
-            let layoutAssignments: Array<LayoutAssignment> = MdapiCommon.objectToArray(jsonObject[MdapiConfig.Profile].layoutAssignments);
-
-            // UPDATE THIS TO LOOK FOR Profile duplicates and remove second one (generally only applies to admin)
-            // TODO pull process definition to auto activate and shutdown flows. as a tool.
+            let layoutAssignments: Array<LayoutAssignment> = MdapiCommon.objectToArray(profile.layoutAssignments);
 
             // only one record type to page layout assignment per profile
             for (let x: number = 0; x < layoutAssignments.length; x++) {
-                //console.log(layoutAssignments[x]);
                 let layoutAssignment: LayoutAssignment = layoutAssignments[x];
                 let count: number = 0;
                 for (let y: number = 0; y < layoutAssignments.length; y++) {
@@ -935,34 +936,34 @@ export class MdapiChangesetUtility {
                 }// end for
             }// end for
 
-            let userPermissions = MdapiCommon.objectToArray(jsonObject[MdapiConfig.Profile].userPermissions);
+            let userPermissions = MdapiCommon.objectToArray(profile.userPermissions);
 
             for (let x: number = 0; x < userPermissions.length; x++) {
-                let userPerm = userPermissions[x];
-                if (userPerm[MdapiConfig._name]._text === 'ManageSandboxes') {
+                let userPermission = userPermissions[x];
+                if (userPermission.name._text === 'ManageSandboxes') {
                     userPermissions.splice(x, 1); // pop
                     break;
                 }// end if
             }// end for
 
             // this causes errors
-            let tabVisibilities = MdapiCommon.objectToArray(jsonObject[MdapiConfig.Profile].tabVisibilities);
+            let tabVisibilities: Array<TabVisibility> = MdapiCommon.objectToArray(profile.tabVisibilities);
 
             for (let x: number = 0; x < tabVisibilities.length; x++) {
                 let tabVisibility = tabVisibilities[x];
                 // You can't edit tab settings for SocialPersona, as it's not a valid tab.
-                if (tabVisibility[MdapiConfig.tab]._text === 'standard-SocialPersona') {
+                if (tabVisibility.tab._text === 'standard-SocialPersona') {
                     tabVisibilities.splice(x, 1); // pop
                     break;
                 }// end if
             }// end for
 
-            let fieldPermissions = MdapiCommon.objectToArray(jsonObject[MdapiConfig.Profile].fieldPermissions);
+            let fieldPermissions: Array<FieldPermission> = MdapiCommon.objectToArray(profile.fieldPermissions);
 
             // field service field being injected in to PersonLifeEvent object (remove)
             for (let x: number = 0; x < fieldPermissions.length; x++) {
                 let fieldPermission = fieldPermissions[x];
-                if (fieldPermission[MdapiConfig.field]._text === 'PersonLifeEvent.LocationId') {
+                if (fieldPermission.field._text === 'PersonLifeEvent.LocationId') {
                     fieldPermissions.splice(x, 1); // pop
                     break;
                 }// end if
@@ -975,7 +976,7 @@ export class MdapiChangesetUtility {
         else if (grandParentFolder === MdapiConfig.dashboards) {
 
             let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
-            let dashboard = jsonObject[MdapiConfig.Dashboard];
+            let dashboard: Dashboard = jsonObject[MdapiConfig.Dashboard];
 
             if (dashboard.runningUser) {
                 delete dashboard.runningUser;
@@ -989,12 +990,13 @@ export class MdapiChangesetUtility {
             if (filePath.endsWith('OrgPreference.settings')) {
 
                 let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
-                let preferences = MdapiCommon.objectToArray(jsonObject["OrgPreferenceSettings"].preferences);
+                let orgPreferenceSettings: OrgPreferenceSettings = jsonObject[MdapiConfig.OrgPreferenceSettings];
+                let preferences: Array<Preference> = MdapiCommon.objectToArray(orgPreferenceSettings.preferences);
 
                 for (let x: number = 0; x < preferences.length; x++) {
-                    let preference = preferences[x];
+                    let preference: Preference = preferences[x];
                     ////You do not have sufficient rights to access the organization setting: CompileOnDeploy
-                    if (preference[MdapiConfig.settingName]._text === 'CompileOnDeploy') {
+                    if (preference.settingName._text === 'CompileOnDeploy') {
                         preferences.splice(x, 1);
                     }// end if
                 }// end for
