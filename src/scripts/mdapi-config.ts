@@ -126,6 +126,8 @@ export class MdapiConfig {
   public static packageManifest: string = 'package.manifest';
   public static destructiveChangesManifest: string = 'destructiveChanges.manifest';
   public static destructiveChangesXml: string = 'destructiveChanges.xml';
+  public static destructiveChangesPostXml: string = 'destructiveChangesPost.xml';
+  public static destructiveChangesPreXml: string = 'destructiveChangesPre.xml';
 
   public static StaticResource: string = 'StaticResource';
   public static PermissionSet: string = 'PermissionSet';
