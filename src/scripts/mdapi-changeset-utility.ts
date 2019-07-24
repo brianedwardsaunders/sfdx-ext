@@ -827,7 +827,7 @@ export class MdapiChangesetUtility {
                 MdapiCommon.jsonToXmlFile(jsonObject, filePath);
 
             }// end if
-            if (filePath.endsWith('Opportunity.object')) {
+            else if (filePath.endsWith('Opportunity.object')) {
 
                 let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
                 let customObject: CustomObject = jsonObject[MdapiConfig.CustomObject];
@@ -1026,6 +1026,7 @@ export class MdapiChangesetUtility {
             }// end if
 
             let rightDir = (this.targetRetrieveDir + MdapiCommon.PATH_SEP + folder);
+
             if (existsSync(rightDir)) {
                 removeSync(rightDir);
             }// end if
@@ -1043,6 +1044,7 @@ export class MdapiChangesetUtility {
             }// end if
 
             let rightFile = (this.targetRetrieveDir + MdapiCommon.PATH_SEP + filePath);
+            
             if (existsSync(rightFile)) {
                 unlinkSync(rightFile);
             }// end if
