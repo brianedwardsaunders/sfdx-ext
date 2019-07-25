@@ -612,7 +612,7 @@ export class MdapiChangesetUtility {
                     + diffRecord.fileSize + " (bytes), file-hash (" + diffRecord.fileHash + ") \n");
 
                 if ((changeType === ChangeType.DestructiveChanges) && diffRecord.folderXml) {
-                    let excludeFolderMessage: string = 'NOTE: Excluding folder type from destructiveChanges ('
+                    let excludeFolderMessage: string = 'NOTE: excluding folder type from destructiveChanges ('
                         + diffRecord.memberName + '), review manually in target org';
                     this.ux.log(excludeFolderMessage);
                     comments += (excludeFolderMessage + '\n');

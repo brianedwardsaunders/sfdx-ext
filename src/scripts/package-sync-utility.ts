@@ -149,7 +149,7 @@ export class PackageSyncUtility {
     }// end method
 
     // process compareSyncPackages
-    protected async compareSyncPackages(): Promise<void> {
+    protected async compareSyncPackages(): Promise<number> {
 
         return new Promise((resolve, reject) => {
             // get packagelist on left as json
@@ -182,13 +182,14 @@ export class PackageSyncUtility {
                         this.ux.logJson(this.diffPackageList);
                     }// end if
                     this.ux.log('(' + this.diffPackageList.length + ') installed package version difference(s) found');
+                    let diffCount: number = this.diffPackageList.length;
 
                     // syncPackages
                     this.ux.startSpinner('syncPackages');
                     this.syncPackages().then((result: string) => {
                         this.ux.stopSpinner();
                         this.ux.log(result);
-                        resolve();
+                        resolve(diffCount);
                     }, (error: any) => {
                         this.ux.error(error);
                         reject(error);
@@ -210,8 +211,8 @@ export class PackageSyncUtility {
 
     public async process(): Promise<any> {
         return new Promise((resolve, reject) => {
-            this.compareSyncPackages().then(() => {
-                resolve();
+            this.compareSyncPackages().then((result) => {
+                resolve(result);
             }, (error) => {
                 reject(error);
             });
