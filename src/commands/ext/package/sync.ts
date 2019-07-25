@@ -73,15 +73,17 @@ export default class Sync extends SfdxCommand {
       uninstallonly,
       syncpackages);
 
+    return new Promise((resolve, reject) => {
       util.process().then(() => {
-      this.ux.log('success.');
-      return { "status": 'success' };
-    }, (error: any) => {
-      this.ux.error(error);
-      return {
-        "status": 'error',
-        "error": error
-      };
+        this.ux.log('success.');
+        resolve({ "status": 'success' });
+      }, (error: any) => {
+        this.ux.error(error);
+        reject({
+          "status": 'error',
+          "error": error
+        });
+      });
     });
   }
 }// end class

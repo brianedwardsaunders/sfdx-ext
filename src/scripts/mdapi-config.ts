@@ -159,10 +159,12 @@ export class MdapiConfig {
   public static AuraDefinitionBundle: string = 'AuraDefinitionBundle';
   public static Translation: string = 'Translation';
   public static CustomPermission: string = 'CustomPermission';
+  public static CustomSetting: string = 'CustomSetting';
   public static CustomLabel: string = 'CustomLabel';
   public static SharingReason: string = 'SharingReason';
   public static CompactLayout: string = 'CompactLayout';
   public static PlatformCachePartition: string = 'PlatformCachePartition';
+  public static HomePageComponent: string = 'HomePageComponent';
   public static DeveloperName: string = 'DeveloperName';
   public static LatestVersion: string = 'LatestVersion';
   public static VersionNumber: string = 'VersionNumber';
@@ -172,6 +174,9 @@ export class MdapiConfig {
 
   // special case e.g. static resources
   public static metaXmlSuffix: string = "-meta.xml";
+  // namespaced
+  public static doubleUnderscore: string = "__";
+  // public static customSuffix: string = "__c";
 
   /** SPECIFIC DIR CONSTANTS*/
   public static aura: string = "aura";
@@ -303,12 +308,14 @@ export class MdapiConfig {
     MdapiConfig.Translation,
     MdapiConfig.CustomPermission,
     MdapiConfig.PlatformCachePartition,
-    MdapiConfig.SharingReason
-    // check if following should be included 
-    // 'CompactLayout', 
-    // 'CustomLabel',  
-    // 'HomePageComponent',
-    // 'CustomSetting 
+    MdapiConfig.SharingReason,
+    // according to sfdc reference include as well 
+    // custom application (although classic elements can be modified)
+    MdapiConfig.CompactLayout,
+    MdapiConfig.CustomLabel,
+    MdapiConfig.CustomPermission,
+    // MdapiConfig.CustomSetting, checkthis
+    MdapiConfig.HomePageComponent
   ];
 
   // prod specific variables
@@ -414,10 +421,10 @@ export class MdapiConfig {
   ];
 
   public static metadataTypeFolderLookup: Record<string, string> = {
-    "Dashboard": MdapiConfig.DashboardFolder,
-    "Document": MdapiConfig.DocumentFolder,
-    "EmailTemplate": MdapiConfig.EmailFolder, // does not follow typical name and folder convention
-    "Report": MdapiConfig.ReportFolder
+    Dashboard: MdapiConfig.DashboardFolder,
+    Document: MdapiConfig.DocumentFolder,
+    EmailTemplate: MdapiConfig.EmailFolder, // does not follow typical name and folder convention
+    Report: MdapiConfig.ReportFolder
   };
 
   // CHECK THIS WITH SALESFORCE RELEASE NOTE THE FOLLOWING IS NOT SUPPORTED WITH SFDX AS PART OF API VERSION 46.0
@@ -551,6 +558,23 @@ export class MdapiConfig {
     return returned;
   }// end method
 
+  /**
+   * General view or assumption is that excluded namespaced items are installed 
+   * or managed packages and should be handled seperately (installed)  
+   * aura and lwc types don't appear to have namespace charateristics in bundles so use excludes if necessary
+   */
+  public static isExcludedNamespaceFile(fileName: string, metadataObject: MetadataObject): boolean {
+
+    let excluded: boolean = false;
+    if (fileName && metadataObject && (metadataObject.xmlName !== MdapiConfig.CustomObject) &&
+      MdapiConfig.isHiddenOrNonEditableInstalledMetaType(metadataObject.xmlName)) {
+      if (fileName.includes(MdapiConfig.doubleUnderscore)) {
+        excluded = true;
+      }// end if
+    }// end if
+    return excluded;
+  }// end method
+
   public static isExcludedFile(input: string): boolean {
     let excluded: boolean = false;
     MdapiConfig.fileExcludes.forEach(element => {
@@ -581,16 +605,22 @@ export class MdapiConfig {
     return false;
   }// end method
 
+  protected static isHiddenOrNonEditableInstalledMetaType(metadataType: string): boolean {
+    if (!metadataType) { return false; }
+    for (let x: number = 0; x < MdapiConfig.hiddenOrNonEditableInstalledMetaTypes.length; x++) {
+      let hiddenMetaType: string = MdapiConfig.hiddenOrNonEditableInstalledMetaTypes[x];
+      if (hiddenMetaType === metadataType) {
+        return true;
+      }// end if
+    }// end for
+    return false;
+  }// end method
+
   protected static isHiddenOrNonEditable(metaItem: FileProperties): boolean {
 
     if ((metaItem && metaItem.manageableState) &&
       (metaItem.manageableState === MdapiConfig.installed)) {
-      for (let x: number = 0; x < MdapiConfig.hiddenOrNonEditableInstalledMetaTypes.length; x++) {
-        let hiddenMetaType: string = MdapiConfig.hiddenOrNonEditableInstalledMetaTypes[x];
-        if (hiddenMetaType === metaItem.type) {
-          return true;
-        }// end if
-      }// end for
+      return MdapiConfig.isHiddenOrNonEditableInstalledMetaType(metaItem.type);
     }// end if
     return false;
 
@@ -766,7 +796,7 @@ export class MdapiConfig {
   }// end method
 
   /**
-   * set StandardValueSets not queryable  
+   * set StandardValueSets names list not queryable  
    * https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/standardvalueset_names.htm
    * @param config 
    */
@@ -1039,11 +1069,16 @@ export class MdapiConfig {
     let folderXml: boolean = false;
 
     // don't process top level directories (from excluded list)
-    if (MdapiConfig.isExcludedDirectory(directory) || MdapiConfig.isExcludedFile(fileName)) {
-      return;
+    if (MdapiConfig.isExcludedDirectory(directory) ||
+      MdapiConfig.isExcludedFile(fileName)) {
+      return; // ignore
     }// end if
 
     let metadataObject: MetadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(config, directory, fileName);
+
+    if (MdapiConfig.isExcludedNamespaceFile(fileName, metadataObject)) {
+      return; // ignore
+    }// end if
 
     if (MdapiConfig.isFolderDirectory(directory)) { folderXml = true; } // required to exclude from descructive changes
 
@@ -1052,7 +1087,7 @@ export class MdapiConfig {
 
       let metadataParentName = MdapiConfig.getMetadataNameFromParentDirectory(parentDirectory);
 
-      // special handle for object name folder (handle for fields etc.)
+      // special handle for bundles e.g. lwc aura
       if (MdapiConfig.isBundleDirectory(metadataParentName)) {
         metadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(config, metadataParentName);
         memberName = MdapiConfig.getMetadataNameFromCurrentDirectory(parentDirectory);

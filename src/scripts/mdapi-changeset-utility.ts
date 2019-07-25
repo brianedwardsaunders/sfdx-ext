@@ -612,7 +612,7 @@ export class MdapiChangesetUtility {
                     + diffRecord.fileSize + " (bytes), file-hash (" + diffRecord.fileHash + ") \n");
 
                 if ((changeType === ChangeType.DestructiveChanges) && diffRecord.folderXml) {
-                    let excludeFolderMessage: string = 'NOTE: Excluding folder type from destructiveChanges.xml ('
+                    let excludeFolderMessage: string = 'NOTE: Excluding folder type from destructiveChanges ('
                         + diffRecord.memberName + '), review manually in target org';
                     this.ux.log(excludeFolderMessage);
                     comments += (excludeFolderMessage + '\n');
@@ -635,7 +635,7 @@ export class MdapiChangesetUtility {
 
                 if (isGlobalException) { // comment out type which throws error when deploying.
                     xmlContent += "<!-- \n";
-                    let exceptionMessage = 'NOTE: excluding meta type from destructiveChanges.xml ('
+                    let exceptionMessage = 'NOTE: excluding meta type from destructiveChanges ('
                         + metadataObjectName + '), review manually in target org';
                     this.ux.log(exceptionMessage);
                     xmlContent += (exceptionMessage + '\n');

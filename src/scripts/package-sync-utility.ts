@@ -209,7 +209,13 @@ export class PackageSyncUtility {
     }// end method
 
     public async process(): Promise<any> {
-        await this.compareSyncPackages();
+        return new Promise((resolve, reject) => {
+            this.compareSyncPackages().then(() => {
+                resolve();
+            }, (error) => {
+                reject(error);
+            });
+        });
     }// end process
 
 }// end class
