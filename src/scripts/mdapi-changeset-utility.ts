@@ -16,7 +16,8 @@ import {
     MdapiConfig, IConfig, ISettings, DiffRecord, DiffType, ChangeType, ChangesetExclude, Dashboard,
     LayoutAssignment, Profile, TabVisibility, FieldPermission, CustomObject, ListView, Textable,
     OrgPreferenceSettings,
-    Preference
+    Preference,
+    RelativePosition
 } from "./mdapi-config";
 import { UX } from "@salesforce/command";
 import path = require('path');
@@ -235,7 +236,7 @@ export class MdapiChangesetUtility {
     }// end method
 
     // recursive walk directory function
-    protected walkDir(dir: string, metaRegister: Object, callback: any): void {
+    protected walkDir(position: RelativePosition, dir: string, metaRegister: Object, callback: any): void {
 
         let fileItems: Array<string> = readdirSync(dir);
 
@@ -246,10 +247,10 @@ export class MdapiChangesetUtility {
             let isDirectory: boolean = statSync(dirPath).isDirectory();
 
             if (isDirectory) {
-                this.walkDir(dirPath, metaRegister, callback);
+                this.walkDir(position, dirPath, metaRegister, callback);
             }// end if
             else {
-                callback(this.config, path.join(dir, fileItem), metaRegister, dir);
+                callback(position, this.config, path.join(dir, fileItem), metaRegister, dir);
             }// end else
 
         }// end for
@@ -258,9 +259,9 @@ export class MdapiChangesetUtility {
 
     protected walkDirectories(): void {
 
-        this.walkDir(this.sourceRetrieveDir, this.leftFilePathDiffRecordRegister, MdapiConfig.inspectMdapiFile);
+        this.walkDir(RelativePosition.Source, this.sourceRetrieveDir, this.leftFilePathDiffRecordRegister, MdapiConfig.inspectMdapiFile);
 
-        this.walkDir(this.targetRetrieveDir, this.rightFilePathDiffRecordRegister, MdapiConfig.inspectMdapiFile);
+        this.walkDir(RelativePosition.Target, this.targetRetrieveDir, this.rightFilePathDiffRecordRegister, MdapiConfig.inspectMdapiFile);
 
     }// end method
 
@@ -1045,7 +1046,7 @@ export class MdapiChangesetUtility {
             }// end if
 
             let rightFile = (this.targetRetrieveDir + MdapiCommon.PATH_SEP + filePath);
-            
+
             if (existsSync(rightFile)) {
                 unlinkSync(rightFile);
             }// end if

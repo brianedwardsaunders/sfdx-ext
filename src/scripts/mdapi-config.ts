@@ -5,7 +5,7 @@
  */
 
 import { DescribeMetadataResult, MetadataObject, FileProperties, QueryResult, ListMetadataQuery } from "jsforce";
-import { writeFileSync, mkdirp, createWriteStream, readFileSync, statSync, Stats } from "fs-extra";
+import { writeFileSync, mkdirp, createWriteStream, readFileSync, statSync, Stats, existsSync, unlinkSync } from "fs-extra";
 import { Org } from "@salesforce/core";
 import { MdapiCommon } from "./mdapi-common";
 import path = require('path');
@@ -30,9 +30,14 @@ export interface ISettings {
   apiVersion: string;
 };
 
+export enum RelativePosition {
+  Source = 'Source',
+  Target = 'Target'
+};
+
 export enum ChangeType {
-  Package,
-  DestructiveChanges
+  Package = 'Package',
+  DestructiveChanges = 'DestructiveChanges'
 };
 
 export enum DiffType {
@@ -1060,7 +1065,7 @@ export class MdapiConfig {
 
   }// end method
 
-  public static inspectMdapiFile(config: IConfig, filePath: string, metaRegister: Object, parentDirectory: string): void {
+  public static inspectMdapiFile(position: RelativePosition, config: IConfig, filePath: string, metaRegister: Object, parentDirectory: string): void {
 
     let directory: string = MdapiCommon.isolateLeafNode(parentDirectory); //objects
     let fileName: string = MdapiCommon.isolateLeafNode(filePath); // Account.meta-object.xml
@@ -1077,6 +1082,10 @@ export class MdapiConfig {
     let metadataObject: MetadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(config, directory, fileName);
 
     if (MdapiConfig.isExcludedNamespaceFile(fileName, metadataObject)) {
+      if ((position === RelativePosition.Source) && existsSync(filePath)) {
+        // don't want to deploy and there is a src.backup
+        unlinkSync(filePath);
+      }// end if 
       return; // ignore
     }// end if
 
