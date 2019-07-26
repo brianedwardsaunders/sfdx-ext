@@ -17,7 +17,8 @@ import {
     LayoutAssignment, Profile, TabVisibility, FieldPermission, CustomObject, ListView, Textable,
     OrgPreferenceSettings,
     Preference,
-    RelativePosition
+    RelativePosition,
+    CustomObjectChild
 } from "./mdapi-config";
 import { UX } from "@salesforce/command";
 import path = require('path');
@@ -236,7 +237,7 @@ export class MdapiChangesetUtility {
     }// end method
 
     // recursive walk directory function
-    protected walkDir(position: RelativePosition, dir: string, metaRegister: Object, callback: any): void {
+    protected walkDir(position: RelativePosition, dir: string, metaRegister: Record<string, DiffRecord>, callback: any): void {
 
         let fileItems: Array<string> = readdirSync(dir);
 
@@ -250,7 +251,7 @@ export class MdapiChangesetUtility {
                 this.walkDir(position, dirPath, metaRegister, callback);
             }// end if
             else {
-                callback(position, this.config, path.join(dir, fileItem), metaRegister, dir);
+                callback(position, this.config, path.join(dir, fileItem), dir, metaRegister);
             }// end else
 
         }// end for
@@ -281,12 +282,12 @@ export class MdapiChangesetUtility {
             let childDirectoryName: string = MdapiConfig.childMetadataDirectoryLookup[childMetaName];
 
             let parentContents: Object = childMetaObject[item.metadataName];
-            let children: Array<Object> = MdapiCommon.objectToArray(parentContents[childDirectoryName]);
+            let children: Array<CustomObjectChild> = MdapiCommon.objectToArray(parentContents[childDirectoryName]);
 
             for (let y: number = 0; y < children.length; y++) {
 
-                let child: Object = children[y];
-                let memberName: string = (item.memberName + MdapiCommon.DOT + child[MdapiConfig.fullName]._text);
+                let child: CustomObjectChild = children[y];
+                let memberName: string = (item.memberName + MdapiCommon.DOT + child.fullName._text);
                 let memberKey: string = (childDirectoryName + MdapiCommon.PATH_SEP + item.metadataName + MdapiCommon.PATH_SEP + memberName);
                 let childString: string = JSON.stringify(child);
 
@@ -347,18 +348,18 @@ export class MdapiChangesetUtility {
             let leftParentContents: Object = leftMetaObject[parentMetadataName];
             let rightParentContents: Object = rightMetaObject[parentMetadataName];
 
-            let leftChildren: Array<Object> = MdapiCommon.objectToArray(leftParentContents[childDirectoryName]);
-            let rightChildren: Array<Object> = MdapiCommon.objectToArray(rightParentContents[childDirectoryName]);
+            let leftChildren: Array<CustomObjectChild> = MdapiCommon.objectToArray(leftParentContents[childDirectoryName]);
+            let rightChildren: Array<CustomObjectChild> = MdapiCommon.objectToArray(rightParentContents[childDirectoryName]);
 
             // ---------------------
             // compare left to right
             // ---------------------
             for (let left: number = 0; left < leftChildren.length; left++) {
 
-                let leftChild: Object = leftChildren[left];
-                let leftFullName: string = leftChild[MdapiConfig.fullName]._text;
+                let leftChild: CustomObjectChild = leftChildren[left];
+                let leftFullName: string = leftChild.fullName._text;
 
-                let rightChild: Object = null;
+                let rightChild: CustomObjectChild = null;
                 let rightChildString: string = null;
                 let rightCheckSum: number = 0;
                 let rightIndex: number = 0;
@@ -368,7 +369,7 @@ export class MdapiChangesetUtility {
                 for (let right: number = 0; right < rightChildren.length; right++) {
 
                     rightChild = rightChildren[right];
-                    let rightFullName: string = rightChild[MdapiConfig.fullName]._text;
+                    let rightFullName: string = rightChild.fullName._text;
 
                     if ((leftFullName === rightFullName) || (leftFullName.localeCompare(rightFullName) === 0)) {
                         rightChildString = JSON.stringify(rightChild);
@@ -442,8 +443,8 @@ export class MdapiChangesetUtility {
             // ---------------------
             for (let right: number = 0; right < rightChildren.length; right++) {
 
-                let rightChild: Object = rightChildren[right];
-                let rightFullName: string = rightChild[MdapiConfig.fullName]._text;
+                let rightChild: CustomObjectChild = rightChildren[right];
+                let rightFullName: string = rightChild.fullName._text;
 
                 let leftCheckSum: number = 0;
                 let leftChildString: string = null;
@@ -452,8 +453,8 @@ export class MdapiChangesetUtility {
 
                 for (let left: number = 0; left < leftChildren.length; left++) {
 
-                    let leftChild: Object = leftChildren[left];
-                    let leftFullName: string = leftChild[MdapiConfig.fullName]._text;
+                    let leftChild: CustomObjectChild = leftChildren[left];
+                    let leftFullName: string = leftChild.fullName._text;
 
                     if ((rightFullName === leftFullName) || (rightFullName.localeCompare(leftFullName) === 0)) {
                         leftChildString = JSON.stringify(rightChild);
@@ -806,6 +807,12 @@ export class MdapiChangesetUtility {
         let typeFolder = MdapiCommon.isolateLeafNode(parentDir);
         let grandParentFolder = MdapiConfig.getMetadataNameFromParentDirectory(parentDir);
 
+        /* 
+              once deploy add this to ignored as user is full username and not email
+              <AuthProvider xmlns="http://soap.sforce.com/2006/04/metadata">
+                 <executionUser>andre.locke@liberty.co.za.dev</executionUser> 
+        */
+
         if (typeFolder === MdapiConfig.objects) {
 
             if (filePath.endsWith('Lead.object')) {
@@ -902,11 +909,6 @@ export class MdapiChangesetUtility {
         }// end else if
         // check profile issues
         else if (typeFolder === MdapiConfig.profiles) {
-            /* 
-              once deploy add this to ignored as user is full username and not email
-              <AuthProvider xmlns="http://soap.sforce.com/2006/04/metadata">
-                 <executionUser>andre.locke@liberty.co.za.dev</executionUser> 
-             */
 
             let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
             let profile: Profile = <Profile>jsonObject[MdapiConfig.Profile];
@@ -927,11 +929,14 @@ export class MdapiChangesetUtility {
                     let layoutAssignmentCompare: LayoutAssignment = layoutAssignments[y];
                     if (!(layoutAssignment.recordType && layoutAssignmentCompare.recordType)) {
                         continue;
-                    }
-                    if (layoutAssignment.recordType._text === layoutAssignmentCompare.recordType._text) { count++; }
+                    }// end if
+                    else if (layoutAssignment.recordType._text === layoutAssignmentCompare.recordType._text) {
+                        count++;
+                    }// end else if
+
                     if (count > 1) {
                         instance.ux.warn('removing duplicate ' + layoutAssignmentCompare.layout._text
-                            + ' layoutAssignment record type ' + layoutAssignmentCompare.recordType._text + ' in ' + filePath);
+                            + ' layoutAssignment record type ' + layoutAssignmentCompare.recordType._text + ' in profile ' + filePath);
                         layoutAssignments.splice(y, 1);
                         break;
                     }// end if

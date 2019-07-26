@@ -97,6 +97,10 @@ export interface CustomObject {
   listViews: ListView | Array<ListView>;
 };
 
+export interface CustomObjectChild {
+  fullName: Textable;
+}
+
 export interface ListView {
   fullName: Textable;
   columns: Textable | Array<Textable>;
@@ -571,7 +575,7 @@ export class MdapiConfig {
   public static isExcludedNamespaceFile(fileName: string, metadataObject: MetadataObject): boolean {
 
     let excluded: boolean = false;
-    if (fileName && metadataObject && (metadataObject.xmlName !== MdapiConfig.CustomObject) &&
+    if (fileName && metadataObject &&
       MdapiConfig.isHiddenOrNonEditableInstalledMetaType(metadataObject.xmlName)) {
       if (fileName.includes(MdapiConfig.doubleUnderscore)) {
         excluded = true;
@@ -1065,10 +1069,11 @@ export class MdapiConfig {
 
   }// end method
 
-  public static inspectMdapiFile(position: RelativePosition, config: IConfig, filePath: string, metaRegister: Object, parentDirectory: string): void {
+  public static inspectMdapiFile(position: RelativePosition, config: IConfig, filePath: string,
+    parentDirectory: string, metaRegister: Record<string, DiffRecord>): void {
 
-    let directory: string = MdapiCommon.isolateLeafNode(parentDirectory); //objects
     let fileName: string = MdapiCommon.isolateLeafNode(filePath); // Account.meta-object.xml
+    let directory: string = MdapiCommon.isolateLeafNode(parentDirectory); //objects
     let memberName: string = MdapiConfig.isolateMetadataObjectName(fileName); //Account
     let anchorName: string = MdapiCommon.BLANK; // ''
     let folderXml: boolean = false;
@@ -1083,7 +1088,7 @@ export class MdapiConfig {
 
     if (MdapiConfig.isExcludedNamespaceFile(fileName, metadataObject)) {
       if ((position === RelativePosition.Source) && existsSync(filePath)) {
-        // don't want to deploy and there is a src.backup
+        // don't want to include in src deploy pacakge and there is a src.backup
         unlinkSync(filePath);
       }// end if 
       return; // ignore
@@ -1145,7 +1150,7 @@ export class MdapiConfig {
       "diffSize": 0 // init
     });
 
-    // add unique entry
+    // add new unique entry
     metaRegister[relativeFilePath] = DiffRecord;
 
   }// end method
