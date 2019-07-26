@@ -99,7 +99,7 @@ export interface CustomObject {
 
 export interface CustomObjectChild {
   fullName: Textable;
-}
+};
 
 export interface ListView {
   fullName: Textable;
