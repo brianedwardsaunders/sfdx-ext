@@ -21,6 +21,9 @@ export default class Sync extends SfdxCommand {
     $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com
     `,
     `
+    $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com --compareerror
+    `,
+    `
     $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com --compareonly --installonly --uninstallonly --syncpackages
     `
   ];
@@ -28,6 +31,7 @@ export default class Sync extends SfdxCommand {
   protected static flagsConfig = {
     sourceusername: flags.string({ char: 's', description: messages.getMessage('sourceusernameFlagDescription') }),
     compareonly: flags.boolean({ char: 'c', description: messages.getMessage('compareonlyFlagDescription') }),
+    compareerror: flags.boolean({ char: 'e', description: messages.getMessage('compareerrorFlagDescription') }),
     installonly: flags.boolean({ char: 'i', description: messages.getMessage('installonlyFlagDescription') }),
     uninstallonly: flags.boolean({ char: 'x', description: messages.getMessage('uninstallonlyFlagDescription') }),
     syncpackages: flags.boolean({ char: 'z', description: messages.getMessage('syncpackagesFlagDescription') })
@@ -43,11 +47,13 @@ export default class Sync extends SfdxCommand {
     let sourceusername: string = this.flags.sourceusername;
     let targetusername: string = this.flags.targetusername;
     let compareonly: boolean = this.flags.compareonly || false;
+    let compareerror: boolean = this.flags.compareerror || false;
     let installonly: boolean = this.flags.installonly || false;
     let uninstallonly: boolean = this.flags.uninstallonly || false;
     let syncpackages: boolean = this.flags.syncpackages || false;
 
-    compareonly = !(installonly || uninstallonly || syncpackages);
+    compareonly = !(compareerror || installonly || uninstallonly || syncpackages);
+    compareerror = !(compareonly || installonly || uninstallonly || syncpackages);
 
     if (sourceusername === undefined) {
       throw new SfdxError(messages.getMessage('errorSourceusernameRequired'));
@@ -59,6 +65,7 @@ export default class Sync extends SfdxCommand {
     this.ux.log("sourceusername  : " + sourceusername);
     this.ux.log("targetusername  : " + targetusername);
     this.ux.log("compareonly     : " + compareonly);
+    this.ux.log("compareerror    : " + compareerror);
     this.ux.log("installonly     : " + installonly);
     this.ux.log("uninstallonly   : " + uninstallonly);
     this.ux.log("syncpackages    : " + syncpackages);
@@ -69,6 +76,7 @@ export default class Sync extends SfdxCommand {
       sourceusername,
       targetusername,
       compareonly,
+      compareerror,
       installonly,
       uninstallonly,
       syncpackages);

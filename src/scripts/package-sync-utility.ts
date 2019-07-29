@@ -31,7 +31,8 @@ export class PackageSyncUtility {
         protected ux: UX,
         protected sourceOrgAlias: string, // left
         protected targetOrgAlias: string, // right
-        protected flagCheckOnly: boolean,
+        protected flagCheckOnly: boolean, // return result if diff
+        protected flagCheckError: boolean, // throw error if diff
         protected flagInstallOnly: boolean,
         protected flagUninstallOnly: boolean,
         protected flagSync: boolean) {
@@ -111,8 +112,9 @@ export class PackageSyncUtility {
 
             this.diffPackageList.forEach(diffPackage => {
 
-                let canInstall: boolean = (!this.flagCheckOnly && (this.flagInstallOnly || this.flagSync));
-                let canUninstall: boolean = (!this.flagCheckOnly && (this.flagUninstallOnly || this.flagSync));
+                // making sure flags are set correctly
+                let canInstall: boolean = (!(this.flagCheckOnly || this.flagCheckError) && (this.flagInstallOnly || this.flagSync));
+                let canUninstall: boolean = (!(this.flagCheckOnly || this.flagCheckError) && (this.flagUninstallOnly || this.flagSync));
                 let commandSfdxPackageUpdate: string = null;
                 let executeCommand: boolean = true;
 
@@ -183,18 +185,22 @@ export class PackageSyncUtility {
                     }// end if
                     this.ux.log('(' + this.diffPackageList.length + ') installed package version difference(s) found');
                     let diffCount: number = this.diffPackageList.length;
-
-                    // syncPackages
-                    this.ux.startSpinner('syncPackages');
-                    this.syncPackages().then((result: string) => {
-                        this.ux.stopSpinner();
-                        this.ux.log(result);
-                        resolve(diffCount);
-                    }, (error: any) => {
-                        this.ux.error(error);
-                        reject(error);
-                    });
-
+                    if ((diffCount > 0) && this.flagCheckError) {
+                        this.ux.error("throwing diff package check not zero error flag checkerror is true");
+                        reject(diffCount);
+                    }// end if
+                    else {
+                        // syncPackages
+                        this.ux.startSpinner('syncPackages');
+                        this.syncPackages().then((result: string) => {
+                            this.ux.stopSpinner();
+                            this.ux.log(result);
+                            resolve(diffCount);
+                        }, (error: any) => {
+                            this.ux.error(error);
+                            reject(error);
+                        });
+                    }// end else
                 }, (error: any) => {
                     this.ux.error(error);
                     reject(error);

@@ -140,10 +140,11 @@ Compare package versions between two orgs and/or sync (install or uninstall) pac
 
 ```
 USAGE
-  $ sfdx ext:package:sync [-s <string>] [-c] [-i] [-x] [-z] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]
+  $ sfdx ext:package:sync [-s <string>] [-c] [-e] [-i] [-x] [-z] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]
 
 OPTIONS
   -c, --compareonly                                                                 flag to check package version(s) differences between orgs (Default)
+  -e, --compareerror                                                                flag to check package version(s) differences between orgs and an throw error if different
   -i, --installonly                                                                 flag to only install package versions detected as missing or different from source org to target org
   -s, --sourceusername=sourceusername                                               (Required) source org username or alias
   -u, --targetusername=targetusername                                               username or alias for the target org; overrides default target org
@@ -156,6 +157,9 @@ OPTIONS
 EXAMPLES
 
        $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com
+
+
+       $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com --compareerror
 
 
        $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com --compareonly --installonly --uninstallonly --syncpackages
