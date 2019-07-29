@@ -15,7 +15,7 @@ export class ChangesetExcludeDefault implements ChangesetExclude {
         "flowDefinitions",
         "reports/LeadInsightsReports",
         "reports/unfiled$public",
-        "dashboards/LeadInsightsDashboards",
+        "dashboards/LeadInsightsDashboards"
     ];
     public fileExcludes: Array<string> = [
         "applications/FinServ__BankingConsoleFinancialServicesCloud.app",

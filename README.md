@@ -3,7 +3,7 @@ sfdx-ext
 
 # Name
 Sfdx Extensions (for Developers, Admin and DevOps) which includes common tasks when using sfdx-cli and working on enterprise projects.
-Additional commands may be added as this project as it evolves.
+Additional commands may be added to this project as it evolves.
 
 ## `ext:flows:activation`
 
