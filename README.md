@@ -190,16 +190,20 @@ EXAMPLES
 ```
 
 ### Install npm dependencies and plugin libraries
-``` npm install --global sfdx-cli ```
-``` npm install --global sfdx-ext ```
+``` 
+  npm install --global sfdx-cli 
+  npm install --global sfdx-ext 
+```
 
 ### Install the sfdx-ext plugin
-``` sfdx plugins:install sfdx-ext  ```
+``` 
+  sfdx plugins:install sfdx-ext  
+```
 
 ### Confirm the installation
 ``` 
     sfdx plugins
-    > sfdx-ext <revision> (link) /sfdx-ext
+    > sfdx-ext
 ```
 
 # More information

@@ -186,7 +186,7 @@ export class PackageSyncUtility {
                     this.ux.log('(' + this.diffPackageList.length + ') installed package version difference(s) found');
                     let diffCount: number = this.diffPackageList.length;
                     if ((diffCount > 0) && this.flagCheckError) {
-                        this.ux.error("throwing diff package check not zero error flag checkerror is true");
+                        this.ux.error("throwing diff package check not zero error and flag checkerror is true");
                         reject(diffCount);
                     }// end if
                     else {
