@@ -302,6 +302,9 @@ export class MdapiConfig {
   public static released: string = 'released';
   public static unmanaged: string = 'unmanaged';
 
+  // query error invalid field
+  public static INVALID_FIELD: string = 'INVALID_FIELD';
+
   // https://developer.salesforce.com/docs/atlas.en-us.packagingGuide.meta/packagingGuide/packaging_component_attributes.htm
   public static hiddenOrNonEditableInstalledMetaTypes = [
     // following are (hidden or non-editable) if managed
@@ -871,6 +874,14 @@ export class MdapiConfig {
           }// end if
           resolve();
         }, (error: any) => {
+          if (error && (error instanceof Object)) {
+            let errorString: string = JSON.stringify(error);
+            if (errorString.includes(MdapiConfig.INVALID_FIELD)) {
+              console.log("ignoring person accounts not activated in org");
+              resolve();
+              return;
+            }// end if
+          }// end if
           reject(error);
         });
 

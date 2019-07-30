@@ -67,36 +67,50 @@ export class MdapiRetrieveUtility {
 
         return new Promise((resolve, reject) => {
 
-            let folderType: string = MdapiConfig.metadataTypeFolderLookup[metaType];
-            let folderArray: Array<FileProperties> = config.metadataObjectMembersLookup[folderType];
+            try {
 
-            let counter: number = 0;
+                let folderType: string = MdapiConfig.metadataTypeFolderLookup[metaType];
+                let folderArray: Array<FileProperties> = config.metadataObjectMembersLookup[folderType];
 
-            let batchCtrl = <BatchCtrl>{
-                "counter": counter,
-                "resolve": resolve,
-                "reject": reject
-            };
+                let counter: number = 0;
 
-            for (let x: number = 0; x < folderArray.length; x++) {
-
-                let folderName: string = folderArray[x].fullName;
-
-                let params = <Params>{
-                    "metaType": metaType,
-                    "folder": folderName
+                let batchCtrl = <BatchCtrl>{
+                    "counter": counter,
+                    "resolve": resolve,
+                    "reject": reject
                 };
 
-                batchCtrl.counter = ++counter;
+                if (folderArray && (folderArray.length > 0)) {
 
-                // inject the folder before
-                config.metadataObjectMembersLookup[metaType].push(
-                    folderArray[x]
-                );
+                    for (let x: number = 0; x < folderArray.length; x++) {
 
-                this.queryListMetadata(params, batchCtrl);
+                        let folderName: string = folderArray[x].fullName;
 
-            }// end for
+                        let params = <Params>{
+                            "metaType": metaType,
+                            "folder": folderName
+                        };
+
+                        batchCtrl.counter = ++counter;
+
+                        // inject the folder before
+                        config.metadataObjectMembersLookup[metaType].push(
+                            folderArray[x]
+                        );
+
+                        this.queryListMetadata(params, batchCtrl);
+
+                    }// end for
+
+                }// end if
+                else {
+                    batchCtrl.resolve();
+                }// end else
+
+            } catch (exception) {
+                this.ux.log(exception);
+                reject(exception);
+            };
 
         });// end promse
 
@@ -302,6 +316,7 @@ export class MdapiRetrieveUtility {
             }// end if
 
         }, (error: any) => {
+            this.ux.error(error);
             batchCtrl.reject(error);
         });// end promise
 
@@ -411,62 +426,68 @@ export class MdapiRetrieveUtility {
 
     public async process(): Promise<void> {
 
-        // init
-        this.ux.startSpinner('initialising');
-        this.init();
-        this.ux.stopSpinner();
+        try {
 
-        // async calls
-        this.ux.startSpinner('describe metadata');
-        await MdapiConfig.describeMetadata(this.org, this.config, this.settings);
-        this.ux.stopSpinner();
-
-        this.ux.startSpinner('list metadata');
-        await this.listMetadata();
-        this.ux.stopSpinner();
-
-        this.ux.startSpinner('list folders');
-        await this.listMetadataFolders();
-        this.ux.stopSpinner();
-
-        this.ux.startSpinner('resolve personaccount recordtypes');
-        await MdapiConfig.resolvePersonAccountRecordTypes(this.org, this.config);
-        this.ux.stopSpinner();
-
-        // sync calls
-        MdapiConfig.setStandardValueSets(this.config);
-        MdapiConfig.repositionSettings(this.config);
-
-        // create package.xml
-        this.ux.startSpinner('create package.xml file');
-        this.packageFile();
-        this.ux.stopSpinner();
-
-        this.checkStageOrDevModePackageXml();
-
-        if (!this.manifestOnly) {
-
-            // retrieve metadata files
-            this.ux.startSpinner('retrieve metadata (please standby)');
-            await this.retrieveMetadata();
+            // init
+            this.ux.startSpinner('initialising');
+            this.init();
             this.ux.stopSpinner();
 
-            // unzip retrieved zip
-            this.ux.startSpinner('unzipping package');
-            await this.unzip();
+            // async calls
+            this.ux.startSpinner('describe metadata');
+            await MdapiConfig.describeMetadata(this.org, this.config, this.settings);
             this.ux.stopSpinner();
 
-            // backup zip
-            this.ux.startSpinner('backup zip');
-            await this.backup();
+            this.ux.startSpinner('list metadata');
+            await this.listMetadata();
             this.ux.stopSpinner();
 
-            // check if staging only or clean for src dev only
-            this.ux.startSpinner('finishing up');
-            this.checkStageOrDevModeFiles();
+            this.ux.startSpinner('list folders');
+            await this.listMetadataFolders();
             this.ux.stopSpinner();
 
-        }// end client
+            this.ux.startSpinner('resolve personaccount recordtypes');
+            await MdapiConfig.resolvePersonAccountRecordTypes(this.org, this.config);
+            this.ux.stopSpinner();
+
+            // sync calls
+            MdapiConfig.setStandardValueSets(this.config);
+            MdapiConfig.repositionSettings(this.config);
+
+            // create package.xml
+            this.ux.startSpinner('create package.xml file');
+            this.packageFile();
+            this.ux.stopSpinner();
+
+            this.checkStageOrDevModePackageXml();
+
+            if (!this.manifestOnly) {
+
+                // retrieve metadata files
+                this.ux.startSpinner('retrieve metadata (please standby)');
+                await this.retrieveMetadata();
+                this.ux.stopSpinner();
+
+                // unzip retrieved zip
+                this.ux.startSpinner('unzipping package');
+                await this.unzip();
+                this.ux.stopSpinner();
+
+                // backup zip
+                this.ux.startSpinner('backup zip');
+                await this.backup();
+                this.ux.stopSpinner();
+
+                // check if staging only or clean for src dev only
+                this.ux.startSpinner('finishing up');
+                this.checkStageOrDevModeFiles();
+                this.ux.stopSpinner();
+
+            }// end client
+
+        } catch (exception) {
+            this.ux.error(exception);
+        }// end catch
 
     }// end process
 
