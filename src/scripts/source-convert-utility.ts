@@ -6,8 +6,8 @@
 
 import { Org } from '@salesforce/core';
 import { UX } from '@salesforce/command';
-import { MdapiConfig, IConfig, ISettings, DiffRecord } from './mdapi-config';
 import { MdapiCommon } from './mdapi-common';
+import { MdapiConfig, IConfig, ISettings, DiffRecord, RelativePosition } from './mdapi-config';
 import { readdirSync, statSync, writeFileSync, copyFileSync } from 'fs';
 import path = require('path');
 
@@ -32,7 +32,7 @@ export class SourceConvertUtility {
     protected filePathDiffRecordRegister: Record<string, DiffRecord> = {};
     protected packageDiffRecords: Record<string, Array<DiffRecord>> = {};
 
-    protected walkDir(dir: string, metaRegister: Object, callback: any): void {
+    protected walkDir(position: RelativePosition, dir: string, metaRegister: Record<string, DiffRecord>, callback: any): void {
 
         let fileItems: Array<string> = readdirSync(dir);
 
@@ -43,10 +43,10 @@ export class SourceConvertUtility {
             let isDirectory: boolean = statSync(dirPath).isDirectory();
 
             if (isDirectory) {
-                this.walkDir(dirPath, metaRegister, callback);
+                this.walkDir(position, dirPath, metaRegister, callback);
             }// end if
             else {
-                callback(this.config, path.join(dir, fileItem), metaRegister, dir);
+                callback(position, this.config, path.join(dir, fileItem), dir, metaRegister);
             }// end else
 
         }// end for
@@ -57,7 +57,7 @@ export class SourceConvertUtility {
 
         MdapiConfig.initDiffRecordsLookup(this.config, this.packageDiffRecords);
 
-        this.walkDir(this.targetSrcPath, this.filePathDiffRecordRegister, MdapiConfig.inspectMdapiFile);
+        this.walkDir(RelativePosition.Target, this.targetSrcPath, this.filePathDiffRecordRegister, MdapiConfig.inspectMdapiFile);
 
     }// end method
 

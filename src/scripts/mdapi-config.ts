@@ -5,7 +5,7 @@
  */
 
 import { DescribeMetadataResult, MetadataObject, FileProperties, QueryResult, ListMetadataQuery } from "jsforce";
-import { writeFileSync, mkdirp, createWriteStream, readFileSync, statSync, Stats, existsSync, unlinkSync } from "fs-extra";
+import { writeFileSync, mkdirp, createWriteStream, readFileSync, statSync, Stats, existsSync, unlinkSync, mkdirSync } from "fs-extra";
 import { Org } from "@salesforce/core";
 import { MdapiCommon } from "./mdapi-common";
 import path = require('path');
@@ -133,6 +133,7 @@ export class MdapiConfig {
   public static unpackagedZip: string = 'unpackaged.zip';
   public static packageXml: string = 'package.xml';
   public static packageManifest: string = 'package.manifest';
+  public static describeMetadataJson: string = 'describeMetadata.json';
   public static destructiveChangesManifest: string = 'destructiveChanges.manifest';
   public static destructiveChangesXml: string = 'destructiveChanges.xml';
   public static destructiveChangesPostXml: string = 'destructiveChangesPost.xml';
@@ -185,7 +186,6 @@ export class MdapiConfig {
   public static metaXmlSuffix: string = "-meta.xml";
   // namespaced
   public static doubleUnderscore: string = "__";
-  // public static customSuffix: string = "__c";
 
   /** SPECIFIC DIR CONSTANTS*/
   public static aura: string = "aura";
@@ -207,6 +207,9 @@ export class MdapiConfig {
   public static Bot: string = 'Bot';
   public static BotVersion: string = 'BotVersion';
   public static botVersions: string = 'botVersions';
+
+  // Territory2
+  public static territory2Models: string = 'territory2Models';
 
   // Object related
   public static Profile: string = "Profile";
@@ -570,6 +573,11 @@ export class MdapiConfig {
     return returned;
   }// end method
 
+  // territory 2 folders don't follow the describemetadata pattern of child or folder (handled as exception)
+  public static isTerritory2ModelsDirectory(directory: string): boolean {
+    return (directory === MdapiConfig.territory2Models);
+  }// end method
+
   /**
    * General view or assumption is that excluded namespaced items are installed 
    * or managed packages and should be handled seperately (installed)  
@@ -713,6 +721,14 @@ export class MdapiConfig {
 
   }// end method
 
+  public static describeMetadataFile(result: DescribeMetadataResult): void {
+    if (!existsSync(MdapiCommon.configRoot)) {
+      mkdirSync(MdapiCommon.configRoot);
+    }// end if
+    let describeMetadataJsonPath: string = (MdapiCommon.configRoot + MdapiCommon.PATH_SEP + MdapiConfig.describeMetadataJson);
+    MdapiCommon.jsonToFile(result, describeMetadataJsonPath);
+  }// end method
+
   /**
    * describeMetadata will populate config variables based on describe results
    * 
@@ -728,7 +744,10 @@ export class MdapiConfig {
 
         try {
 
+          MdapiConfig.describeMetadataFile(result);
+
           let metadataObjects: Array<MetadataObject> = result.metadataObjects;
+
           config.metadataObjects = metadataObjects;
 
           for (let x: number = 0; x < metadataObjects.length; x++) {
@@ -796,7 +815,7 @@ export class MdapiConfig {
         } catch (exception) {
           console.error(exception);
           reject(exception);
-        }
+        }// end catch
 
       }, (error: any) => {
         console.error(error);
@@ -974,7 +993,7 @@ export class MdapiConfig {
 
     let metadataObjects: Array<MetadataObject> = MdapiCommon.objectToArray(config.metadataDirectoryLookup[directoryName]);
 
-    if (metadataObjects.length == 1) {
+    if ((metadataObjects.length == 1) || !metaFile) {
       return metadataObjects[0]; // if one only return one
     }// end if
     for (let x: number = 0; x < metadataObjects.length; x++) {
@@ -1089,6 +1108,10 @@ export class MdapiConfig {
     let anchorName: string = MdapiCommon.BLANK; // ''
     let folderXml: boolean = false;
 
+    if (filePath.includes('rt.territory2Rule')) {
+      console.log(filePath);
+    }
+
     // don't process top level directories (from excluded list)
     if (MdapiConfig.isExcludedDirectory(directory) ||
       MdapiConfig.isExcludedFile(fileName)) {
@@ -1123,6 +1146,10 @@ export class MdapiConfig {
         anchorName = MdapiConfig.getMetadataNameFromCurrentDirectory(parentDirectory);
         memberName = (anchorName + MdapiCommon.PATH_SEP + MdapiConfig.isolateMetadataObjectName(fileName));
       } // end else if
+      else if (MdapiConfig.isTerritory2ModelsDirectory(metadataParentName)) {
+        metadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(config, metadataParentName);
+        memberName = MdapiConfig.getMetadataNameFromCurrentDirectory(parentDirectory);
+      }// end else if
       else {
         //fatal
         console.error('unexpected metatype found at parent directory: ' + parentDirectory
@@ -1147,7 +1174,7 @@ export class MdapiConfig {
     let fileContents: string = readFileSync(filePath, MdapiCommon.UTF8);
     let stats: Stats = statSync(filePath);
 
-    let DiffRecord: DiffRecord = (<DiffRecord>{
+    let diffRecord: DiffRecord = (<DiffRecord>{
       "memberKey": memberKey,
       "memberName": memberName, // e.g. Account
       "filePath": filePath,
@@ -1162,7 +1189,11 @@ export class MdapiConfig {
     });
 
     // add new unique entry
-    metaRegister[relativeFilePath] = DiffRecord;
+    metaRegister[relativeFilePath] = diffRecord;
+
+    if (filePath.includes('rt.territory2Rule')) {
+      console.log(diffRecord);
+    }
 
   }// end method
 

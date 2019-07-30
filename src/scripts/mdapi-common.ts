@@ -14,6 +14,7 @@ export class MdapiCommon {
     public static stageRoot: string = 'stage';
     public static backupRoot: string = 'backup';
     public static retrieveRoot: string = 'retrieve';
+    public static configRoot: string = 'config';
     public static deployRoot: string = 'deploy';
     public static backupExt: string = ".backup";
 
@@ -30,6 +31,7 @@ export class MdapiCommon {
 
     public static bufferOptions: Object = { maxBuffer: 10 * 1024 * 1024 };
     public static convertOptions: Object = { compact: true, spaces: 4 };
+    public static jsonSpaces: number = 2;
 
     public static command(cmd: string): Promise<any> {
         return new Promise((resolve, reject) => {
@@ -77,11 +79,15 @@ export class MdapiCommon {
         writeFileSync(filePath, json2xml(JSON.stringify(jsonObject), MdapiCommon.convertOptions));
     }// end method
 
-    public static isolateLeafNode(parentDir: string, pathSeperator?: string): string {
+    public static jsonToFile(jsonObject: Object, filePath: string): void {
+        writeFileSync(filePath, JSON.stringify(jsonObject, null, MdapiCommon.jsonSpaces), MdapiCommon.convertOptions);
+    }// end method
+
+    public static isolateLeafNode(filePath: string, pathSeperator?: string): string {
         if (!pathSeperator) {
-            pathSeperator = path.sep;
-        }
-        let items: Array<string> = parentDir.split(pathSeperator);
+            pathSeperator = path.sep; // default
+        }// end if
+        let items: Array<string> = filePath.split(pathSeperator);
         return items[items.length - 1];
     }// end method
 
