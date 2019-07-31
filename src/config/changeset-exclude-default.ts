@@ -18,6 +18,8 @@ export class ChangesetExcludeDefault implements ChangesetExclude {
         "dashboards/LeadInsightsDashboards"
     ];
     public fileExcludes: Array<string> = [
+        "liveChatDeployments/Live_Agent.liveChatDeployment", // can't delete once created
+        "liveChatButtons/AW_Bot_button.liveChatButton", // can't delete once created
         "applications/FinServ__BankingConsoleFinancialServicesCloud.app",
         "applications/FinServ__FinancialServicesCloudRetailBanking.app",
         "applications/FinServ__InsuranceConsoleFinancialServicesCloud.app",
@@ -51,7 +53,11 @@ export class ChangesetExcludeDefault implements ChangesetExclude {
         "contentassets/elliegif1.asset",
         "contentassets/elliegif1.asset-meta.xml",
         "contentassets/online_pay_final.asset",
-        "contentassets/online_pay_final.asset-meta.xml"
+        "contentassets/online_pay_final.asset-meta.xml",
+        "contentassets/einsteinheader3.asset",
+        "contentassets/einsteinheader3.asset-meta.xml",
+        "contentassets/X2016sf_einstein_icon_pos_rgbpng1pn3.asset",
+        "contentassets/X2016sf_einstein_icon_pos_rgbpng1pn3.asset-meta.xml"
     ];
 
 }// end class

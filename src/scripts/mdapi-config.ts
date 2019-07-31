@@ -159,6 +159,7 @@ export class MdapiConfig {
   public static DocumentFolder: string = 'DocumentFolder';
   public static DashboardFolder: string = 'DashboardFolder';
   public static OrgPreferenceSettings: string = 'OrgPreferenceSettings';
+
   //https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_managedtopics.htm
   public static ManagedTopic: string = 'ManagedTopic';
   public static ApexClass: string = 'ApexClass';
@@ -548,7 +549,9 @@ export class MdapiConfig {
     //ManagedTopic
     ManagedTopic: MdapiConfig.ManagedTopic,
     //Botversion
-    BotVersion: MdapiConfig.botVersions
+    BotVersion: MdapiConfig.botVersions,
+    // Territory2Rule
+    Territory2Rule: MdapiConfig.rules
   };
 
   public static isFolderDirectory(directory: string): boolean {
@@ -993,17 +996,31 @@ export class MdapiConfig {
 
     let metadataObjects: Array<MetadataObject> = MdapiCommon.objectToArray(config.metadataDirectoryLookup[directoryName]);
 
-    if ((metadataObjects.length == 1) || !metaFile) {
+    if (metadataObjects.length === 1) {
       return metadataObjects[0]; // if one only return one
     }// end if
     for (let x: number = 0; x < metadataObjects.length; x++) {
       let metaObject: MetadataObject = metadataObjects[x];
-      if (metaFile.endsWith(metaObject.suffix) ||
-        metaFile.endsWith(metaObject.suffix + MdapiConfig.metaXmlSuffix)) { // e.g. for moderation different types
+      if (metaObject.suffix && (metaFile.endsWith(metaObject.suffix) ||
+        metaFile.endsWith(metaObject.suffix + MdapiConfig.metaXmlSuffix))) { // e.g. for moderation different types
         return metaObject;
       }// end if
     }// end for
     return null; // try to resolve as next step
+  }// end method
+
+  public static getMetadataObjectFromFileExtension(config: IConfig, metaFile: string): MetadataObject {
+
+    let metadataObjects: Array<MetadataObject> = MdapiCommon.objectToArray(config.metadataObjects);
+
+    for (let x: number = 0; x < metadataObjects.length; x++) {
+      let metaObject: MetadataObject = metadataObjects[x];
+      // may require additional checks
+      if (metaObject.suffix && metaFile.endsWith(metaObject.suffix)) { // e.g. for moderation different types
+        return metaObject;
+      }// end if
+    }// end for
+    return null; // try to resolve as next ste
   }// end method
 
   public static createConfig(): IConfig {
@@ -1108,17 +1125,14 @@ export class MdapiConfig {
     let anchorName: string = MdapiCommon.BLANK; // ''
     let folderXml: boolean = false;
 
-    if (filePath.includes('rt.territory2Rule')) {
-      console.log(filePath);
-    }
-
     // don't process top level directories (from excluded list)
     if (MdapiConfig.isExcludedDirectory(directory) ||
       MdapiConfig.isExcludedFile(fileName)) {
       return; // ignore
     }// end if
 
-    let metadataObject: MetadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(config, directory, fileName);
+    // let metadataObject: MetadataObject = MdapiConfig.getMetadataObjectFromFileExtension(config, fileName);
+    let metadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(config, directory, fileName);
 
     if (MdapiConfig.isExcludedNamespaceFile(fileName, metadataObject)) {
       if ((position === RelativePosition.Source) && existsSync(filePath)) {
@@ -1147,7 +1161,7 @@ export class MdapiConfig {
         memberName = (anchorName + MdapiCommon.PATH_SEP + MdapiConfig.isolateMetadataObjectName(fileName));
       } // end else if
       else if (MdapiConfig.isTerritory2ModelsDirectory(metadataParentName)) {
-        metadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(config, metadataParentName);
+        metadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(config, metadataParentName, fileName);
         memberName = MdapiConfig.getMetadataNameFromCurrentDirectory(parentDirectory);
       }// end else if
       else {
@@ -1190,10 +1204,6 @@ export class MdapiConfig {
 
     // add new unique entry
     metaRegister[relativeFilePath] = diffRecord;
-
-    if (filePath.includes('rt.territory2Rule')) {
-      console.log(diffRecord);
-    }
 
   }// end method
 
