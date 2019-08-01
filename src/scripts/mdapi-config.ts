@@ -61,6 +61,7 @@ export interface DiffRecord {
   lastModified: Date;
   diffType: DiffType;
   diffSize: number; // init
+  fileContent: string; // specifically for profile
 };
 
 export interface ChangesetExclude {
@@ -73,7 +74,18 @@ export interface Profile {
   userPermissions?: UserPermission | Array<UserPermission>;
   tabVisibilities?: TabVisibility | Array<TabVisibility>;
   fieldPermissions?: FieldPermission | Array<FieldPermission>;
+  objectPermissions?: ObjectPermission | Array<ObjectPermission>;
   custom: Textable;
+};
+
+export interface ObjectPermission {
+  allowCreate: Textable;
+  allowDelete: Textable;
+  allowEdit: Textable;
+  allowRead: Textable;
+  modifyAllRecords: Textable;
+  viewAllRecords: Textable;
+  object: Textable;
 };
 
 export interface FieldPermission {
@@ -108,6 +120,7 @@ export interface ListView {
 };
 
 export interface Dashboard {
+  dashboardType: Textable;
   runningUser: Textable;
 };
 
@@ -1199,7 +1212,8 @@ export class MdapiConfig {
       "metadataObject": metadataObject,
       "fileSize": stats.size,
       "diffType": DiffType.None,
-      "diffSize": 0 // init
+      "diffSize": 0, // init
+      "fileContent": null
     });
 
     // add new unique entry

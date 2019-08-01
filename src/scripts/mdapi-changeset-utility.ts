@@ -18,7 +18,8 @@ import {
     OrgPreferenceSettings,
     Preference,
     RelativePosition,
-    CustomObjectChild
+    CustomObjectChild,
+    ObjectPermission
 } from "./mdapi-config";
 import { UX } from "@salesforce/command";
 import path = require('path');
@@ -302,7 +303,8 @@ export class MdapiChangesetUtility {
                     "metadataObject": childMetadataObject,
                     "fileSize": childString.length,
                     "diffType": item.diffType,
-                    "diffSize": 0
+                    "diffSize": 0,
+                    "fileContent": null
                 });
 
                 if (item.diffType === DiffType.Left) {
@@ -398,7 +400,8 @@ export class MdapiChangesetUtility {
                     "metadataObject": childMetadataObject,
                     "fileSize": leftChildString.length,
                     "diffType": DiffType.None,
-                    "diffSize": 0
+                    "diffSize": 0,
+                    "fileContent": null
                 });
 
                 if (!diffRecord.metadataName) {
@@ -482,7 +485,8 @@ export class MdapiChangesetUtility {
                     "metadataObject": childMetadataObject,
                     "fileSize": rightChildString.length,
                     "diffType": DiffType.None, //init
-                    "diffSize": 0
+                    "diffSize": 0,
+                    "fileContent": null
                 });
 
                 if (!diffRecord.metadataName) {
@@ -516,6 +520,54 @@ export class MdapiChangesetUtility {
 
     }// end method
 
+    protected compareProfileObjectPermissions(leftItem: DiffRecord, rightItem: DiffRecord) {
+
+        // check if object settings exist on right but not on left. 
+        // set right item to false and inject into left file to delete in right.
+
+        // extract left
+        let leftJsonObject: Object = MdapiCommon.xmlFileToJson(leftItem.filePath);
+        let leftProfile: Profile = <Profile>leftJsonObject[MdapiConfig.Profile];
+        let leftObjectPermissions: Array<ObjectPermission> = MdapiCommon.objectToArray(leftProfile.objectPermissions);
+
+        // extract right 
+        let rightJsonObject: Object = MdapiCommon.xmlFileToJson(rightItem.filePath);
+        let rightProfile: Profile = <Profile>rightJsonObject[MdapiConfig.Profile];
+        let rightObjectPermissions: Array<ObjectPermission> = MdapiCommon.objectToArray(rightProfile.objectPermissions);
+
+        for (let right: number = 0; right < rightObjectPermissions.length; right++) {
+
+            let found: boolean = false;
+            let rightObjectPermission: ObjectPermission = rightObjectPermissions[right];
+
+            for (let left: number = 0; left < leftObjectPermissions.length; left++) {
+
+                let leftObjectPermission: ObjectPermission = leftObjectPermissions[left];
+
+                if (rightObjectPermission.object._text === leftObjectPermission.object._text) {
+                    found = true;
+                    break;
+                }// end if
+
+            }// end for left
+
+            if (!found) {
+                // console.log('FOUND ISSUE: ' + leftItem.filePath, rightObjectPermission);
+                rightObjectPermission.allowCreate._text = 'false';
+                rightObjectPermission.allowDelete._text = 'false';
+                rightObjectPermission.allowEdit._text = 'false';
+                rightObjectPermission.allowRead._text = 'false';
+                rightObjectPermission.modifyAllRecords._text = 'false';
+                rightObjectPermission.viewAllRecords._text = 'false';
+                leftObjectPermissions.push(rightObjectPermission);
+            }// end if
+
+        }// end for right
+
+        MdapiCommon.jsonToXmlFile(leftJsonObject, leftItem.filePath);
+
+    }// end if
+
     protected compareSourceAndTarget(): void {
 
         //compare left to right
@@ -539,6 +591,9 @@ export class MdapiChangesetUtility {
                 if (MdapiConfig.metadataObjectHasChildren(leftItem.metadataObject)) {
                     this.compareChildMetadata(leftItem, rightItem);
                 }// end if
+                else if (leftItem.metadataName === MdapiConfig.Profile) {
+                    this.compareProfileObjectPermissions(leftItem, rightItem);
+                }// end else if 
             }// end if
             else if (leftItem.fileHash === rightItem.fileHash) {
                 leftItem.diffType = DiffType.Match;
@@ -807,12 +862,6 @@ export class MdapiChangesetUtility {
         let typeFolder = MdapiCommon.isolateLeafNode(parentDir);
         let grandParentFolder = MdapiConfig.getMetadataNameFromParentDirectory(parentDir);
 
-        /* 
-              once deploy add this to ignored as user is full username and not email
-              <AuthProvider xmlns="http://soap.sforce.com/2006/04/metadata">
-                 <executionUser>andre.locke@liberty.co.za.dev</executionUser> 
-        */
-
         if (typeFolder === MdapiConfig.objects) {
 
             if (filePath.endsWith('Lead.object')) {
@@ -985,7 +1034,11 @@ export class MdapiChangesetUtility {
             let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
             let dashboard: Dashboard = jsonObject[MdapiConfig.Dashboard];
 
-            if (dashboard.runningUser) {
+            if (dashboard.dashboardType &&
+                (dashboard.dashboardType._text === 'SpecifiedUser')) {
+                // noop
+            }// end if
+            else if (dashboard.runningUser) {
                 delete dashboard.runningUser;
             }// end if
 
