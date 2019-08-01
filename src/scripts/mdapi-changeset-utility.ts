@@ -523,20 +523,22 @@ export class MdapiChangesetUtility {
 
     protected compareProfileObjectPermissions(leftItem: DiffRecord, rightItem: DiffRecord) {
 
-        // check if object settings exist on right but not on left. 
-        // set right item to false and inject into left file to delete in right.
+        // check if items exist on right but not on left. 
+        // set right item to remove and inject into left file to delete in right.
 
         // extract left
         let leftJsonObject: Object = MdapiCommon.xmlFileToJson(leftItem.filePath);
         let leftProfile: Profile = <Profile>leftJsonObject[MdapiConfig.Profile];
         let leftObjectPermissions: Array<ObjectPermission> = MdapiCommon.objectToArray(leftProfile.objectPermissions);
         let leftUserPermissions: Array<UserPermission> = MdapiCommon.objectToArray(leftProfile.userPermissions);
+        let leftTabVisibilities: Array<TabVisibility> = MdapiCommon.objectToArray(leftProfile.tabVisibilities);
 
         // extract right 
         let rightJsonObject: Object = MdapiCommon.xmlFileToJson(rightItem.filePath);
         let rightProfile: Profile = <Profile>rightJsonObject[MdapiConfig.Profile];
         let rightObjectPermissions: Array<ObjectPermission> = MdapiCommon.objectToArray(rightProfile.objectPermissions);
         let rightUserPermissions: Array<UserPermission> = MdapiCommon.objectToArray(rightProfile.userPermissions);
+        let rightTabVisibilities: Array<TabVisibility> = MdapiCommon.objectToArray(rightProfile.tabVisibilities);
 
         // process object permissions
         for (let right: number = 0; right < rightObjectPermissions.length; right++) {
@@ -577,7 +579,24 @@ export class MdapiChangesetUtility {
                 rightUserPermission.enabled._text = 'false';
                 leftUserPermissions.push(rightUserPermission);
             }// end if
+        }// end for right
 
+        // process tab visibilities
+        for (let right: number = 0; right < rightTabVisibilities.length; right++) {
+            let found: boolean = false;
+            let rightTabVisibility: TabVisibility = rightTabVisibilities[right];
+            for (let left: number = 0; left < leftTabVisibilities.length; left++) {
+                let leftTabVisibility: TabVisibility = leftTabVisibilities[left];
+                if (rightTabVisibility.tab._text === leftTabVisibility.tab._text) {
+                    found = true;
+                    break;
+                }// end if
+            }// end for left
+            // handle if not found
+            if (!found) {
+                rightTabVisibility.visibility._text = 'Hidden';
+                leftTabVisibilities.push(rightTabVisibility);
+            }// end if
         }// end for right
 
         MdapiCommon.jsonToXmlFile(leftJsonObject, leftItem.filePath);

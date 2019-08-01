@@ -94,6 +94,7 @@ export interface FieldPermission {
 
 export interface TabVisibility {
   tab: Textable;
+  visibility: Textable; // DefaultOn, DefaultOff, Hidden
 };
 
 export interface UserPermission {
