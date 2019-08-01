@@ -98,6 +98,7 @@ export interface TabVisibility {
 
 export interface UserPermission {
   name: Textable;
+  enabled: Textable;
 };
 
 export interface LayoutAssignment {

@@ -19,7 +19,8 @@ import {
     Preference,
     RelativePosition,
     CustomObjectChild,
-    ObjectPermission
+    ObjectPermission,
+    UserPermission
 } from "./mdapi-config";
 import { UX } from "@salesforce/command";
 import path = require('path');
@@ -529,30 +530,27 @@ export class MdapiChangesetUtility {
         let leftJsonObject: Object = MdapiCommon.xmlFileToJson(leftItem.filePath);
         let leftProfile: Profile = <Profile>leftJsonObject[MdapiConfig.Profile];
         let leftObjectPermissions: Array<ObjectPermission> = MdapiCommon.objectToArray(leftProfile.objectPermissions);
+        let leftUserPermissions: Array<UserPermission> = MdapiCommon.objectToArray(leftProfile.userPermissions);
 
         // extract right 
         let rightJsonObject: Object = MdapiCommon.xmlFileToJson(rightItem.filePath);
         let rightProfile: Profile = <Profile>rightJsonObject[MdapiConfig.Profile];
         let rightObjectPermissions: Array<ObjectPermission> = MdapiCommon.objectToArray(rightProfile.objectPermissions);
+        let rightUserPermissions: Array<UserPermission> = MdapiCommon.objectToArray(rightProfile.userPermissions);
 
+        // process object permissions
         for (let right: number = 0; right < rightObjectPermissions.length; right++) {
-
             let found: boolean = false;
             let rightObjectPermission: ObjectPermission = rightObjectPermissions[right];
-
             for (let left: number = 0; left < leftObjectPermissions.length; left++) {
-
                 let leftObjectPermission: ObjectPermission = leftObjectPermissions[left];
-
                 if (rightObjectPermission.object._text === leftObjectPermission.object._text) {
                     found = true;
                     break;
                 }// end if
-
             }// end for left
-
+            // handle if not found
             if (!found) {
-                // console.log('FOUND ISSUE: ' + leftItem.filePath, rightObjectPermission);
                 rightObjectPermission.allowCreate._text = 'false';
                 rightObjectPermission.allowDelete._text = 'false';
                 rightObjectPermission.allowEdit._text = 'false';
@@ -560,6 +558,24 @@ export class MdapiChangesetUtility {
                 rightObjectPermission.modifyAllRecords._text = 'false';
                 rightObjectPermission.viewAllRecords._text = 'false';
                 leftObjectPermissions.push(rightObjectPermission);
+            }// end if
+        }// end for right
+
+        // process user permissions
+        for (let right: number = 0; right < rightUserPermissions.length; right++) {
+            let found: boolean = false;
+            let rightUserPermission: UserPermission = rightUserPermissions[right];
+            for (let left: number = 0; left < leftUserPermissions.length; left++) {
+                let leftUserPermission: UserPermission = leftUserPermissions[left];
+                if (rightUserPermission.name._text === leftUserPermission.name._text) {
+                    found = true;
+                    break;
+                }// end if
+            }// end for left
+            // handle if not found
+            if (!found) {
+                rightUserPermission.enabled._text = 'false';
+                leftUserPermissions.push(rightUserPermission);
             }// end if
 
         }// end for right
