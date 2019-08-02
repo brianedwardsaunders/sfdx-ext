@@ -90,6 +90,8 @@ export interface ObjectPermission {
 
 export interface FieldPermission {
   field: Textable;
+  editable: Textable;
+  readable: Textable;
 };
 
 export interface TabVisibility {

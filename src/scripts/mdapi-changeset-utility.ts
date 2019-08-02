@@ -532,6 +532,7 @@ export class MdapiChangesetUtility {
         let leftObjectPermissions: Array<ObjectPermission> = MdapiCommon.objectToArray(leftProfile.objectPermissions);
         let leftUserPermissions: Array<UserPermission> = MdapiCommon.objectToArray(leftProfile.userPermissions);
         let leftTabVisibilities: Array<TabVisibility> = MdapiCommon.objectToArray(leftProfile.tabVisibilities);
+        let leftFieldPermissions: Array<FieldPermission> = MdapiCommon.objectToArray(leftProfile.fieldPermissions);
 
         // extract right 
         let rightJsonObject: Object = MdapiCommon.xmlFileToJson(rightItem.filePath);
@@ -539,6 +540,7 @@ export class MdapiChangesetUtility {
         let rightObjectPermissions: Array<ObjectPermission> = MdapiCommon.objectToArray(rightProfile.objectPermissions);
         let rightUserPermissions: Array<UserPermission> = MdapiCommon.objectToArray(rightProfile.userPermissions);
         let rightTabVisibilities: Array<TabVisibility> = MdapiCommon.objectToArray(rightProfile.tabVisibilities);
+        let rightFieldPermissions: Array<FieldPermission> = MdapiCommon.objectToArray(rightProfile.fieldPermissions);
 
         // process object permissions
         for (let right: number = 0; right < rightObjectPermissions.length; right++) {
@@ -596,6 +598,25 @@ export class MdapiChangesetUtility {
             if (!found) {
                 rightTabVisibility.visibility._text = 'Hidden';
                 leftTabVisibilities.push(rightTabVisibility);
+            }// end if
+        }// end for right
+
+        // process field permissions
+        for (let right: number = 0; right < rightFieldPermissions.length; right++) {
+            let found: boolean = false;
+            let rightFieldPermission: FieldPermission = rightFieldPermissions[right];
+            for (let left: number = 0; left < leftFieldPermissions.length; left++) {
+                let leftFieldPermission: FieldPermission = leftFieldPermissions[left];
+                if (rightFieldPermission.field._text === leftFieldPermission.field._text) {
+                    found = true;
+                    break;
+                }// end if
+            }// end for left
+            // handle if not found
+            if (!found) {
+                rightFieldPermission.editable._text = 'false';
+                rightFieldPermission.readable._text = 'false';
+                leftFieldPermissions.push(rightFieldPermission);
             }// end if
         }// end for right
 

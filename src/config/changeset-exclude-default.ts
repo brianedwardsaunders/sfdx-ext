@@ -13,9 +13,10 @@ export class ChangesetExcludeDefault implements ChangesetExclude {
         "profileSessionSettings",
         "animationRules",
         "flowDefinitions",
-        "reports/LeadInsightsReports",
         "reports/unfiled$public",
-        "dashboards/LeadInsightsDashboards"
+        "reports/LeadInsightsReports",
+        "dashboards/LeadInsightsDashboards",
+        "wave"
     ];
     public fileExcludes: Array<string> = [
         "liveChatDeployments/Live_Agent.liveChatDeployment", // can't delete once created
@@ -49,7 +50,6 @@ export class ChangesetExcludeDefault implements ChangesetExclude {
         "userCriteria/testcommunity.Customer_Members.userCriteria",
         "userCriteria/testcommunity.Members_without_contribution.userCriteria",
         "userCriteria/testcommunity.Partner_and_Customer_members.userCriteria",
-        "dashboards/Sales_and_Marketing_Dashboards/Best_Practices_Dashboard6.dashboard",
         "contentassets/elliegif1.asset",
         "contentassets/elliegif1.asset-meta.xml",
         "contentassets/online_pay_final.asset",
