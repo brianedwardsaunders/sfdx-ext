@@ -20,9 +20,7 @@ import {
     RelativePosition,
     CustomObjectChild,
     ObjectPermission,
-    UserPermission,
-    SearchSettings,
-    SearchSettingsByObject
+    UserPermission
 } from "./mdapi-config";
 import { UX } from "@salesforce/command";
 import path = require('path');
