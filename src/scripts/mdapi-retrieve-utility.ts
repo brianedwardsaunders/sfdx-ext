@@ -200,17 +200,25 @@ export class MdapiRetrieveUtility {
 
     }// end method
 
+    protected async setupRetrieveDirectory(): Promise<void> {
+
+        this.ux.log('refreshing retrieve directory: ' + this.retrievePath);
+
+        if (existsSync(this.retrievePath)) {
+            removeSync(this.retrievePath);
+        }// end if
+
+        mkdirSync(this.retrievePath);
+
+        this.ux.log('retrieve directory created');
+
+    }// end method.
+
     protected async retrieveMetadata(): Promise<void> {
 
-        this.ux.log('retrieve directory: ' + this.retrievePath);
+        await this.setupRetrieveDirectory();
 
         return new Promise((resolve, reject) => {
-
-            if (existsSync(this.retrievePath)) {
-                removeSync(this.retrievePath);
-            }// end if
-
-            mkdirSync(this.retrievePath);
 
             let retrieveCommand: string = ('sfdx force:mdapi:retrieve -s -k ' + this.filePackageXmlPath
                 + ' -r ' + this.retrievePath + ' -w -1 -u ' + this.orgAlias);

@@ -20,7 +20,9 @@ import {
     RelativePosition,
     CustomObjectChild,
     ObjectPermission,
-    UserPermission
+    UserPermission,
+    SearchSettings,
+    SearchSettingsByObject
 } from "./mdapi-config";
 import { UX } from "@salesforce/command";
 import path = require('path');
@@ -86,7 +88,7 @@ export class MdapiChangesetUtility {
         if (!existsSync(this.sourceRetrieveDirBackup)) { // first time
             mkdirSync(this.sourceRetrieveDirBackup);
             copySync(this.sourceRetrieveDir, this.sourceRetrieveDirBackup);
-            this.ux.log('initial backup ' + this.sourceRetrieveDirBackup + 'created');
+            this.ux.log('initial backup ' + this.sourceRetrieveDirBackup + ' created');
         }// end if
         else {
             this.ux.log('restoring ' + this.sourceRetrieveDir + ' from local backup ' + this.sourceRetrieveDirBackup);
@@ -1120,6 +1122,26 @@ export class MdapiChangesetUtility {
                 MdapiCommon.jsonToXmlFile(jsonObject, filePath);
 
             }// end if
+            /* else if (filePath.endsWith('Search.settings')) {
+
+                let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
+                let searchSettings: SearchSettings = jsonObject[MdapiConfig.SearchSettings];
+                let searchSettingsByObject: SearchSettingsByObject = searchSettings.searchSettingsByObject;
+                let searchSettingsByObjectArray: Array<SearchSettingsByObject> = MdapiCommon.objectToArray(searchSettingsByObject.searchSettingsByObject);
+
+                for (let x: number = 0; x < searchSettingsByObjectArray.length; x++) {
+                    let setting: SearchSettingsByObject = searchSettingsByObjectArray[x];
+                    // 	Entity is null or entity element's name is null
+                    if ((setting.name._text === 'ContactSuggestionInsight') ||
+                        (setting.name._text === 'OpportunityContactRoleSuggestionInsight')) {
+                        searchSettingsByObjectArray.splice(x, 1);
+                    }// end if
+                }// end for
+
+                MdapiCommon.jsonToXmlFile(jsonObject, filePath);
+
+            }// end if 
+            */
 
         }// end if
 

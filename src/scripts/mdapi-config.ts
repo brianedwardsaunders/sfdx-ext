@@ -137,6 +137,18 @@ export interface Preference {
   settingValue: Textable;
 };
 
+export interface SearchSettings {
+  searchSettingsByObject: SearchSettingsByObject;
+};
+
+export interface SearchSettingsByObject {
+  searchSettingsByObject: SearchSettingsByObject | Array<SearchSettingsByObject>;
+  enhancedLookupEnabled?: Textable;
+  lookupAutoCompleteEnabled?: Textable;
+  name?: Textable;
+  resultsPerPageCount?: Textable;
+};
+
 export interface Textable {
   _text: string;
 };
@@ -176,6 +188,7 @@ export class MdapiConfig {
   public static DocumentFolder: string = 'DocumentFolder';
   public static DashboardFolder: string = 'DashboardFolder';
   public static OrgPreferenceSettings: string = 'OrgPreferenceSettings';
+  public static SearchSettings: string = 'SearchSettings';
 
   //https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_managedtopics.htm
   public static ManagedTopic: string = 'ManagedTopic';
