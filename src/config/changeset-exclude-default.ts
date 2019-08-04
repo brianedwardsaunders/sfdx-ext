@@ -19,6 +19,8 @@ export class ChangesetExcludeDefault implements ChangesetExclude {
         "wave"
     ];
     public fileExcludes: Array<string> = [
+        "authproviders/Liberty_Azure_B2C.authprovider",
+        "authproviders/Liberty_Azure_B2C_Portal.authprovider",
         "liveChatDeployments/Live_Agent.liveChatDeployment", // can't delete once created
         "liveChatButtons/AW_Bot_button.liveChatButton", // can't delete once created
         "applications/FinServ__BankingConsoleFinancialServicesCloud.app",
@@ -52,6 +54,8 @@ export class ChangesetExcludeDefault implements ChangesetExclude {
         "userCriteria/testcommunity.Partner_and_Customer_members.userCriteria",
         "contentassets/elliegif1.asset",
         "contentassets/elliegif1.asset-meta.xml",
+        "contentassets/elliegif2.asset",
+        "contentassets/elliegif2.asset-meta.xml",
         "contentassets/online_pay_final.asset",
         "contentassets/online_pay_final.asset-meta.xml",
         "contentassets/einsteinheader3.asset",
