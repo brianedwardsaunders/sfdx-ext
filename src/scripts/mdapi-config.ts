@@ -62,6 +62,7 @@ export interface DiffRecord {
   diffType: DiffType;
   diffSize: number; // init
   fileContent: string; // specifically for profile
+  title: string; // name info
 };
 
 export interface ChangesetExclude {
@@ -126,6 +127,11 @@ export interface ListView {
 export interface Dashboard {
   dashboardType: Textable;
   runningUser: Textable;
+  title: Textable;
+};
+
+export interface Report {
+  name: Textable;
 };
 
 export interface OrgPreferenceSettings {
@@ -309,6 +315,7 @@ export class MdapiConfig {
   public static outboundMessages: string = "outboundMessages";
   public static rules: string = "rules";
   public static tasks: string = "tasks";
+
   //https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_assignmentrule.htm
   public static assignmentRule: string = "assignmentRule";
   //https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_autoresponserules.htm
@@ -378,6 +385,10 @@ export class MdapiConfig {
     FlowDefinition: [MdapiCommon.ASTERIX],
     CustomObject: [MdapiConfig.ActiveScratchOrg, MdapiConfig.NamespaceRegistry, MdapiConfig.ScratchOrgInfo], // prod specific 
     CustomApplication: [MdapiConfig.standard__LightningInstrumentation] // prod specific 
+  };
+
+  public static packageExceptions = {
+    CustomLabel: [MdapiCommon.ASTERIX] // parent (CustomLabels) deploys but not children
   };
 
   // unsupported both sfdx and mdapi as at 46.0
@@ -580,7 +591,7 @@ export class MdapiConfig {
     ManagedTopic: MdapiConfig.ManagedTopic,
     //Botversion
     BotVersion: MdapiConfig.botVersions,
-    // Territory2Rule
+    // Territory2Rule (need to handle this as exception has folders)
     Territory2Rule: MdapiConfig.rules
   };
 
@@ -779,7 +790,7 @@ export class MdapiConfig {
 
           MdapiConfig.describeMetadataFile(result);
 
-          let metadataObjects: Array<MetadataObject> = result.metadataObjects;
+          let metadataObjects: Array<MetadataObject> = MdapiCommon.objectToArray(result.metadataObjects);
 
           config.metadataObjects = metadataObjects;
 
@@ -1229,20 +1240,44 @@ export class MdapiConfig {
       "metadataObject": metadataObject,
       "fileSize": stats.size,
       "diffType": DiffType.None,
-      "diffSize": 0, // init
-      "fileContent": null
+      "diffSize": 0,
+      "fileContent": null,
+      "title": null
     });
+
+    if (!folderXml && (diffRecord.metadataName === MdapiConfig.Report)) {
+      diffRecord.title = MdapiConfig.extractReportName(filePath);
+    } // end if 
+    else if (!folderXml && (diffRecord.metadataName === MdapiConfig.Dashboard)) {
+      diffRecord.title = MdapiConfig.extractDashboardTitle(filePath);
+    }// end else if
 
     // add new unique entry
     metaRegister[relativeFilePath] = diffRecord;
 
   }// end method
 
+  public static extractReportName(filePath: string): string {
+
+    let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
+    let report: Report = jsonObject[MdapiConfig.Report];
+    return report.name._text;
+
+  }// end if
+
+  public static extractDashboardTitle(filePath: string): string {
+
+    let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
+    let dashboard: Dashboard = jsonObject[MdapiConfig.Dashboard];
+    return dashboard.title._text;
+
+  }// end if
+
   // children only present on one side so no compare needed but do list
   public static inspectMetaChildren(config: IConfig, packageDiffRecords: Record<string, Array<DiffRecord>>, parent: DiffRecord): void {
 
     let childMetaObject: Object = MdapiCommon.xmlFileToJson(parent.filePath);
-    let childXmlNames: Array<string> = parent.metadataObject.childXmlNames;
+    let childXmlNames: Array<string> = MdapiCommon.objectToArray(parent.metadataObject.childXmlNames);
 
     for (let x: number = 0; x < childXmlNames.length; x++) {
 
@@ -1273,7 +1308,9 @@ export class MdapiConfig {
           "metadataObject": childMetadataObject,
           "fileSize": childString.length,
           "diffType": parent.diffType,
-          "diffSize": 0
+          "diffSize": 0,
+          "fileContent": null,
+          "title": null
         });
 
         packageDiffRecords[childMetaName].push(childItem);

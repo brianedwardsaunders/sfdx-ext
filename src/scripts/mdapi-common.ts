@@ -49,10 +49,10 @@ export class MdapiCommon {
 
     public static hashCode(input: string): number {
         let hash: number = 0;
-        if (input.length === 0) return hash;
+        if (!input || (input.length === 0)) { return hash; }
         for (let i: number = 0; i < input.length; i++) {
             let chr = input.charCodeAt(i);
-            hash = ((hash << 5) - hash) + chr;
+            hash = (((hash << 5) - hash) + chr);
             hash |= 0;
         }// end for
         return hash;

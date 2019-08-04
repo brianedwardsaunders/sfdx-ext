@@ -58,6 +58,7 @@ export class MdapiChangesetUtility {
     protected destructiveMatchResults: Record<string, Array<DiffRecord>> = {};
 
     protected destructiveExceptions = MdapiConfig.destructiveExceptions;
+    protected packageExceptions = MdapiConfig.packageExceptions;
 
     // configurable see config/changeset-exclude-template.json and ignorePath
     protected directoryExcludeList: Array<string> = [];
@@ -190,14 +191,36 @@ export class MdapiChangesetUtility {
 
     }// end method
 
-    protected isDestructiveException(metaType: string, element: string) {
-
+    protected isPackageException(metaType: string, element: string) {
         let exception: boolean = false;
+        if (this.packageExceptions[metaType]) {
+            let excludeElements: Array<string> = this.packageExceptions[metaType];
+            if (this.packageExceptions[0] === MdapiCommon.ASTERIX) { // all
+                exception = true;
+            } else {
+                for (let x: number = 0; x < excludeElements.length; x++) {
+                    if (element === excludeElements[x]) {
+                        exception = true;
+                        break;
+                    }// end if
+                }// end for
+            }// end else
+        }// end if
+        return exception;
+    }// end method
 
+    protected isGlobalPackageException(metaType: string): boolean {
+        if (this.packageExceptions[metaType] &&
+            (this.packageExceptions[metaType][0] === MdapiCommon.ASTERIX)) {
+            return true;
+        }// end if
+        return false;
+    }// end method
+
+    protected isDestructiveException(metaType: string, element: string) {
+        let exception: boolean = false;
         if (this.destructiveExceptions[metaType]) {
-
             let excludeElements: Array<string> = this.destructiveExceptions[metaType];
-
             if (this.destructiveExceptions[0] === MdapiCommon.ASTERIX) { // all
                 exception = true;
             } else {
@@ -209,19 +232,15 @@ export class MdapiChangesetUtility {
                 }// end for
             }// end else
         }// end if
-
         return exception;
-
     }// end method
 
     protected isGlobalDestructiveException(metaType: string): boolean {
-
         if (this.destructiveExceptions[metaType] &&
             (this.destructiveExceptions[metaType][0] === MdapiCommon.ASTERIX)) {
             return true;
         }// end if
         return false;
-
     }// end method
 
     protected setupDiffRecords(): void {
@@ -305,7 +324,8 @@ export class MdapiChangesetUtility {
                     "fileSize": childString.length,
                     "diffType": item.diffType,
                     "diffSize": 0,
-                    "fileContent": null
+                    "fileContent": null,
+                    "title": null
                 });
 
                 if (item.diffType === DiffType.Left) {
@@ -402,7 +422,8 @@ export class MdapiChangesetUtility {
                     "fileSize": leftChildString.length,
                     "diffType": DiffType.None,
                     "diffSize": 0,
-                    "fileContent": null
+                    "fileContent": null,
+                    "title": null
                 });
 
                 if (!diffRecord.metadataName) {
@@ -485,9 +506,10 @@ export class MdapiChangesetUtility {
                     "metadataName": childMetaName,
                     "metadataObject": childMetadataObject,
                     "fileSize": rightChildString.length,
-                    "diffType": DiffType.None, //init
+                    "diffType": DiffType.None,
                     "diffSize": 0,
-                    "fileContent": null
+                    "fileContent": null,
+                    "title": null
                 });
 
                 if (!diffRecord.metadataName) {
@@ -698,16 +720,13 @@ export class MdapiChangesetUtility {
     protected createPackageFile(packageFile: string, diffRecords: Record<string, Array<DiffRecord>>, changeType: ChangeType): void {
 
         let xmlContent: string = MdapiConfig.packageXmlHeader();
-
         let metadataObjectNames: Array<string> = MdapiConfig.sortDiffRecordTypes(diffRecords);
 
         for (let i: number = 0; i < metadataObjectNames.length; i++) {
 
             let metadataObjectName: string = metadataObjectNames[i];
 
-            if (diffRecords[metadataObjectName].length === 0) {
-                continue;
-            }// end if
+            if (diffRecords[metadataObjectName].length === 0) { continue; }// end if
 
             let rawMembers: Array<DiffRecord> = diffRecords[metadataObjectName];
             let limitedMembers: Array<string> = [];
@@ -718,15 +737,16 @@ export class MdapiChangesetUtility {
             for (let x: number = 0; x < rawMembers.length; x++) {
 
                 let diffRecord: DiffRecord = rawMembers[x];
+                let title: string = ((diffRecord.title === null) ? "" : "name (" + diffRecord.title + "), ");
 
                 comments += (diffRecord.diffType + ": " + diffRecord.directory +
-                    MdapiCommon.PATH_SEP + MdapiCommon.isolateLeafNode(diffRecord.filePath)
-                    + ", delta-size " + diffRecord.diffSize + " (bytes)" + ", file-size "
+                    MdapiCommon.PATH_SEP + MdapiCommon.isolateLeafNode(diffRecord.filePath) + ", " + title
+                    + "delta-size " + diffRecord.diffSize + " (bytes)" + ", file-size "
                     + diffRecord.fileSize + " (bytes), file-hash (" + diffRecord.fileHash + ") \n");
 
                 if ((changeType === ChangeType.DestructiveChanges) && diffRecord.folderXml) {
-                    let excludeFolderMessage: string = 'NOTE: excluding folder type from destructiveChanges ('
-                        + diffRecord.memberName + '), review manually in target org';
+                    let excludeFolderMessage: string = ("NOTE: excluding folder type from destructiveChanges ("
+                        + diffRecord.memberName + "), review manually in target org");
                     this.ux.log(excludeFolderMessage);
                     comments += (excludeFolderMessage + '\n');
                 }// end if
@@ -743,19 +763,20 @@ export class MdapiChangesetUtility {
 
             if (members.length > 0) {
 
-                let isGlobalException = ((changeType === ChangeType.DestructiveChanges) &&
-                    this.isGlobalDestructiveException(metadataObjectName));
+                let isGlobalException = (((changeType === ChangeType.DestructiveChanges) &&
+                    this.isGlobalDestructiveException(metadataObjectName)) ||
+                    ((changeType === ChangeType.Package) && this.isGlobalPackageException(metadataObjectName)));
 
                 if (isGlobalException) { // comment out type which throws error when deploying.
                     xmlContent += "<!-- \n";
-                    let exceptionMessage = 'NOTE: excluding meta type from destructiveChanges ('
+                    let exceptionMessage = 'NOTE: excluding meta type from ' + changeType + ' ('
                         + metadataObjectName + '), review manually in target org';
                     this.ux.log(exceptionMessage);
                     xmlContent += (exceptionMessage + '\n');
                 }// end if
 
-                xmlContent += MdapiCommon.TWO_SPACE + '<types>\n';
-                xmlContent += MdapiCommon.FOUR_SPACE + '<name>' + metadataObjectName + '</name>\n';
+                xmlContent += (MdapiCommon.TWO_SPACE + '<types>\n');
+                xmlContent += (MdapiCommon.FOUR_SPACE + '<name>' + metadataObjectName + '</name>\n');
 
                 for (let y = 0; y < members.length; y++) {
                     let member = members[y];
@@ -764,11 +785,11 @@ export class MdapiChangesetUtility {
                         throw "unexpected blank member";
                     } // no blanks
                     else if (MdapiConfig.isExcludedFile(member)) { continue; } // e.g. lwc tech files.
-                    else if (((changeType === ChangeType.DestructiveChanges) &&
-                        this.isDestructiveException(metadataObjectName, member))) {
-                        xmlContent += '<!-- EXCLUDED:    <members>' + member + '</members> -->\n';
+                    else if ((((changeType === ChangeType.DestructiveChanges) && this.isDestructiveException(metadataObjectName, member))) ||
+                        ((changeType === ChangeType.Package) && this.isPackageException(metadataObjectName, member))) {
+                        xmlContent += '<!-- EXCLUDED:' + MdapiCommon.FOUR_SPACE + '<members>' + member + '</members> -->\n';
                     }
-                    else { xmlContent += MdapiCommon.FOUR_SPACE + '<members>' + member + '</members>\n'; }
+                    else { xmlContent += (MdapiCommon.FOUR_SPACE + '<members>' + member + '</members>\n'); }
                 }// end for
 
                 xmlContent += (MdapiCommon.TWO_SPACE + '</types>\n');
@@ -1058,10 +1079,10 @@ export class MdapiChangesetUtility {
                 }// end if
             }// end for
 
-            // this causes errors
-            let tabVisibilities: Array<TabVisibility> = MdapiCommon.objectToArray(profile.tabVisibilities);
+            // this causes errors (check this)
+            // let tabVisibilities: Array<TabVisibility> = MdapiCommon.objectToArray(profile.tabVisibilities);
 
-            for (let x: number = 0; x < tabVisibilities.length; x++) {
+            /* for (let x: number = 0; x < tabVisibilities.length; x++) {
                 let tabVisibility = tabVisibilities[x];
                 // You can't edit tab settings for SocialPersona, as it's not a valid tab.
                 if (tabVisibility.tab._text === 'standard-SocialPersona') {
@@ -1069,8 +1090,10 @@ export class MdapiChangesetUtility {
                     break;
                 }// end if
             }// end for
+            
+            */
 
-            let fieldPermissions: Array<FieldPermission> = MdapiCommon.objectToArray(profile.fieldPermissions);
+            /* let fieldPermissions: Array<FieldPermission> = MdapiCommon.objectToArray(profile.fieldPermissions);
 
             // field service field being injected in to PersonLifeEvent object (remove)
             for (let x: number = 0; x < fieldPermissions.length; x++) {
@@ -1080,6 +1103,8 @@ export class MdapiChangesetUtility {
                     break;
                 }// end if
             }// end for
+            
+            */
 
             MdapiCommon.jsonToXmlFile(jsonObject, filePath);
 
@@ -1120,26 +1145,6 @@ export class MdapiChangesetUtility {
                 MdapiCommon.jsonToXmlFile(jsonObject, filePath);
 
             }// end if
-            /* else if (filePath.endsWith('Search.settings')) {
-
-                let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
-                let searchSettings: SearchSettings = jsonObject[MdapiConfig.SearchSettings];
-                let searchSettingsByObject: SearchSettingsByObject = searchSettings.searchSettingsByObject;
-                let searchSettingsByObjectArray: Array<SearchSettingsByObject> = MdapiCommon.objectToArray(searchSettingsByObject.searchSettingsByObject);
-
-                for (let x: number = 0; x < searchSettingsByObjectArray.length; x++) {
-                    let setting: SearchSettingsByObject = searchSettingsByObjectArray[x];
-                    // 	Entity is null or entity element's name is null
-                    if ((setting.name._text === 'ContactSuggestionInsight') ||
-                        (setting.name._text === 'OpportunityContactRoleSuggestionInsight')) {
-                        searchSettingsByObjectArray.splice(x, 1);
-                    }// end if
-                }// end for
-
-                MdapiCommon.jsonToXmlFile(jsonObject, filePath);
-
-            }// end if 
-            */
 
         }// end if
 
