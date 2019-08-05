@@ -1199,7 +1199,7 @@ export class MdapiChangesetUtility {
                 let customObject: CustomObject = jsonObject[MdapiConfig.CustomObject];
                 let listViews: Array<ListView> = MdapiCommon.objectToArray(customObject.listViews);
 
-                // FIXME should actually be looking for duplicates and removing. on all list views....
+                // looking for duplicates and removing on list views....
                 for (let x: number = 0; x < listViews.length; x++) {
                     let count: number = 0;
                     let listView: ListView = listViews[x];
