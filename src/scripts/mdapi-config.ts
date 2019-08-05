@@ -76,7 +76,29 @@ export interface Profile {
   tabVisibilities?: TabVisibility | Array<TabVisibility>;
   fieldPermissions?: FieldPermission | Array<FieldPermission>;
   objectPermissions?: ObjectPermission | Array<ObjectPermission>;
+  customPermissions?: CustomPermission | Array<CustomPermission>;
+  classAccesses?: ClassAccess | Array<ClassAccess>;
+  applicationVisibilities?: ApplicationVisibility | Array<ApplicationVisibility>;
+  pageAccesses?: PageAccess | Array<PageAccess>;
+  recordTypeVisibilities?: RecordTypeVisibility | Array<RecordTypeVisibility>;
   custom: Textable;
+};
+
+export interface RecordTypeVisibility {
+  default: Textable;
+  recordType: Textable;
+  visible: Textable;
+};
+
+export interface PageAccess {
+  apexPage: Textable;
+  enabled: Textable;
+};
+
+export interface ApplicationVisibility {
+  application: Textable;
+  default: Textable;
+  visible: Textable;
 };
 
 export interface ObjectPermission {
@@ -89,10 +111,20 @@ export interface ObjectPermission {
   object: Textable;
 };
 
+export interface ClassAccess {
+  apexClass: Textable;
+  enabled: Textable;
+};
+
 export interface FieldPermission {
   field: Textable;
   editable: Textable;
   readable: Textable;
+};
+
+export interface CustomPermission {
+  enabled: Textable;
+  name: Textable;
 };
 
 export interface TabVisibility {
@@ -1316,7 +1348,6 @@ export class MdapiConfig {
         packageDiffRecords[childMetaName].push(childItem);
 
       }// end for
-
     }// end for
 
   }// end method

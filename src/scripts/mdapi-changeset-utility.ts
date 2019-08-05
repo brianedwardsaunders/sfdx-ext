@@ -20,7 +20,12 @@ import {
     RelativePosition,
     CustomObjectChild,
     ObjectPermission,
-    UserPermission
+    UserPermission,
+    ClassAccess,
+    CustomPermission,
+    ApplicationVisibility,
+    PageAccess,
+    RecordTypeVisibility
 } from "./mdapi-config";
 import { UX } from "@salesforce/command";
 import path = require('path');
@@ -555,6 +560,11 @@ export class MdapiChangesetUtility {
         let leftUserPermissions: Array<UserPermission> = MdapiCommon.objectToArray(leftProfile.userPermissions);
         let leftTabVisibilities: Array<TabVisibility> = MdapiCommon.objectToArray(leftProfile.tabVisibilities);
         let leftFieldPermissions: Array<FieldPermission> = MdapiCommon.objectToArray(leftProfile.fieldPermissions);
+        let leftCustomPermissions: Array<CustomPermission> = MdapiCommon.objectToArray(leftProfile.customPermissions);
+        let leftClassAccesses: Array<ClassAccess> = MdapiCommon.objectToArray(leftProfile.classAccesses);
+        let leftApplicationVisibilities: Array<ApplicationVisibility> = MdapiCommon.objectToArray(leftProfile.applicationVisibilities);
+        let leftPageAccesses: Array<PageAccess> = MdapiCommon.objectToArray(leftProfile.pageAccesses);
+        let leftRecordTypeVisibilities: Array<RecordTypeVisibility> = MdapiCommon.objectToArray(leftProfile.recordTypeVisibilities);
 
         // extract right 
         let rightJsonObject: Object = MdapiCommon.xmlFileToJson(rightItem.filePath);
@@ -563,6 +573,11 @@ export class MdapiChangesetUtility {
         let rightUserPermissions: Array<UserPermission> = MdapiCommon.objectToArray(rightProfile.userPermissions);
         let rightTabVisibilities: Array<TabVisibility> = MdapiCommon.objectToArray(rightProfile.tabVisibilities);
         let rightFieldPermissions: Array<FieldPermission> = MdapiCommon.objectToArray(rightProfile.fieldPermissions);
+        let rightCustomPermissions: Array<CustomPermission> = MdapiCommon.objectToArray(rightProfile.customPermissions);
+        let rightClassAccesses: Array<ClassAccess> = MdapiCommon.objectToArray(rightProfile.classAccesses);
+        let rightApplicationVisibilities: Array<ApplicationVisibility> = MdapiCommon.objectToArray(rightProfile.applicationVisibilities);
+        let rightPageAccesses: Array<PageAccess> = MdapiCommon.objectToArray(rightProfile.pageAccesses);
+        let rightRecordTypeVisibilities: Array<RecordTypeVisibility> = MdapiCommon.objectToArray(rightProfile.recordTypeVisibilities);
 
         // process object permissions
         for (let right: number = 0; right < rightObjectPermissions.length; right++) {
@@ -642,6 +657,99 @@ export class MdapiChangesetUtility {
             }// end if
         }// end for right
 
+        // process custom permissions
+        for (let right: number = 0; right < rightCustomPermissions.length; right++) {
+            let found: boolean = false;
+            let rightCustomPermission: CustomPermission = rightCustomPermissions[right];
+            for (let left: number = 0; left < leftCustomPermissions.length; left++) {
+                let leftCustomPermission: CustomPermission = leftCustomPermissions[left];
+                if (rightCustomPermission.name._text === leftCustomPermission.name._text) {
+                    found = true;
+                    break;
+                }// end if
+            }// end for left
+            // handle if not found
+            if (!found) {
+                rightCustomPermission.enabled._text = 'false';
+                leftCustomPermissions.push(rightCustomPermission);
+            }// end if
+        }// end for right
+
+        // process class accesses
+        for (let right: number = 0; right < leftClassAccesses.length; right++) {
+            let found: boolean = false;
+            let rightClassAccess: ClassAccess = rightClassAccesses[right];
+            for (let left: number = 0; left < leftClassAccesses.length; left++) {
+                let leftClassAccess: ClassAccess = leftClassAccesses[left];
+                if (rightClassAccess.apexClass._text === leftClassAccess.apexClass._text) {
+                    found = true;
+                    break;
+                }// end if
+            }// end for left
+            // handle if not found
+            if (!found) {
+                rightClassAccess.enabled._text = 'false';
+                leftClassAccesses.push(rightClassAccess);
+            }// end if
+        }// end for right
+
+        // process application visibilities
+        for (let right: number = 0; right < rightApplicationVisibilities.length; right++) {
+            let found: boolean = false;
+            let rightApplicationVisibility: ApplicationVisibility = rightApplicationVisibilities[right];
+            for (let left: number = 0; left < leftApplicationVisibilities.length; left++) {
+                let leftApplicationVisibility: ApplicationVisibility = leftApplicationVisibilities[left];
+                if (rightApplicationVisibility.application._text === leftApplicationVisibility.application._text) {
+                    found = true;
+                    break;
+                }// end if
+            }// end for left
+            // handle if not found
+            if (!found) {
+                rightApplicationVisibility.default._text = 'false';
+                rightApplicationVisibility.visible._text = 'false';
+                leftApplicationVisibilities.push(rightApplicationVisibility);
+            }// end if
+        }// end for right
+
+        // process page accesses
+        for (let right: number = 0; right < leftPageAccesses.length; right++) {
+            let found: boolean = false;
+            let rightPageAccess: PageAccess = rightPageAccesses[right];
+            for (let left: number = 0; left < leftPageAccesses.length; left++) {
+                let leftPageAccess: PageAccess = leftPageAccesses[left];
+                if (rightPageAccess.apexPage._text === leftPageAccess.apexPage._text) {
+                    found = true;
+                    break;
+                }// end if
+            }// end for left
+            // handle if not found
+            if (!found) {
+                rightPageAccess.enabled._text = 'false';
+                leftPageAccesses.push(rightPageAccess);
+            }// end if
+        }// end for right
+
+        // process record type visibilities
+        for (let right: number = 0; right < rightRecordTypeVisibilities.length; right++) {
+            let found: boolean = false;
+            let rightRecordTypeVisibility: RecordTypeVisibility = rightRecordTypeVisibilities[right];
+            for (let left: number = 0; left < leftRecordTypeVisibilities.length; left++) {
+                let leftRecordTypeVisibility: RecordTypeVisibility = leftRecordTypeVisibilities[left];
+                if (rightRecordTypeVisibility.recordType._text === leftRecordTypeVisibility.recordType._text) {
+                    found = true;
+                    break;
+                }// end if
+            }// end for left
+            // handle if not found
+            if (!found) {
+                rightRecordTypeVisibility.default._text = 'false';
+                rightRecordTypeVisibility.visible._text = 'false';
+                leftRecordTypeVisibilities.push(rightRecordTypeVisibility);
+            }// end if
+        }// end for right
+
+        // update left profile record
         MdapiCommon.jsonToXmlFile(leftJsonObject, leftItem.filePath);
 
     }// end if
@@ -982,7 +1090,7 @@ export class MdapiChangesetUtility {
 
                 MdapiCommon.jsonToXmlFile(jsonObject, filePath);
 
-            }// end if
+            }// end else if
             else if (filePath.endsWith('Task.object')) {
 
                 let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
@@ -1059,7 +1167,7 @@ export class MdapiChangesetUtility {
                     else if (layoutAssignment.recordType._text === layoutAssignmentCompare.recordType._text) {
                         count++;
                     }// end else if
-
+                    // check if more than one
                     if (count > 1) {
                         instance.ux.warn('removing duplicate ' + layoutAssignmentCompare.layout._text
                             + ' layoutAssignment record type ' + layoutAssignmentCompare.recordType._text + ' in profile ' + filePath);
@@ -1079,36 +1187,9 @@ export class MdapiChangesetUtility {
                 }// end if
             }// end for
 
-            // this causes errors (check this)
-            // let tabVisibilities: Array<TabVisibility> = MdapiCommon.objectToArray(profile.tabVisibilities);
-
-            /* for (let x: number = 0; x < tabVisibilities.length; x++) {
-                let tabVisibility = tabVisibilities[x];
-                // You can't edit tab settings for SocialPersona, as it's not a valid tab.
-                if (tabVisibility.tab._text === 'standard-SocialPersona') {
-                    tabVisibilities.splice(x, 1); // pop
-                    break;
-                }// end if
-            }// end for
-            
-            */
-
-            /* let fieldPermissions: Array<FieldPermission> = MdapiCommon.objectToArray(profile.fieldPermissions);
-
-            // field service field being injected in to PersonLifeEvent object (remove)
-            for (let x: number = 0; x < fieldPermissions.length; x++) {
-                let fieldPermission = fieldPermissions[x];
-                if (fieldPermission.field._text === 'PersonLifeEvent.LocationId') {
-                    fieldPermissions.splice(x, 1); // pop
-                    break;
-                }// end if
-            }// end for
-            
-            */
-
             MdapiCommon.jsonToXmlFile(jsonObject, filePath);
 
-        }// end if (profile)
+        }// end else if (profile)
         // check dashboard run as issues
         else if (grandParentFolder === MdapiConfig.dashboards) {
 
@@ -1125,7 +1206,7 @@ export class MdapiChangesetUtility {
 
             MdapiCommon.jsonToXmlFile(jsonObject, filePath);
 
-        }// end if (dashboards)
+        }// end else if (dashboards)
         else if (typeFolder === MdapiConfig.settings) {
 
             if (filePath.endsWith('OrgPreference.settings')) {
@@ -1136,7 +1217,7 @@ export class MdapiChangesetUtility {
 
                 for (let x: number = 0; x < preferences.length; x++) {
                     let preference: Preference = preferences[x];
-                    ////You do not have sufficient rights to access the organization setting: CompileOnDeploy
+                    // You do not have sufficient rights to access the organization setting: CompileOnDeploy
                     if (preference.settingName._text === 'CompileOnDeploy') {
                         preferences.splice(x, 1);
                     }// end if
@@ -1146,7 +1227,7 @@ export class MdapiChangesetUtility {
 
             }// end if
 
-        }// end if
+        }// end else if
 
     }// end method
 
@@ -1199,6 +1280,8 @@ export class MdapiChangesetUtility {
         let changesetExclude: ChangesetExclude = null;
         this.settings.apiVersion = this.apiVersion;
 
+        this.ux.log('setting up excluded meta directory and file items...');
+
         if (this.revisionFrom && this.revisionTo) { this.versionControlled = true; }
 
         if (this.ignorePath) {
@@ -1211,8 +1294,14 @@ export class MdapiChangesetUtility {
         }// end else
 
         this.directoryExcludeList = changesetExclude.directoryExcludes;
+
+        this.ux.log('excluded directories: ' + JSON.stringify(this.directoryExcludeList, null, MdapiCommon.jsonSpaces));
+
         this.fileExcludeList = changesetExclude.fileExcludes;
-        this.ux.log('changeset exclude items loaded');
+
+        this.ux.log('excluded files: ' + JSON.stringify(this.fileExcludeList, null, MdapiCommon.jsonSpaces));
+
+        this.ux.log('changeset exclude items loaded (please regularly review these items: use the --ignorepath flag to modify)');
 
     }// end method
 
