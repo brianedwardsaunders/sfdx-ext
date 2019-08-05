@@ -792,10 +792,10 @@ export class MdapiChangesetUtility {
 
         if (sourceCheckZero !== 0) {
             this.ux.log('--------------------------------');
-            this.ux.log('sourceFileIgnored        : ' + this.config.sourceFileIgnored);
-            this.ux.log('sourceFileProcessed      : ' + this.config.sourceFileProcessed);
-            this.ux.log('sourceFileTotal          : ' + this.config.sourceFileTotal);
-            this.ux.log('sourceCheckZero          : ' + sourceCheckZero);
+            this.ux.log('sourceFileIgnored    : ' + this.config.sourceFileIgnored);
+            this.ux.log('sourceFileProcessed  : ' + this.config.sourceFileProcessed);
+            this.ux.log('sourceFileTotal      : ' + this.config.sourceFileTotal);
+            this.ux.log('sourceCheckZero      : ' + sourceCheckZero);
             this.ux.log('--------------------------------');
             throw "sourceCheckZero recon failure expecting 0 to balance";
         }// end if
@@ -822,10 +822,10 @@ export class MdapiChangesetUtility {
 
         if (packageCheckZero !== 0) {
             this.ux.log('--------------------------------');
-            this.ux.log('packageDiffCount      : ' + this.diffStats.packageDiffCount);
-            this.ux.log('packageMatchCount     : ' + this.diffStats.packageMatchCount);
-            this.ux.log('packageCombinedCount  : ' + this.diffStats.packageCombinedCount);
-            this.ux.log('packageCheckZeroSum   : ' + packageCheckZero);
+            this.ux.log('packageDiffCount         : ' + this.diffStats.packageDiffCount);
+            this.ux.log('packageMatchCount        : ' + this.diffStats.packageMatchCount);
+            this.ux.log('packageCombinedCount     : ' + this.diffStats.packageCombinedCount);
+            this.ux.log('packageCheckZeroSum      : ' + packageCheckZero);
             this.ux.log('--------------------------------');
             throw "packageCheckZeroSum recon failure expecting 0 to balance";
         }// end if
@@ -1466,56 +1466,56 @@ export class MdapiChangesetUtility {
         return new Promise((resolve, reject) => {
 
             this.ux.log('initialising...');
-            this.init(); // reviewed
+            this.init();
 
             this.ux.startSpinner('setup folders');
-            this.setupFolders(); // reviewed
+            this.setupFolders();
             this.ux.stopSpinner();
 
             this.ux.log('checking revisions (please standby)...');
-            this.checkoutRevisions().then(() => { // reviewed
+            this.checkoutRevisions().then(() => {
 
                 this.ux.log('check local backup and restore...');
-                this.checkLocalBackupAndRestore(); // reviewed
+                this.checkLocalBackupAndRestore();
 
-                // async calls
+                // async call
                 this.ux.startSpinner('describe metadata');
-                MdapiConfig.describeMetadata(this.org, this.config, this.settings).then(() => { // reviewed
+                MdapiConfig.describeMetadata(this.org, this.config, this.settings).then(() => {
 
                     this.ux.stopSpinner();
 
                     this.ux.log('deleting excluded directories');
-                    this.deleteExcludedDirectories(); // reviewed
+                    this.deleteExcludedDirectories();
 
                     this.ux.log('deleting excluded files');
-                    this.deleteExcludedFiles(); // reviewed
+                    this.deleteExcludedFiles();
 
                     this.ux.log('setup diff records...');
-                    this.setupDiffRecords(); // reviewed
+                    this.setupDiffRecords();
 
                     this.ux.log('walk directories...');
-                    this.walkDirectories(); // reviewed
+                    this.walkDirectories();
 
-                    this.ux.log('record walk directories...');
-                    this.reconWalkDirectories(); // reviewed
+                    this.ux.log('recon walk directories...');
+                    this.reconWalkDirectories();
 
                     this.ux.log('compare source and target...');
-                    this.compareSourceAndTarget(); // reviewed
+                    this.compareSourceAndTarget();
 
                     this.ux.log('recon source and target...');
-                    this.reconSourceAndTarget(); // reviewed
+                    this.reconSourceAndTarget();
 
                     this.ux.log('prepare package directory...');
-                    this.preparePackageDirectory(); // reviewed
+                    this.preparePackageDirectory();
 
                     this.ux.log('prepare destructiveChanges.xml and package.xml...');
-                    this.createPackageXmls(); // reviewed
+                    this.createPackageXmls();
 
                     this.ux.log('copy deployment files...');
-                    this.copyDeploymentFiles(); // reviewed
+                    this.copyDeploymentFiles();
 
                     this.ux.log('post file screening...');
-                    this.postScreenDeploymentFiles(); // reviewed
+                    this.postScreenDeploymentFiles();
 
                     this.ux.log('finishing up...');
                     resolve();
