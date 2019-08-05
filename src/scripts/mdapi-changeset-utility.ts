@@ -30,6 +30,16 @@ import {
 import { UX } from "@salesforce/command";
 import path = require('path');
 
+export interface DiffStats {
+    packageDiffCount: number;
+    packageMatchCount: number;
+    packageCombinedCount: number;
+    destructiveDiffCount: number;
+    destructiveIgnoreCount: number;
+    destructiveMatchCount: number;
+    destructiveCombinedCount: number;
+};
+
 export class MdapiChangesetUtility {
 
     // local org to org deploy if false
@@ -61,6 +71,9 @@ export class MdapiChangesetUtility {
     protected destructiveDiffRecords: Record<string, Array<DiffRecord>> = {};
     protected destructiveIgnoreResults: Record<string, Array<DiffRecord>> = {};
     protected destructiveMatchResults: Record<string, Array<DiffRecord>> = {};
+    protected destructiveCombinedResults: Record<string, Array<DiffRecord>> = {};
+
+    protected diffStats: DiffStats;
 
     protected destructiveExceptions = MdapiConfig.destructiveExceptions;
     protected packageExceptions = MdapiConfig.packageExceptions;
@@ -87,7 +100,7 @@ export class MdapiChangesetUtility {
 
     // because diff is left sfdx destructive return left to original state
     protected checkLocalBackupAndRestore(): void {
-        if (this.versionControlled) { return; }//no need to backup if version controlled
+        if (this.versionControlled) { return; }// no need to backup if version controlled
         this.ux.log('checking for local backup ' + this.sourceRetrieveDirBackup + '...');
         if (!existsSync(this.sourceRetrieveDirBackup)) { // first time
             mkdirSync(this.sourceRetrieveDirBackup);
@@ -192,7 +205,6 @@ export class MdapiChangesetUtility {
         this.fileDestructiveChangesXml = (this.sourceDeployDirTarget + MdapiCommon.PATH_SEP + MdapiConfig.destructiveChangesManifest);
         this.deploymentFilePackageXml = (this.sourceDeployDirTargetSource + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
         this.deploymentFileDestructiveChangesXml = (this.sourceDeployDirTargetSource + MdapiCommon.PATH_SEP + MdapiConfig.destructiveChangesPostXml);
-        // this.deploymentFileDestructiveChangesXml = (this.sourceDeployDirTargetSource + MdapiCommon.PATH_SEP + MdapiConfig.destructiveChangesXml);
 
     }// end method
 
@@ -259,6 +271,7 @@ export class MdapiChangesetUtility {
         MdapiConfig.initDiffRecordsLookup(this.config, this.destructiveDiffRecords);
         MdapiConfig.initDiffRecordsLookup(this.config, this.destructiveIgnoreResults);
         MdapiConfig.initDiffRecordsLookup(this.config, this.destructiveMatchResults);
+        MdapiConfig.initDiffRecordsLookup(this.config, this.destructiveCombinedResults);
 
     }// end method
 
@@ -336,14 +349,22 @@ export class MdapiChangesetUtility {
                 if (item.diffType === DiffType.Left) {
                     diffRecord.diffSize = childString.length;
                     this.packageDiffRecords[childMetaName].push(diffRecord);
+                    this.diffStats.packageDiffCount++;
+
+                    this.diffStats.packageCombinedCount++;
+                    this.packageCombinedResults[childMetaName].push(diffRecord);
+
                 } else if (item.diffType === DiffType.Right) {
                     diffRecord.diffSize = (-childString.length);
                     this.destructiveIgnoreResults[childMetaName].push(diffRecord);
+                    this.diffStats.destructiveIgnoreCount++;
+
+                    this.diffStats.destructiveCombinedCount++;
+                    this.destructiveCombinedResults[childMetaName].push(diffRecord);
+
                 } else {
                     throw "unexpected child diff edge event - only allows left or right members";
                 }// end else
-
-                this.packageCombinedResults[childMetaName].push(diffRecord);
 
             }// end for
 
@@ -447,24 +468,28 @@ export class MdapiChangesetUtility {
                     leftChildren.splice(left, 1);
                     rightChildren.splice(rightIndex, 1);
                     this.packageMatchResults[diffRecord.metadataName].push(diffRecord);
+                    this.diffStats.packageMatchCount++;
 
                 } else if (found && (leftCheckSum !== rightCheckSum)) {
 
                     diffRecord.diffType = DiffType.Diff;
                     diffRecord.diffSize = (leftChildString.length - rightChildString.length);
                     this.packageDiffRecords[diffRecord.metadataName].push(diffRecord);
+                    this.diffStats.packageDiffCount++;
 
                 } else if (!found) {// new entry on left                    
 
                     diffRecord.diffType = DiffType.Left;
                     diffRecord.diffSize = leftChildString.length; // maximum
                     this.packageDiffRecords[diffRecord.metadataName].push(diffRecord);
+                    this.diffStats.packageDiffCount++;
 
                 } else {
                     throw "unexpected compare left to right child scenario";
                 }// end else
 
                 this.packageCombinedResults[diffRecord.metadataName].push(diffRecord);
+                this.diffStats.packageCombinedCount++;
 
             }// end for left
 
@@ -530,15 +555,21 @@ export class MdapiChangesetUtility {
                     diffRecord.diffType = DiffType.Right;
                     diffRecord.diffSize = (-rightChildString.length);
                     this.destructiveDiffRecords[diffRecord.metadataName].push(diffRecord);
+                    this.diffStats.destructiveDiffCount++;
                 } else if (rightCheckSum !== leftCheckSum) {
                     diffRecord.diffType = DiffType.Diff; // already in left diff
                     diffRecord.diffSize = (rightChildString.length - leftChildString.length);
                     this.destructiveIgnoreResults[diffRecord.metadataName].push(diffRecord);
+                    this.diffStats.destructiveIgnoreCount++;
                 } else {// same unlikely to still exist
                     diffRecord.diffType = DiffType.Match;
                     diffRecord.diffSize = (rightChildString.length - leftChildString.length); // should be 0
                     this.destructiveMatchResults[diffRecord.metadataName].push(diffRecord);
+                    this.diffStats.destructiveMatchCount++;
                 }// end else
+
+                this.destructiveCombinedResults[diffRecord.metadataName].push(diffRecord);
+                this.diffStats.destructiveCombinedCount++;
 
             }// end for right
 
@@ -754,6 +785,67 @@ export class MdapiChangesetUtility {
 
     }// end if
 
+    protected reconWalkDirectories(): void {
+
+        let sourceCheckZero: number = this.config.sourceFileTotal -
+            (this.config.sourceFileIgnored + this.config.sourceFileProcessed);
+
+        if (sourceCheckZero !== 0) {
+            this.ux.log('--------------------------------');
+            this.ux.log('sourceFileIgnored        : ' + this.config.sourceFileIgnored);
+            this.ux.log('sourceFileProcessed      : ' + this.config.sourceFileProcessed);
+            this.ux.log('sourceFileTotal          : ' + this.config.sourceFileTotal);
+            this.ux.log('sourceCheckZero          : ' + sourceCheckZero);
+            this.ux.log('--------------------------------');
+            throw "sourceCheckZero recon failure expecting 0 to balance";
+        }// end if
+
+        let targetCheckZero: number = this.config.targetFileTotal -
+            (this.config.targetFileIgnored + this.config.targetFileProcessed);
+
+        if (targetCheckZero !== 0) {
+            this.ux.log('--------------------------------');
+            this.ux.log('targetFileIgnored    : ' + this.config.targetFileIgnored);
+            this.ux.log('targetFileProcessed  : ' + this.config.targetFileProcessed);
+            this.ux.log('targetFileTotal      : ' + this.config.targetFileTotal);
+            this.ux.log('targetCheckZero      : ' + targetCheckZero);
+            this.ux.log('--------------------------------');
+            throw "targetCheckZero recon failure expecting 0 to balance";
+        }// end if
+
+    }// end if
+
+    protected reconSourceAndTarget(): void {
+
+        let packageCheckZero: number = this.diffStats.packageCombinedCount -
+            (this.diffStats.packageDiffCount + this.diffStats.packageMatchCount);
+
+        if (packageCheckZero !== 0) {
+            this.ux.log('--------------------------------');
+            this.ux.log('packageDiffCount      : ' + this.diffStats.packageDiffCount);
+            this.ux.log('packageMatchCount     : ' + this.diffStats.packageMatchCount);
+            this.ux.log('packageCombinedCount  : ' + this.diffStats.packageCombinedCount);
+            this.ux.log('packageCheckZeroSum   : ' + packageCheckZero);
+            this.ux.log('--------------------------------');
+            throw "packageCheckZeroSum recon failure expecting 0 to balance";
+        }// end if
+
+        let destructiveCheckZero: number = this.diffStats.destructiveCombinedCount -
+            (this.diffStats.destructiveDiffCount + this.diffStats.destructiveIgnoreCount + this.diffStats.destructiveMatchCount);
+
+        if (destructiveCheckZero !== 0) {
+            this.ux.log('--------------------------------');
+            this.ux.log('destructiveDiffCount     : ' + this.diffStats.destructiveDiffCount);
+            this.ux.log('destructiveIgnoreCount   : ' + this.diffStats.destructiveIgnoreCount);
+            this.ux.log('destructiveMatchCount    : ' + this.diffStats.destructiveMatchCount);
+            this.ux.log('destructiveCombinedCount : ' + this.diffStats.destructiveCombinedCount);
+            this.ux.log('destructiveCheckZero     : ' + destructiveCheckZero);
+            this.ux.log('--------------------------------');
+            throw "destructiveCheckZero recon failure expecting 0 to balance";
+        }// end if
+
+    }// end if
+
     protected compareSourceAndTarget(): void {
 
         //compare left to right
@@ -766,6 +858,7 @@ export class MdapiChangesetUtility {
                 leftItem.diffType = DiffType.Left;
                 leftItem.diffSize = leftItem.fileSize;
                 this.packageDiffRecords[leftItem.metadataName].push(leftItem);
+                this.diffStats.packageDiffCount++;
                 if (MdapiConfig.metadataObjectHasChildren(leftItem.metadataObject)) {
                     this.compareEdgeChildren(leftItem);
                 }// end if
@@ -774,6 +867,7 @@ export class MdapiChangesetUtility {
                 leftItem.diffType = DiffType.Diff;
                 leftItem.diffSize = (leftItem.fileSize - rightItem.fileSize);
                 this.packageDiffRecords[leftItem.metadataName].push(leftItem);
+                this.diffStats.packageDiffCount++;
                 if (MdapiConfig.metadataObjectHasChildren(leftItem.metadataObject)) {
                     this.compareChildMetadata(leftItem, rightItem);
                 }// end if
@@ -786,10 +880,12 @@ export class MdapiChangesetUtility {
                 leftItem.diffSize = (leftItem.fileSize - rightItem.fileSize); // should be zero
                 if (leftItem.diffSize !== 0) { throw "unexpected left to right filehash equal but length diff not zero"; }
                 this.packageMatchResults[leftItem.metadataName].push(leftItem);
+                this.diffStats.packageMatchCount++;
             }// end else if
 
             // for audit (check or recon)
             this.packageCombinedResults[leftItem.metadataName].push(leftItem);
+            this.diffStats.packageCombinedCount++;
 
         }// end for
 
@@ -803,6 +899,7 @@ export class MdapiChangesetUtility {
                 rightItem.diffType = DiffType.Right;
                 rightItem.diffSize = rightItem.fileSize;
                 this.destructiveDiffRecords[rightItem.metadataName].push(rightItem);
+                this.diffStats.destructiveDiffCount++;
                 if (MdapiConfig.metadataObjectHasChildren(rightItem.metadataObject)) {
                     this.compareEdgeChildren(rightItem);
                 }// end if
@@ -811,6 +908,7 @@ export class MdapiChangesetUtility {
                 rightItem.diffType = DiffType.Diff;
                 rightItem.diffSize = (rightItem.fileSize - leftItem.fileSize);
                 this.destructiveIgnoreResults[rightItem.metadataName].push(rightItem);
+                this.diffStats.destructiveIgnoreCount++;
                 // left already included in comparison.
             }
             else if (rightItem.fileHash === leftItem.fileHash) {
@@ -818,8 +916,12 @@ export class MdapiChangesetUtility {
                 rightItem.diffSize = (rightItem.fileSize - leftItem.fileSize); // should be zero
                 if (rightItem.diffSize !== 0) { throw "unexpected right to left filehash equal but length diff not zero"; }
                 this.destructiveMatchResults[rightItem.metadataName].push(rightItem);
+                this.diffStats.destructiveMatchCount++;
                 // excluded not need to transport. ignore details inner comparisons already done before
             }// end else if
+
+            this.destructiveCombinedResults[rightItem.metadataName].push(rightItem);
+            this.diffStats.destructiveCombinedCount++;
 
         }// end for
 
@@ -1027,7 +1129,7 @@ export class MdapiChangesetUtility {
 
             if (isDirectory) {
                 let files: Array<string> = readdirSync(dirPath);
-                if (!files || files.length === 0) {
+                if (!files || (files.length === 0)) {
                     // clean empty folders
                     if (existsSync(dirPath)) { removeSync(dirPath); }
                 }// end if
@@ -1280,6 +1382,16 @@ export class MdapiChangesetUtility {
         let changesetExclude: ChangesetExclude = null;
         this.settings.apiVersion = this.apiVersion;
 
+        this.diffStats = <DiffStats>{
+            packageDiffCount: 0,
+            packageMatchCount: 0,
+            packageCombinedCount: 0,
+            destructiveDiffCount: 0,
+            destructiveIgnoreCount: 0,
+            destructiveMatchCount: 0,
+            destructiveCombinedCount: 0
+        };
+
         this.ux.log('setting up excluded meta directory and file items...');
 
         if (this.revisionFrom && this.revisionTo) { this.versionControlled = true; }
@@ -1354,51 +1466,58 @@ export class MdapiChangesetUtility {
         return new Promise((resolve, reject) => {
 
             this.ux.log('initialising...');
-            this.init();
+            this.init(); // reviewed
 
             this.ux.startSpinner('setup folders');
-            this.setupFolders();
+            this.setupFolders(); // reviewed
             this.ux.stopSpinner();
 
             this.ux.log('checking revisions (please standby)...');
-            this.checkoutRevisions().then(() => {
+            this.checkoutRevisions().then(() => { // reviewed
 
                 this.ux.log('check local backup and restore...');
-                this.checkLocalBackupAndRestore();
+                this.checkLocalBackupAndRestore(); // reviewed
 
                 // async calls
                 this.ux.startSpinner('describe metadata');
-                MdapiConfig.describeMetadata(this.org, this.config, this.settings).then(() => {
+                MdapiConfig.describeMetadata(this.org, this.config, this.settings).then(() => { // reviewed
 
                     this.ux.stopSpinner();
 
                     this.ux.log('deleting excluded directories');
-                    this.deleteExcludedDirectories();
+                    this.deleteExcludedDirectories(); // reviewed
 
                     this.ux.log('deleting excluded files');
-                    this.deleteExcludedFiles();
+                    this.deleteExcludedFiles(); // reviewed
 
                     this.ux.log('setup diff records...');
-                    this.setupDiffRecords();
+                    this.setupDiffRecords(); // reviewed
 
                     this.ux.log('walk directories...');
-                    this.walkDirectories();
+                    this.walkDirectories(); // reviewed
+
+                    this.ux.log('record walk directories...');
+                    this.reconWalkDirectories(); // reviewed
 
                     this.ux.log('compare source and target...');
-                    this.compareSourceAndTarget();
+                    this.compareSourceAndTarget(); // reviewed
+
+                    this.ux.log('recon source and target...');
+                    this.reconSourceAndTarget(); // reviewed
 
                     this.ux.log('prepare package directory...');
-                    this.preparePackageDirectory();
+                    this.preparePackageDirectory(); // reviewed
 
                     this.ux.log('prepare destructiveChanges.xml and package.xml...');
-                    this.createPackageXmls();
+                    this.createPackageXmls(); // reviewed
 
                     this.ux.log('copy deployment files...');
-                    this.copyDeploymentFiles();
+                    this.copyDeploymentFiles(); // reviewed
 
                     this.ux.log('post file screening...');
-                    this.postScreenDeploymentFiles();
+                    this.postScreenDeploymentFiles(); // reviewed
 
+                    this.ux.log('finishing up...');
                     resolve();
 
                 }, (error) => {

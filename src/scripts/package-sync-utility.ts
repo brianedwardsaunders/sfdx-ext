@@ -156,8 +156,8 @@ export class PackageSyncUtility {
         return new Promise((resolve, reject) => {
             // get packagelist on left as json
             let commandSfdxLeftPackageList: string = 'sfdx force:package:installed:list -u ' + this.sourceOrgAlias + ' --json';
-            //this.ux.log(commandSfdxLeftPackageList);
-            //commandSfdxLeftPackageList 
+            // this.ux.log(commandSfdxLeftPackageList);
+            // commandSfdxLeftPackageList 
             this.ux.startSpinner('retrieving installed packages from ' + this.sourceOrgAlias);
 
             MdapiCommon.command(commandSfdxLeftPackageList).then((result: any) => {
@@ -169,7 +169,7 @@ export class PackageSyncUtility {
 
                 // commandSfdxRightPackageList 
                 let commandSfdxRightPackageList: string = 'sfdx force:package:installed:list -u ' + this.targetOrgAlias + ' --json';
-                //this.ux.log(commandSfdxRightPackageList);
+                // this.ux.log(commandSfdxRightPackageList);
                 this.ux.startSpinner('retrieving installed packages from ' + this.targetOrgAlias);
 
                 MdapiCommon.command(commandSfdxRightPackageList).then((result: any) => {

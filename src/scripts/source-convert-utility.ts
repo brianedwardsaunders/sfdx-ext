@@ -155,17 +155,17 @@ export class SourceConvertUtility {
         await this.convert();
         this.ux.stopSpinner();
 
-        //walkTargetSrc
+        // walkTargetSrc
         this.ux.startSpinner('walk target source');
         this.walkTargetSrc();
         this.ux.stopSpinner();
 
-        //preparePackageInspectMdapiChildren
+        // preparePackageInspectMdapiChildren
         this.ux.startSpinner('prepare package elements and inspect children');
         this.preparePackageInspectMdapiChildren();
         this.ux.stopSpinner();
 
-        //inspectMdapiChildren
+        // inspectMdapiChildren
         this.ux.startSpinner('update package.xml file');
         this.updatePackageFile(this.targetPackageXmlPath, this.packageDiffRecords);
         copyFileSync(this.targetPackageXmlPath, this.targetSrcPackageXmlPath);

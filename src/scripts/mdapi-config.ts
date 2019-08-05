@@ -19,6 +19,12 @@ export interface IConfig {
   metadataObjectMembersLookup: Record<string, Array<FileProperties>>; // e.g. {'ApexClass', Array<FileProperties>} where files are members 
   metadataDirectoryLookup: Record<string, Array<MetadataObject>>; // e.g. {'objects', Array<MetaObject>} // one directory can have multiple types.
   metadataObjects: Array<MetadataObject>; // e.g. directly from describemetadata.metadataObjects
+  sourceFileTotal: number,
+  targetFileTotal: number,
+  sourceFileIgnored: number,
+  targetFileIgnored: number,
+  sourceFileProcessed: number,
+  targetFileProcessed: number
 };
 
 export interface ISettings {
@@ -859,7 +865,9 @@ export class MdapiConfig {
             }// end if
 
             // setup child metadata
-            if (metadataObject.childXmlNames && (metadataObject.childXmlNames instanceof Array)) {
+            if (metadataObject.childXmlNames) {
+
+              metadataObject.childXmlNames = MdapiCommon.objectToArray(metadataObject.childXmlNames);
 
               for (let y: number = 0; y < metadataObject.childXmlNames.length; y++) {
                 let childXmlName = metadataObject.childXmlNames[y];
@@ -1104,7 +1112,13 @@ export class MdapiConfig {
       metadataObjectLookup: {},
       metadataObjectMembersLookup: {},
       metadataDirectoryLookup: {},
-      metadataObjects: []
+      metadataObjects: [],
+      sourceFileTotal: 0,
+      targetFileTotal: 0,
+      sourceFileIgnored: 0,
+      targetFileIgnored: 0,
+      sourceFileProcessed: 0,
+      targetFileProcessed: 0
     });
   }// end method
 
@@ -1198,9 +1212,14 @@ export class MdapiConfig {
     let anchorName: string = MdapiCommon.BLANK; // ''
     let folderXml: boolean = false;
 
+    if (position === RelativePosition.Source) { config.sourceFileTotal++; } // end if
+    else if (position === RelativePosition.Target) { config.targetFileTotal++; }// end else if
+
     // don't process top level directories (from excluded list)
     if (MdapiConfig.isExcludedDirectory(directory) ||
       MdapiConfig.isExcludedFile(fileName)) {
+      if (position === RelativePosition.Source) { config.sourceFileIgnored++; } // end if
+      else if (position === RelativePosition.Target) { config.targetFileIgnored++; }// end else if
       return; // ignore
     }// end if
 
@@ -1211,7 +1230,9 @@ export class MdapiConfig {
       if ((position === RelativePosition.Source) && existsSync(filePath)) {
         // don't want to include in src deploy pacakge and there is a src.backup
         unlinkSync(filePath);
-      }// end if 
+      }// end if
+      if (position === RelativePosition.Source) { config.sourceFileIgnored++; } // end if
+      else if (position === RelativePosition.Target) { config.targetFileIgnored++; }// end else if 
       return; // ignore
     }// end if
 
@@ -1286,6 +1307,9 @@ export class MdapiConfig {
 
     // add new unique entry
     metaRegister[relativeFilePath] = diffRecord;
+
+    if (position === RelativePosition.Source) { config.sourceFileProcessed++; } // end if
+    else if (position === RelativePosition.Target) { config.targetFileProcessed++; }// end else if
 
   }// end method
 
