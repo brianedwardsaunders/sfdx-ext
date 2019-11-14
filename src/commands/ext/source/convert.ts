@@ -40,7 +40,7 @@ export default class Convert extends SfdxCommand {
     let targetusername: string = this.flags.targetusername;
     let sourcedirectory: string = this.flags.sourcedirectory || defaultSourceDirectory;
     let targetdirectory: string = this.flags.targetdirectory;
-    let apiVersion: string = this.flags.apiVersion || defaultApiVersion;
+    let apiversion: string = this.flags.apiVersion || defaultApiVersion;
 
     if (targetdirectory === undefined) {
       throw new SfdxError(messages.getMessage('errorTargetDirectoryRequired', []));
@@ -52,7 +52,7 @@ export default class Convert extends SfdxCommand {
     this.ux.log("targetusername    : " + targetusername);
     this.ux.log("sourcedirectory   : " + sourcedirectory);
     this.ux.log("targetdirectory   : " + targetdirectory);
-    this.ux.log("apiVersion        : " + apiVersion);
+    this.ux.log("apiversion        : " + apiversion);
     this.ux.log("-----------------------------");
 
     let util = new SourceConvertUtility(
@@ -60,7 +60,7 @@ export default class Convert extends SfdxCommand {
       this.ux,
       sourcedirectory,
       targetdirectory,
-      apiVersion);
+      apiversion);
 
     util.process().then(() => {
       this.ux.log('success.');

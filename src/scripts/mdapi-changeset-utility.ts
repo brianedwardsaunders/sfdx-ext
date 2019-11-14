@@ -707,7 +707,7 @@ export class MdapiChangesetUtility {
         }// end for right
 
         // process class accesses
-        for (let right: number = 0; right < leftClassAccesses.length; right++) {
+        for (let right: number = 0; right < rightClassAccesses.length; right++) {
             let found: boolean = false;
             let rightClassAccess: ClassAccess = rightClassAccesses[right];
             for (let left: number = 0; left < leftClassAccesses.length; left++) {

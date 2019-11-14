@@ -222,6 +222,8 @@ export class MdapiRetrieveUtility {
 
             let retrieveCommand: string = ('sfdx force:mdapi:retrieve -s -k ' + this.filePackageXmlPath
                 + ' -r ' + this.retrievePath + ' -w -1 -u ' + this.orgAlias);
+            //let retrieveCommand: string = ('sfdx force:mdapi:retrieve -k ' + this.filePackageXmlPath
+            //    + ' -r ' + this.retrievePath + ' -w -1 -u ' + this.orgAlias);    
 
             MdapiCommon.command(retrieveCommand).then((result: any) => {
 
