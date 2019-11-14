@@ -744,7 +744,7 @@ export class MdapiChangesetUtility {
         }// end for right
 
         // process page accesses
-        for (let right: number = 0; right < leftPageAccesses.length; right++) {
+        for (let right: number = 0; right < rightPageAccesses.length; right++) {
             let found: boolean = false;
             let rightPageAccess: PageAccess = rightPageAccesses[right];
             for (let left: number = 0; left < leftPageAccesses.length; left++) {
