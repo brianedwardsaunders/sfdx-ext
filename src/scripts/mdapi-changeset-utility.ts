@@ -1279,12 +1279,27 @@ export class MdapiChangesetUtility {
                 }// end for
             }// end for
 
+            // Cannot modify ManageSandboxes especially in non-production orgs 
+
             let userPermissions = MdapiCommon.objectToArray(profile.userPermissions);
 
             for (let x: number = 0; x < userPermissions.length; x++) {
                 let userPermission = userPermissions[x];
                 if (userPermission.name._text === 'ManageSandboxes') {
                     userPermissions.splice(x, 1); // pop
+                    break;
+                }// end if
+            }// end for
+
+            //Error You can't edit tab settings for SocialPersona, as it's not a valid tab.
+            //So if its there lets strip it out
+
+            let tabVisibilities = MdapiCommon.objectToArray(profile.tabVisibilities);
+
+            for (let x: number = 0; x < tabVisibilities.length; x++) {
+                let tabVisibility = tabVisibilities[x];
+                if (tabVisibility.tab._text === 'standard-SocialPersona') {
+                    tabVisibilities.splice(x, 1); // pop
                     break;
                 }// end if
             }// end for
@@ -1310,6 +1325,8 @@ export class MdapiChangesetUtility {
 
         }// end else if (dashboards)
         else if (typeFolder === MdapiConfig.settings) {
+
+            // check for production org preference settings 
 
             if (filePath.endsWith('OrgPreference.settings')) {
 
