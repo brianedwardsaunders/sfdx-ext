@@ -528,14 +528,16 @@ export class MdapiConfig {
   public static nonSfdxSupportedDirectories = [
     'animationRules',
     'audience',
-    'bots'
+    'bots',
+    'managedContentTypes'
   ];
 
   // this must match above directory
   public static nonSfdxSupportedMetaTypes = [
     'AnimationRule',
     'Audience',
-    'Bot'
+    'Bot',
+    'ManagedContentType'
   ];
 
   // exclude from diff compare
