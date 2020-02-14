@@ -1,25 +1,24 @@
 {
   "name": "sfdx-ext",
   "description": "sfdx extensions",
-  "version": "0.0.39",
+  "version": "0.0.40",
   "author": "Brian Edward Saunders",
   "bugs": "https://github.com/brianedwardsaunders/sfdx-ext/issues",
   "dependencies": {
     "@oclif/command": "^1.5.19",
     "@oclif/config": "^1.14.0",
     "@oclif/errors": "^1",
+    "@oclif/plugin-help": "^2.2.3",
     "@salesforce/command": "^2.2.0",
     "@salesforce/core": "^2.2.0",
     "@types/fs-extra": "^7.0.0",
     "@types/yauzl": "^2.9.1",
-    "@sinonjs/samsam": "^4.2.2",
     "tslib": "^1",
     "xml-js": "^1.6.11",
     "yauzl": "^2.10.0"
   },
   "devDependencies": {
     "@oclif/dev-cli": "^1.22.2",
-    "@oclif/plugin-help": "^2.2.3",
     "@oclif/test": "^1.2.5",
     "@salesforce/dev-config": "1.4.1",
     "@types/chai": "^4.2.9",
