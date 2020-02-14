@@ -17,6 +17,17 @@ export class ChangesetExcludeDefault implements ChangesetExclude {
         "reports/unfiled$public",
         "reports/LeadInsightsReports",
         "dashboards/LeadInsightsDashboards",
+        "managedContentTypes",
+        "managedTopics",
+        //"navigationMenus",
+        //"networks",
+        //"presenceDeclineReasons",
+        //"presenceUserConfigs",
+        //"queueRoutingConfigs",
+        //"serviceChannels",
+        //"servicePresenceStatuses",
+        //"sharingSets",
+        //"userCriteria",
         "wave"
     ];
     public fileExcludes: Array<string> = [

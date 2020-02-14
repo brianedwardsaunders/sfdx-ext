@@ -529,7 +529,9 @@ export class MdapiConfig {
     'animationRules',
     'audience',
     'bots',
-    'managedContentTypes'
+    'managedContentTypes',
+    'managedTopics',
+    //'navigationMenus'
   ];
 
   // this must match above directory
@@ -537,7 +539,9 @@ export class MdapiConfig {
     'AnimationRule',
     'Audience',
     'Bot',
-    'ManagedContentType'
+    'ManagedContentType',
+    'ManagedTopic',
+    //'NavigationMenu'
   ];
 
   // exclude from diff compare
