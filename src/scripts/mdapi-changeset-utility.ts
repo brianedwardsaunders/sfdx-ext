@@ -1293,9 +1293,7 @@ export class MdapiChangesetUtility {
 
             //Error You can't edit tab settings for SocialPersona, as it's not a valid tab.
             //So if its there lets strip it out
-
-            let tabVisibilities = MdapiCommon.objectToArray(profile.tabVisibilities);
-
+            /* let tabVisibilities = MdapiCommon.objectToArray(profile.tabVisibilities);
             for (let x: number = 0; x < tabVisibilities.length; x++) {
                 let tabVisibility = tabVisibilities[x];
                 if (tabVisibility.tab._text === 'standard-SocialPersona') {
@@ -1303,6 +1301,7 @@ export class MdapiChangesetUtility {
                     break;
                 }// end if
             }// end for
+            */
 
             MdapiCommon.jsonToXmlFile(jsonObject, filePath);
 

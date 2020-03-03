@@ -639,7 +639,7 @@ export class MdapiConfig {
     Territory2Rule: MdapiConfig.rules
   };
 
-  public static isFolderDirectory(directory: string): boolean {
+  public static isFolderRootDirectory(directory: string): boolean {
     let returned: boolean = false;
     MdapiConfig.folderDirectories.forEach((element: string) => {
       if (element === directory) {
@@ -648,6 +648,41 @@ export class MdapiConfig {
       }// end if
     });
     return returned;
+  }// end method
+
+  public static resolveIfAncestorIsFolderDirectory(filepath: string): string {
+    let returned: string = null;
+    MdapiConfig.folderDirectories.forEach((element: string) => {
+      if (filepath.includes(path.sep + element + path.sep)) {
+        returned = element;
+        return; // break inner loop
+      }// end if
+    });
+    return returned;
+  }// end method
+
+  public static extractAncestorDirectoryPath(filePath: string, baseDirectory: string): string {
+
+    let returned: string = '';
+    let items: Array<string> = filePath.split(path.sep);
+    let flag: boolean = false;
+
+    for (let i: number = 0; i < items.length - 1; i++) {
+
+      let token: string = items[i];
+      if (token === baseDirectory) {
+        flag = true;
+        continue;
+      } // end if
+      else if (flag) {
+        returned += token;
+        if (i < items.length - 2) { returned += MdapiCommon.PATH_SEP; }
+      }// end else if
+
+    }// end for
+
+    return returned;
+
   }// end method
 
   public static isBundleDirectory(directory: string): boolean {
@@ -1213,9 +1248,9 @@ export class MdapiConfig {
     parentDirectory: string, metaRegister: Record<string, DiffRecord>): void {
 
     let fileName: string = MdapiCommon.isolateLeafNode(filePath); // Account.meta-object.xml
-    let directory: string = MdapiCommon.isolateLeafNode(parentDirectory); //objects
-    let memberName: string = MdapiConfig.isolateMetadataObjectName(fileName); //Account
-    let anchorName: string = MdapiCommon.BLANK; // ''
+    let directory: string = MdapiCommon.isolateLeafNode(parentDirectory); //objects or Folder
+    let memberName: string = MdapiConfig.isolateMetadataObjectName(fileName); //Account (package.xml)
+    let anchorName: string = directory; // 'default e.g. objects but can be overwritten for folders e.g. reports
     let folderXml: boolean = false;
 
     if (position === RelativePosition.Source) { config.sourceFileTotal++; } // end if
@@ -1234,7 +1269,7 @@ export class MdapiConfig {
 
     if (MdapiConfig.isExcludedNamespaceFile(fileName, metadataObject)) {
       if ((position === RelativePosition.Source) && existsSync(filePath)) {
-        // don't want to include in src deploy pacakge and there is a src.backup
+        // don't want to include in src deploy pacakge and there is src.backup
         unlinkSync(filePath);
       }// end if
       if (position === RelativePosition.Source) { config.sourceFileIgnored++; } // end if
@@ -1242,45 +1277,65 @@ export class MdapiConfig {
       return; // ignore
     }// end if
 
-    if (MdapiConfig.isFolderDirectory(directory)) { folderXml = true; } // required to exclude from descructive changes
+    // init root check required to exclude from destructive changes
+    if (MdapiConfig.isFolderRootDirectory(directory)) { folderXml = true; } // e.g. reports cannot reside in root
 
     // check for unresolve type
     if (!metadataObject) { // if null attempt to resolve
 
+      // one folder up
       let metadataParentName = MdapiConfig.getMetadataNameFromParentDirectory(parentDirectory);
+      let metadataCurrentName = MdapiConfig.getMetadataNameFromCurrentDirectory(parentDirectory);
 
       // special handle for bundles e.g. lwc aura
       if (MdapiConfig.isBundleDirectory(metadataParentName)) {
         metadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(config, metadataParentName);
-        memberName = MdapiConfig.getMetadataNameFromCurrentDirectory(parentDirectory);
+        anchorName = (metadataObject.directoryName + MdapiCommon.PATH_SEP + directory); //e.g. lwc/MyComponent
+        memberName = metadataCurrentName; //e.g. MyComponent
       }// end else if
-      // special handle for folder types
-      else if (MdapiConfig.isFolderDirectory(metadataParentName)) {
+      // special handle for folder types (direct)
+      else if (MdapiConfig.isFolderRootDirectory(metadataParentName)) {
         metadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(config, metadataParentName);
-        anchorName = MdapiConfig.getMetadataNameFromCurrentDirectory(parentDirectory);
-        memberName = (anchorName + MdapiCommon.PATH_SEP + MdapiConfig.isolateMetadataObjectName(fileName));
-      } // end else if
+        anchorName = (metadataObject.directoryName + MdapiCommon.PATH_SEP + metadataCurrentName);
+        memberName = (metadataCurrentName + MdapiCommon.PATH_SEP + MdapiConfig.isolateMetadataObjectName(fileName));
+        folderXml = MdapiConfig.isFolderXmlFile(filePath);
+      }// end else if
       else if (MdapiConfig.isTerritory2ModelsDirectory(metadataParentName)) {
         metadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(config, metadataParentName, fileName);
-        memberName = MdapiConfig.getMetadataNameFromCurrentDirectory(parentDirectory);
+        anchorName = (metadataObject.directoryName + MdapiCommon.PATH_SEP + metadataCurrentName);
+        memberName = metadataCurrentName;
       }// end else if
       else {
-        //fatal
-        console.error('unexpected metatype found at parent directory: ' + parentDirectory
-          + ' please check metaobject definitions are up to date - unresolved file path: ' + filePath);
-        throw parentDirectory; // terminate 
+        // handle nested folders (e.g. dashboards e.g. dashboards\Service_Dashboard\Manager_Dashboard\...)
+        // check if contains nested folder in filepath (e.g. report and dashboard nested folders)
+        metadataParentName = MdapiConfig.resolveIfAncestorIsFolderDirectory(filePath);
+
+        if (metadataParentName) {
+          metadataObject = MdapiConfig.getMetadataObjectFromDirectoryName(config, metadataParentName);
+          //anchorName = (metadataObject.directoryName + MdapiCommon.PATH_SEP + metadataCurrentName);
+          anchorName = (metadataObject.directoryName + MdapiCommon.PATH_SEP 
+          + MdapiConfig.extractAncestorDirectoryPath(filePath, metadataParentName));
+          // immediate relative folder per package.xml
+          memberName = (metadataCurrentName + MdapiCommon.PATH_SEP + MdapiConfig.isolateMetadataObjectName(fileName));
+          folderXml = MdapiConfig.isFolderXmlFile(filePath);
+        } else {
+          //fatal event
+          console.error('unexpected metatype found at parent directory: ' + parentDirectory
+            + ' please check metaobject definitions are up to date - unresolved file path: ' + filePath);
+          throw parentDirectory; // terminate 
+        }
       }// end else
     }// end if
 
     // without extension for comparison later may not be unique (e.g. a pair)
-    let memberKey: string = (directory + MdapiCommon.PATH_SEP + memberName);
-    let relativeFilePath: string = (directory + MdapiCommon.PATH_SEP + fileName);
+    let memberKey: string = (anchorName + MdapiCommon.PATH_SEP + memberName);
+    let relativeFilePath: string = (anchorName + MdapiCommon.PATH_SEP + fileName);
 
     // saftey check
-    if ((!fileName) || (!directory) || (!metadataObject)) {
+    if ((!fileName) || (!anchorName) || (!metadataObject)) {
       //fatal
       console.error('unexpected unresolved metaobject - key: ', memberKey +
-        ' (filename: ' + fileName + ') directory: (' + directory + '), ' +
+        ' (filename: ' + fileName + ') anchorName: (' + anchorName + '), ' +
         ' parentdirectory: ' + parentDirectory + ', metadataobject: ' + metadataObject);
       throw 'unresolved metadataObject';
     }// end if
@@ -1289,9 +1344,9 @@ export class MdapiConfig {
     let stats: Stats = statSync(filePath);
 
     let diffRecord: DiffRecord = (<DiffRecord>{
-      "memberKey": memberKey,
-      "memberName": memberName, // e.g. Account
-      "filePath": filePath,
+      "memberKey": memberKey, // e.g. objects/Account
+      "memberName": memberName, // e.g. Account (as it appears in the package.xml)
+      "filePath": filePath, // full file path
       "fileHash": MdapiCommon.hashCode(fileContents), // only hash as contents is large
       "directory": directory, // sfdx directory e.g. triggers
       "folderXml": folderXml,
@@ -1304,6 +1359,7 @@ export class MdapiConfig {
       "title": null
     });
 
+    // provide clarity in xml comments (name of report or dashboard)
     if (!folderXml && (diffRecord.metadataName === MdapiConfig.Report)) {
       diffRecord.title = MdapiConfig.extractReportName(filePath);
     } // end if 
@@ -1313,6 +1369,13 @@ export class MdapiConfig {
 
     // add new unique entry
     metaRegister[relativeFilePath] = diffRecord;
+
+    //console.log('1. memberKey        : ' + memberKey);
+    //console.log('2. relativeFilePath : ' + relativeFilePath);
+    //console.log('3. memberName       : ' + memberName);
+    //console.log('4. directory        : ' + directory);
+    //console.log('5. folderXml        : ' + folderXml);
+    //console.log(' ');
 
     if (position === RelativePosition.Source) { config.sourceFileProcessed++; } // end if
     else if (position === RelativePosition.Target) { config.targetFileProcessed++; }// end else if
@@ -1332,6 +1395,20 @@ export class MdapiConfig {
     let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
     let dashboard: Dashboard = jsonObject[MdapiConfig.Dashboard];
     return dashboard.title._text;
+
+  }// end if
+
+  public static isFolderXmlFile(filePath: string): boolean {
+
+    if (!filePath.endsWith(MdapiConfig.metaXmlSuffix)) return false;
+
+    let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
+
+    if (MdapiConfig.DashboardFolder in jsonObject) return true;
+    else if (MdapiConfig.ReportFolder in jsonObject) return true;
+    else if (MdapiConfig.DocumentFolder in jsonObject) return true;
+    else if (MdapiConfig.EmailFolder in jsonObject) return true;
+    else return false;
 
   }// end if
 
