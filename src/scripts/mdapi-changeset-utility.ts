@@ -13,7 +13,7 @@ import { Org } from "@salesforce/core";
 import { MdapiCommon } from "./mdapi-common";
 import { ChangesetExcludeDefault } from "../config/changeset-exclude-default";
 import {
-    MdapiConfig, IConfig, ISettings, DiffRecord, DiffType, ChangeType, ChangesetExclude, Dashboard,
+    MdapiConfig, IConfig, ISettings, DiffRecord, DiffType, ChangeType, ChangesetExclude,
     LayoutAssignment, Profile, TabVisibility, FieldPermission, CustomObject, ListView, Textable,
     OrgPreferenceSettings,
     Preference,
