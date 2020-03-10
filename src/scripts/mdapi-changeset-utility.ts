@@ -1147,7 +1147,7 @@ export class MdapiChangesetUtility {
     protected postInspectFile(instance: MdapiChangesetUtility, filePath: string, parentDir: string): void {
 
         let typeFolder = MdapiCommon.isolateLeafNode(parentDir);
-        let grandParentFolder = MdapiConfig.getMetadataNameFromParentDirectory(parentDir);
+        // let grandParentFolder = MdapiConfig.getMetadataNameFromParentDirectory(parentDir);
 
         if (typeFolder === MdapiConfig.objects) {
 
@@ -1306,8 +1306,9 @@ export class MdapiChangesetUtility {
             MdapiCommon.jsonToXmlFile(jsonObject, filePath);
 
         }// end else if (profile)
+        // removed assumed that user will be created as needed.
         // check dashboard run as issues
-        else if (grandParentFolder === MdapiConfig.dashboards) {
+        /* else if (grandParentFolder === MdapiConfig.dashboards) {
 
             let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
             let dashboard: Dashboard = jsonObject[MdapiConfig.Dashboard];
@@ -1323,6 +1324,7 @@ export class MdapiChangesetUtility {
             MdapiCommon.jsonToXmlFile(jsonObject, filePath);
 
         }// end else if (dashboards)
+        */
         else if (typeFolder === MdapiConfig.settings) {
 
             // check for production org preference settings 
