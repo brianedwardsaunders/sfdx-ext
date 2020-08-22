@@ -1,23 +1,23 @@
 /**
  * @name MdapiRetrieveUtility
- * @author brianewardsaunders 
+ * @author brianewardsaunders
  * @date 2019-07-10
  * @acknowledgement amtrack/force-dev-tool (author acknowledgement)
  */
 
 import {
-    existsSync, mkdirSync, removeSync, unlinkSync, mkdirp, createWriteStream, copyFileSync, copySync, rename
-} from 'fs-extra';
+    copyFileSync, copySync, createWriteStream, existsSync, mkdirSync, mkdirp, removeSync, rename, unlinkSync
+} from "fs-extra";
 import {
-    ListMetadataQuery, FileProperties
-} from 'jsforce';
+    FileProperties, ListMetadataQuery
+} from "jsforce";
 
-import path = require('path');
-import yauzl = require('yauzl');
-import { Org } from '@salesforce/core';
-import { UX } from '@salesforce/command';
-import { MdapiConfig, IConfig, ISettings } from './mdapi-config';
-import { MdapiCommon } from './mdapi-common';
+import path = require("path");
+import yauzl = require("yauzl");
+import {Org} from "@salesforce/core";
+import {UX} from "@salesforce/command";
+import {IConfig, ISettings, MdapiConfig} from "./mdapi-config";
+import {MdapiCommon} from "./mdapi-common";
 
 export interface BatchCtrl {
     counter: number;
@@ -32,7 +32,7 @@ export interface Params {
 
 export class MdapiRetrieveUtility {
 
-    constructor(
+    constructor (
         protected org: Org,
         protected ux: UX,
         protected orgAlias: string,
@@ -44,215 +44,306 @@ export class MdapiRetrieveUtility {
         protected ignoreFolders: boolean,
         protected ignoreStaticResources: boolean,
         protected manifestOnly: boolean,
-        protected devMode: boolean) {
-        // noop
-    }// end constructor
+        protected devMode: boolean
+    ) {
+        // Noop
+    }// End constructor
 
-    // define working folders
+    // Define working folders
     protected stageOrgAliasDirectoryPath: string = (MdapiCommon.stageRoot + MdapiCommon.PATH_SEP + this.orgAlias);
+
     protected retrievePath: string = (this.stageOrgAliasDirectoryPath + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot);
+
     protected zipFilePath: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
+
     protected targetDirectoryUnpackaged: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedFolder);
+
     protected targetDirectorySource: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
+
     protected manifestDirectory: string = (this.stageOrgAliasDirectoryPath + MdapiCommon.PATH_SEP + MdapiConfig.manifestFolder);
+
     protected filePackageXmlPath = (this.manifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
 
     protected config: IConfig;
+
     protected settings: ISettings;
 
-    protected BATCH_SIZE: number = 30;
+    protected BATCH_SIZE = 30;
+
     protected transientMetadataTypes: Array<string> = [];
 
-    protected listMetadataFolderBatch(config: IConfig, metaType: string): Promise<void> {
+    protected listMetadataFolderBatch (config: IConfig, metaType: string): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
             try {
 
-                let folderType: string = MdapiConfig.metadataTypeFolderLookup[metaType];
-                let folderArray: Array<FileProperties> = config.metadataObjectMembersLookup[folderType];
+                let folderType: string = MdapiConfig.metadataTypeFolderLookup[metaType],
+                    folderArray: Array<FileProperties> = config.metadataObjectMembersLookup[folderType],
+                    counter = 0,
 
-                let counter: number = 0;
+                    batchCtrl = <BatchCtrl>{
+                        counter,
+                        resolve,
+                        reject
+                    };
 
-                let batchCtrl = <BatchCtrl>{
-                    "counter": counter,
-                    "resolve": resolve,
-                    "reject": reject
-                };
+                if (folderArray && folderArray.length > 0) {
 
-                if (folderArray && (folderArray.length > 0)) {
+                    for (let x = 0; x < folderArray.length; x++) {
 
-                    for (let x: number = 0; x < folderArray.length; x++) {
+                        let folderName: string = folderArray[x].fullName,
 
-                        let folderName: string = folderArray[x].fullName;
-
-                        let params = <Params>{
-                            "metaType": metaType,
-                            "folder": folderName
-                        };
+                            params = <Params>{
+                                metaType,
+                                "folder": folderName
+                            };
 
                         batchCtrl.counter = ++counter;
 
-                        // inject the folder before
-                        config.metadataObjectMembersLookup[metaType].push(
-                            folderArray[x]
+                        // Inject the folder before
+                        config.metadataObjectMembersLookup[metaType].push(folderArray[x]);
+
+                        this.queryListMetadata(
+                            params,
+                            batchCtrl
                         );
 
-                        this.queryListMetadata(params, batchCtrl);
+                    }// End for
 
-                    }// end for
-
-                }// end if
+                }// End if
                 else {
+
                     batchCtrl.resolve();
-                }// end else
+
+                }// End else
 
             } catch (exception) {
+
                 this.ux.log(exception);
                 reject(exception);
-            };
 
-        });// end promse
+            }
 
-    }// end method
+        });// End promse
 
-    // create backup of retrieve meta in-case needed later
-    protected backup(): void {
+    }// End method
+
+    // Create backup of retrieve meta in-case needed later
+    protected backup (): void {
 
         let iso: string = new Date().toISOString();
-        iso = iso.replace(/:/g, MdapiCommon.DASH).split(MdapiCommon.DOT)[0];
 
-        let backupFolder: string = (MdapiCommon.backupRoot + MdapiCommon.PATH_SEP + this.orgAlias); // e.g. backup/DevOrg
-        let backupOrgFolder: string = (backupFolder + MdapiCommon.PATH_SEP + iso); // e.g. backup/DevOrg/2000-00-00T11-11-11
-        let backupProjectFile: string = (backupOrgFolder + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
-        let sourceProjectFile: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
+        iso = iso.replace(
+            /:/g,
+            MdapiCommon.DASH
+        ).split(MdapiCommon.DOT)[0];
+
+        let backupFolder: string = MdapiCommon.backupRoot + MdapiCommon.PATH_SEP + this.orgAlias, // E.g. backup/DevOrg
+            backupOrgFolder: string = backupFolder + MdapiCommon.PATH_SEP + iso, // E.g. backup/DevOrg/2000-00-00T11-11-11
+            backupProjectFile: string = backupOrgFolder + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip,
+            sourceProjectFile: string = this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip;
 
         if (!this.ignoreBackup) {
 
             if (!existsSync(MdapiCommon.backupRoot)) {
+
                 mkdirSync(MdapiCommon.backupRoot);
-            }// end if
+
+            }// End if
 
             if (!existsSync(backupFolder)) {
+
                 mkdirSync(backupFolder);
-            }// end if
+
+            }// End if
 
             if (!existsSync(backupOrgFolder)) {
+
                 mkdirSync(backupOrgFolder);
-            }// end if
 
-            this.ux.log('backing up from ' + sourceProjectFile + ' to ' + backupProjectFile);
-            copyFileSync(sourceProjectFile, backupProjectFile);
-            this.ux.log('backup finished to file ' + backupProjectFile);
+            }// End if
 
-        }// end if
+            this.ux.log(`backing up from ${sourceProjectFile} to ${backupProjectFile}`);
+            copyFileSync(
+                sourceProjectFile,
+                backupProjectFile
+            );
+            this.ux.log(`backup finished to file ${backupProjectFile}`);
+
+        }// End if
 
         if (existsSync(sourceProjectFile)) {
+
             unlinkSync(sourceProjectFile);
-            this.ux.log('deleting file ' + sourceProjectFile);
-        }// end if
+            this.ux.log(`deleting file ${sourceProjectFile}`);
 
-    }// end method
+        }// End if
 
-    protected async unzipUnpackaged(): Promise<void> {
+    }// End method
+
+    protected async unzipUnpackaged (): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
-            this.ux.log('unzipping ' + this.zipFilePath);
+            this.ux.log(`unzipping ${this.zipFilePath}`);
 
-            yauzl.open(this.zipFilePath, { lazyEntries: true }, (openErr, zipfile) => {
+            yauzl.open(
+                this.zipFilePath,
+                {"lazyEntries": true},
+                (openErr, zipfile) => {
 
-                if (openErr) {
-                    return reject(openErr);
-                }// end if
+                    if (openErr) {
 
-                zipfile.readEntry();
+                        return reject(openErr);
 
-                zipfile.once("close", () => {
-                    this.ux.log('unzipping complete');
-                    resolve();
-                });// end close
+                    }// End if
 
-                zipfile.on("entry", (entry: any) => {
-                    zipfile.openReadStream(entry, (unzipErr, readStream) => {
-                        if (unzipErr) {
-                            return reject(unzipErr);
-                        }// end if
-                        else if (/\/$/.test(entry.fileName)) { // read directory
-                            zipfile.readEntry();
-                            return;
-                        }// end else if
-                        let outputDir = path.join(this.targetDirectoryUnpackaged, path.dirname(entry.fileName));
-                        let outputFile = path.join(this.targetDirectoryUnpackaged, entry.fileName);
-                        mkdirp(outputDir, (mkdirErr: any) => {
-                            if (mkdirErr) {
-                                return reject(mkdirErr);
-                            }// end if
-                            readStream.pipe(createWriteStream(outputFile));
-                            readStream.on("end", () => {
-                                zipfile.readEntry();
-                            });
-                        }); // end mkdirp
-                    }); // end open stream 
-                }); // end on
-            }); // end open
-        }); // end promise 
+                    zipfile.readEntry();
 
-    }// end method
+                    zipfile.once(
+                        "close",
+                        () => {
 
-    protected async setupRetrieveDirectory(): Promise<void> {
+                            this.ux.log("unzipping complete");
+                            resolve();
 
-        this.ux.log('refreshing retrieve directory: ' + this.retrievePath);
+                        }
+                    );// End close
+
+                    zipfile.on(
+                        "entry",
+                        (entry: any) => {
+
+                            zipfile.openReadStream(
+                                entry,
+                                (unzipErr, readStream) => {
+
+                                    if (unzipErr) {
+
+                                        return reject(unzipErr);
+
+                                    }// End if
+                                    else if ((/\/$/).test(entry.fileName)) { // Read directory
+
+                                        zipfile.readEntry();
+
+                                        return;
+
+                                    }// End else if
+                                    let outputDir = path.join(
+                                            this.targetDirectoryUnpackaged,
+                                            path.dirname(entry.fileName)
+                                        ),
+                                        outputFile = path.join(
+                                            this.targetDirectoryUnpackaged,
+                                            entry.fileName
+                                        );
+
+                                    mkdirp(
+                                        outputDir,
+                                        (mkdirErr: any) => {
+
+                                            if (mkdirErr) {
+
+                                                return reject(mkdirErr);
+
+                                            }// End if
+                                            readStream.pipe(createWriteStream(outputFile));
+                                            readStream.on(
+                                                "end",
+                                                () => {
+
+                                                    zipfile.readEntry();
+
+                                                }
+                                            );
+
+                                        }
+                                    ); // End mkdirp
+
+                                }
+                            ); // End open stream
+
+                        }
+                    ); // End on
+
+                }
+            ); // End open
+
+        }); // End promise
+
+    }// End method
+
+    protected async setupRetrieveDirectory (): Promise<void> {
+
+        this.ux.log(`refreshing retrieve directory: ${this.retrievePath}`);
 
         if (existsSync(this.retrievePath)) {
+
             removeSync(this.retrievePath);
-        }// end if
+
+        }// End if
 
         mkdirSync(this.retrievePath);
 
-        this.ux.log('retrieve directory created');
+        this.ux.log("retrieve directory created");
 
-    }// end method.
+    }// End method.
 
-    protected async retrieveMetadata(): Promise<void> {
+    protected async retrieveMetadata (): Promise<void> {
 
         await this.setupRetrieveDirectory();
 
         return new Promise((resolve, reject) => {
 
-            let retrieveCommand: string = ('sfdx force:mdapi:retrieve -s -k ' + this.filePackageXmlPath
-                + ' -r ' + this.retrievePath + ' -w -1 -u ' + this.orgAlias);
-            //let retrieveCommand: string = ('sfdx force:mdapi:retrieve -k ' + this.filePackageXmlPath
-            //    + ' -r ' + this.retrievePath + ' -w -1 -u ' + this.orgAlias);    
+            let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackageXmlPath
+            } -r ${this.retrievePath} -w -1 -u ${this.orgAlias}`;
 
-            MdapiCommon.command(retrieveCommand).then((result: any) => {
+            /*
+             * Let retrieveCommand: string = ('sfdx force:mdapi:retrieve -k ' + this.filePackageXmlPath
+             *     + ' -r ' + this.retrievePath + ' -w -1 -u ' + this.orgAlias);
+             */
 
-                this.ux.log(result);
-                resolve();
+            MdapiCommon.command(retrieveCommand).then(
+                (result: any) => {
 
-            }, (error: any) => {
-                this.ux.error(error);
-                reject(error);
-            });
+                    this.ux.log(result);
+                    resolve();
 
-        }); // end promise
+                },
+                (error: any) => {
 
-    }// end method
+                    this.ux.error(error);
+                    reject(error);
 
-    protected packageFile(): void {
+                }
+            );
+
+        }); // End promise
+
+    }// End method
+
+    protected packageFile (): void {
 
         if (!existsSync(this.manifestDirectory)) {
+
             mkdirSync(this.manifestDirectory);
-            this.ux.log('created manifest directory: ' + this.manifestDirectory);
-        }// end if
+            this.ux.log(`created manifest directory: ${this.manifestDirectory}`);
 
-        MdapiConfig.createPackageFile(this.config, this.settings, this.filePackageXmlPath);
+        }// End if
 
-    }// end method
+        MdapiConfig.createPackageFile(
+            this.config,
+            this.settings,
+            this.filePackageXmlPath
+        );
 
-    protected init(): void {
+    }// End method
 
-        // setup config and setting properties
+    protected init (): void {
+
+        // Setup config and setting properties
         this.config = MdapiConfig.createConfig();
         this.settings = MdapiConfig.createSettings();
 
@@ -264,208 +355,292 @@ export class MdapiRetrieveUtility {
         this.settings.apiVersion = this.apiVersion;
 
         if (!existsSync(MdapiCommon.stageRoot)) {
+
             mkdirSync(MdapiCommon.stageRoot);
-            this.ux.log('staging ' + MdapiCommon.stageRoot + ' directory created');
-        }// end if
+            this.ux.log(`staging ${MdapiCommon.stageRoot} directory created`);
 
-        // check if working directory exists
+        }// End if
+
+        // Check if working directory exists
         if (!existsSync(this.stageOrgAliasDirectoryPath)) {
+
             mkdirSync(this.stageOrgAliasDirectoryPath);
-            this.ux.log('staging alias ' + this.stageOrgAliasDirectoryPath + ' directory created');
-        }// end if
+            this.ux.log(`staging alias ${this.stageOrgAliasDirectoryPath} directory created`);
 
-    }// end method
+        }// End if
 
-    protected async unzip(): Promise<void> {
+    }// End method
+
+    protected async unzip (): Promise<void> {
 
         if (existsSync(this.targetDirectorySource)) {
+
             removeSync(this.targetDirectorySource);
-        }// end if
 
-        await MdapiConfig.unzipUnpackaged(this.zipFilePath, this.targetDirectoryUnpackaged);
+        }// End if
 
-        // rename unmanaged to src
-        await rename(this.targetDirectoryUnpackaged, this.targetDirectorySource);
+        await MdapiConfig.unzipUnpackaged(
+            this.zipFilePath,
+            this.targetDirectoryUnpackaged
+        );
 
-    }// end method
+        // Rename unmanaged to src
+        await rename(
+            this.targetDirectoryUnpackaged,
+            this.targetDirectorySource
+        );
 
-    protected queryListMetadata(params: Params, batchCtrl: BatchCtrl): void {
+    }// End method
+
+    protected queryListMetadata (params: Params, batchCtrl: BatchCtrl): void {
 
         let metaQueries: Array<ListMetadataQuery>;
 
-        const metaType: string = params.metaType;
-        const folderName: string = params.folder;
+        let {metaType} = params,
+            folderName: string = params.folder;
 
-        if (folderName) { metaQueries = [{ type: metaType, folder: folderName }]; }
-        else { metaQueries = [{ type: metaType }]; }
+        if (folderName) {
 
-        this.org.getConnection().metadata.list(metaQueries, this.apiVersion).then((result: Array<FileProperties>) => {
+            metaQueries = [
+                {"type": metaType,
+                    "folder": folderName}
+            ];
 
-            result = MdapiCommon.objectToArray(result);
+        } else {
 
-            for (let x: number = 0; x < result.length; x++) {
+            metaQueries = [{"type": metaType}];
 
-                let metaItem: FileProperties = result[x];
+        }
 
-                if (metaItem.manageableState === MdapiConfig.deleted ||
+        this.org.getConnection().metadata.list(
+            metaQueries,
+            this.apiVersion
+        ).then(
+            (result: Array<FileProperties>) => {
+
+                result = MdapiCommon.objectToArray(result);
+
+                for (let x = 0; x < result.length; x++) {
+
+                    let metaItem: FileProperties = result[x];
+
+                    if (metaItem.manageableState === MdapiConfig.deleted ||
                     metaItem.manageableState === MdapiConfig.deprecated) {
-                    this.ux.log('ignoring ' + metaType + ' ' + metaItem.manageableState + ' item ' + metaItem.fullName);
-                    continue;
-                }// end if
 
-                if (!MdapiConfig.ignoreInstalled(this.settings, metaItem) &&
-                    !MdapiConfig.ignoreNamespaces(this.settings, metaItem) &&
-                    !MdapiConfig.ignoreHiddenOrNonEditable(this.settings, metaItem)) {
-                    this.config.metadataObjectMembersLookup[metaType].push(metaItem);
-                }// end if
+                        this.ux.log(`ignoring ${metaType} ${metaItem.manageableState} item ${metaItem.fullName}`);
+                        continue;
 
-            }// end for
+                    }// End if
 
-            if (--batchCtrl.counter <= 0) {
-                batchCtrl.resolve();
-            }// end if
+                    if (!MdapiConfig.ignoreInstalled(
+                        this.settings,
+                        metaItem
+                    ) &&
+                    !MdapiConfig.ignoreNamespaces(
+                        this.settings,
+                        metaItem
+                    ) &&
+                    !MdapiConfig.ignoreHiddenOrNonEditable(
+                        this.settings,
+                        metaItem
+                    )) {
 
-        }, (error: any) => {
-            this.ux.error(error);
-            batchCtrl.reject(error);
-        });// end promise
+                        this.config.metadataObjectMembersLookup[metaType].push(metaItem);
 
-    }// end method
+                    }// End if
 
-    protected listMetadataBatch(): Promise<void> {
+                }// End for
+
+                if (--batchCtrl.counter <= 0) {
+
+                    batchCtrl.resolve();
+
+                }// End if
+
+            },
+            (error: any) => {
+
+                this.ux.error(error);
+                batchCtrl.reject(error);
+
+            }
+        );// End promise
+
+    }// End method
+
+    protected listMetadataBatch (): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
-            let counter: number = 0;
+            let counter = 0,
 
-            let batchCtrl = <BatchCtrl>{
-                "counter": counter,
-                "resolve": resolve,
-                "reject": reject
-            };
+                batchCtrl = <BatchCtrl>{
+                    counter,
+                    resolve,
+                    reject
+                };
 
-            for (let x: number = 0; x < this.BATCH_SIZE; x++) {
+            for (let x = 0; x < this.BATCH_SIZE; x++) {
 
                 let metaType: string = this.transientMetadataTypes.pop();
 
                 if (!metaType) {
+
                     if (batchCtrl.counter <= 0) {
+
                         resolve();
+
                         return;
-                    } else { continue; }
-                }// end if
+
+                    } continue;
+
+                }// End if
 
                 batchCtrl.counter = ++counter;
 
                 let params = <Params>{
-                    "metaType": metaType
+                    metaType
                 };
 
-                this.queryListMetadata(params, batchCtrl);
+                this.queryListMetadata(
+                    params,
+                    batchCtrl
+                );
 
-            }// end for
+            }// End for
 
-        });// end promse
+        });// End promse
 
-    }// end method
+    }// End method
 
-    protected async listMetadata(): Promise<void> {
+    protected async listMetadata (): Promise<void> {
 
-        this.transientMetadataTypes = [...this.config.metadataTypes]; // create queue
+        this.transientMetadataTypes = [...this.config.metadataTypes]; // Create queue
 
         while (this.transientMetadataTypes.length > 0) {
 
             await this.listMetadataBatch();
 
-        }// end while
+        }// End while
 
-    }// end method
+    }// End method
 
-    protected async listMetadataFolders(): Promise<void> {
+    protected async listMetadataFolders (): Promise<void> {
 
         if (!this.ignoreFolders) {
 
-            await this.listMetadataFolderBatch(this.config, MdapiConfig.Dashboard);
-            await this.listMetadataFolderBatch(this.config, MdapiConfig.Document);
-            await this.listMetadataFolderBatch(this.config, MdapiConfig.EmailTemplate);
-            await this.listMetadataFolderBatch(this.config, MdapiConfig.Report);
+            await this.listMetadataFolderBatch(
+                this.config,
+                MdapiConfig.Dashboard
+            );
+            await this.listMetadataFolderBatch(
+                this.config,
+                MdapiConfig.Document
+            );
+            await this.listMetadataFolderBatch(
+                this.config,
+                MdapiConfig.EmailTemplate
+            );
+            await this.listMetadataFolderBatch(
+                this.config,
+                MdapiConfig.Report
+            );
 
-        }// end if
+        }// End if
 
-    }// end method
+    }// End method
 
-    protected checkStageOrDevModePackageXml(): void {
+    protected checkStageOrDevModePackageXml (): void {
 
         if (this.devMode) {
 
-            copySync(this.filePackageXmlPath, MdapiConfig.packageXml);
-            this.ux.log('copied ' + MdapiConfig.packageXml);
+            copySync(
+                this.filePackageXmlPath,
+                MdapiConfig.packageXml
+            );
+            this.ux.log(`copied ${MdapiConfig.packageXml}`);
 
-        }// end if
+        }// End if
 
-    }// end method
+    }// End method
 
-    protected checkStageOrDevModeFiles(): void {
+    protected checkStageOrDevModeFiles (): void {
 
         if (this.devMode) {
 
             if (existsSync(MdapiConfig.srcFolder)) {
+
                 removeSync(MdapiConfig.srcFolder);
-            }// end if
+
+            }// End if
 
             mkdirSync(MdapiConfig.srcFolder);
 
-            copySync(this.targetDirectorySource, MdapiConfig.srcFolder);
-            this.ux.log('copied to ' + MdapiConfig.srcFolder);
+            copySync(
+                this.targetDirectorySource,
+                MdapiConfig.srcFolder
+            );
+            this.ux.log(`copied to ${MdapiConfig.srcFolder}`);
 
             if (existsSync(MdapiCommon.stageRoot)) {
+
                 removeSync(MdapiCommon.stageRoot);
-                this.ux.log('deleted ' + MdapiCommon.stageRoot);
-            }// end if
+                this.ux.log(`deleted ${MdapiCommon.stageRoot}`);
+
+            }// End if
 
             removeSync(MdapiCommon.stageRoot);
 
             if (existsSync(MdapiCommon.backupRoot)) {
+
                 removeSync(MdapiCommon.backupRoot);
-                this.ux.log('deleted ' + MdapiCommon.backupRoot);
-            }// end if
+                this.ux.log(`deleted ${MdapiCommon.backupRoot}`);
 
-        }// end if
+            }// End if
 
-    }// end method
+        }// End if
 
-    public async process(): Promise<void> {
+    }// End method
+
+    public async process (): Promise<void> {
 
         try {
 
-            // init
-            this.ux.startSpinner('initialising');
+            // Init
+            this.ux.startSpinner("initialising");
             this.init();
             this.ux.stopSpinner();
 
-            // async calls
-            this.ux.startSpinner('describe metadata');
-            await MdapiConfig.describeMetadata(this.org, this.config, this.settings);
+            // Async calls
+            this.ux.startSpinner("describe metadata");
+            await MdapiConfig.describeMetadata(
+                this.org,
+                this.config,
+                this.settings
+            );
             this.ux.stopSpinner();
 
-            this.ux.startSpinner('list metadata');
+            this.ux.startSpinner("list metadata");
             await this.listMetadata();
             this.ux.stopSpinner();
 
-            this.ux.startSpinner('list folders');
+            this.ux.startSpinner("list folders");
             await this.listMetadataFolders();
             this.ux.stopSpinner();
 
-            this.ux.startSpinner('resolve personaccount recordtypes');
-            await MdapiConfig.resolvePersonAccountRecordTypes(this.org, this.config);
+            this.ux.startSpinner("resolve personaccount recordtypes");
+            await MdapiConfig.resolvePersonAccountRecordTypes(
+                this.org,
+                this.config
+            );
             this.ux.stopSpinner();
 
-            // sync calls
+            // Sync calls
             MdapiConfig.setStandardValueSets(this.config);
             MdapiConfig.repositionSettings(this.config);
 
-            // create package.xml
-            this.ux.startSpinner('create package.xml file');
+            // Create package.xml
+            this.ux.startSpinner("create package.xml file");
             this.packageFile();
             this.ux.stopSpinner();
 
@@ -473,32 +648,34 @@ export class MdapiRetrieveUtility {
 
             if (!this.manifestOnly) {
 
-                // retrieve metadata files
-                this.ux.startSpinner('retrieve metadata (please standby)');
+                // Retrieve metadata files
+                this.ux.startSpinner("retrieve metadata (please standby)");
                 await this.retrieveMetadata();
                 this.ux.stopSpinner();
 
-                // unzip retrieved zip
-                this.ux.startSpinner('unzipping package');
+                // Unzip retrieved zip
+                this.ux.startSpinner("unzipping package");
                 await this.unzip();
                 this.ux.stopSpinner();
 
-                // backup zip
-                this.ux.startSpinner('backup zip');
+                // Backup zip
+                this.ux.startSpinner("backup zip");
                 await this.backup();
                 this.ux.stopSpinner();
 
-                // check if staging only or clean for src dev only
-                this.ux.startSpinner('finishing up');
+                // Check if staging only or clean for src dev only
+                this.ux.startSpinner("finishing up");
                 this.checkStageOrDevModeFiles();
                 this.ux.stopSpinner();
 
-            }// end client
+            }// End client
 
         } catch (exception) {
+
             this.ux.error(exception);
-        }// end catch
 
-    }// end process
+        }// End catch
 
-}// end class
+    }// End process
+
+}// End class

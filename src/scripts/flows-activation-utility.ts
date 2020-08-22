@@ -1,369 +1,485 @@
 /**
  * @name FlowsActivationUtility (activate or deactivate)
- * @author brianewardsaunders 
+ * @author brianewardsaunders
  * @date 2019-07-10
  */
 
 import {
-    existsSync, mkdirSync, removeSync, unlinkSync, rename, readdirSync
-} from 'fs-extra'
+    existsSync, mkdirSync, readdirSync, removeSync, rename, unlinkSync
+} from "fs-extra";
 import {
-    ListMetadataQuery, FileProperties, QueryResult
-} from 'jsforce';
+    FileProperties, ListMetadataQuery, QueryResult
+} from "jsforce";
 
-import { Org } from '@salesforce/core';
-import { UX } from '@salesforce/command';
-import { MdapiConfig, IConfig, ISettings } from './mdapi-config';
-import { MdapiCommon } from './mdapi-common';
-import path = require('path');
+import {Org} from "@salesforce/core";
+import {UX} from "@salesforce/command";
+import {IConfig, ISettings, MdapiConfig} from "./mdapi-config";
+import {MdapiCommon} from "./mdapi-common";
+import path = require("path");
 
 export interface Flow {
     flowId: string,
     flowDefinitionId: string;
     developerName: string;
     versionNumber: number;
-    status: string;  // 'Active' | 'Draft' | 'Obsolete' | 'InvalidDraft';
+    status: string; // 'Active' | 'Draft' | 'Obsolete' | 'InvalidDraft';
 }
 
 export class FlowsActivationUtility {
 
-    constructor(
+    constructor (
         protected org: Org,
         protected ux: UX,
         protected orgAlias: string,
         protected apiVersion: string,
-        protected deactivate: boolean) {
-        // noop
-    }// end constructor
+        protected deactivate: boolean
+    ) {
+        // Noop
+    }// End constructor
 
     protected includedFlows: Record<string, Flow> = {};
+
     protected ignoredFlows: Record<string, Flow> = {};
 
-    // define working folders
+    // Define working folders
     protected stageOrgAliasDirectoryPath: string = (MdapiCommon.stageRoot + MdapiCommon.PATH_SEP + this.orgAlias);
+
     protected retrievePath: string = (this.stageOrgAliasDirectoryPath + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot);
+
     protected zipFilePath: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
+
     protected targetDirectoryUnpackaged: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedFolder);
+
     protected targetDirectorySource: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
+
     protected manifestDirectory: string = (this.stageOrgAliasDirectoryPath + MdapiCommon.PATH_SEP + MdapiConfig.manifestFolder);
+
     protected filePackageXmlPath = (this.manifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
 
     protected config: IConfig;
+
     protected settings: ISettings;
 
-    protected async retrieveMetadata(): Promise<any> {
+    protected async retrieveMetadata (): Promise<any> {
 
-        this.ux.log('retrieve directory ' + this.retrievePath);
+        this.ux.log(`retrieve directory ${this.retrievePath}`);
 
         return new Promise((resolve, reject) => {
 
             if (existsSync(this.retrievePath)) {
+
                 removeSync(this.retrievePath);
-            }// end if
+
+            }// End if
 
             mkdirSync(this.retrievePath);
 
-            let retrieveCommand: string = ('sfdx force:mdapi:retrieve -s -k ' + this.filePackageXmlPath
-                + ' -r ' + this.retrievePath + ' -w -1 -u ' + this.orgAlias);
+            let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackageXmlPath
+            } -r ${this.retrievePath} -w -1 -u ${this.orgAlias}`;
 
-            MdapiCommon.command(retrieveCommand).then((result: any) => {
+            MdapiCommon.command(retrieveCommand).then(
+                (result: any) => {
 
-                this.ux.log(result);
-                resolve();
+                    this.ux.log(result);
+                    resolve();
 
-            }, (error: any) => {
-                this.ux.error(error);
-                reject(error);
-            });
+                },
+                (error: any) => {
 
-        }); // end promise
+                    this.ux.error(error);
+                    reject(error);
 
-    }// end method
+                }
+            );
 
-    protected packageFile(): void {
+        }); // End promise
+
+    }// End method
+
+    protected packageFile (): void {
 
         if (!existsSync(this.manifestDirectory)) {
+
             mkdirSync(this.manifestDirectory);
-            this.ux.log('created manifest directory ' + this.manifestDirectory);
-        }// end if
+            this.ux.log(`created manifest directory ${this.manifestDirectory}`);
 
-        MdapiConfig.createPackageFile(this.config, this.settings, this.filePackageXmlPath);
+        }// End if
 
-    }// end method
+        MdapiConfig.createPackageFile(
+            this.config,
+            this.settings,
+            this.filePackageXmlPath
+        );
 
-    protected init(): void {
+    }// End method
 
-        // setup config and setting properties
+    protected init (): void {
+
+        // Setup config and setting properties
         this.config = MdapiConfig.createConfig();
         this.settings = MdapiConfig.createSettings();
 
         this.settings.apiVersion = this.apiVersion;
 
         if (!existsSync(MdapiCommon.stageRoot)) {
+
             mkdirSync(MdapiCommon.stageRoot);
-            this.ux.log('staging ' + MdapiCommon.stageRoot + ' directory created');
-        }// end if
+            this.ux.log(`staging ${MdapiCommon.stageRoot} directory created`);
 
-        // check if working directory exists
+        }// End if
+
+        // Check if working directory exists
         if (!existsSync(this.stageOrgAliasDirectoryPath)) {
+
             mkdirSync(this.stageOrgAliasDirectoryPath);
-            this.ux.log('staging alias ' + this.stageOrgAliasDirectoryPath + ' directory created');
-        }// end if
+            this.ux.log(`staging alias ${this.stageOrgAliasDirectoryPath} directory created`);
 
-    }// end method
+        }// End if
 
-    protected async unzip(): Promise<any> {
+    }// End method
+
+    protected async unzip (): Promise<any> {
 
         if (existsSync(this.targetDirectorySource)) {
-            removeSync(this.targetDirectorySource);
-        }// end if
 
-        await MdapiConfig.unzipUnpackaged(this.zipFilePath, this.targetDirectoryUnpackaged);
+            removeSync(this.targetDirectorySource);
+
+        }// End if
+
+        await MdapiConfig.unzipUnpackaged(
+            this.zipFilePath,
+            this.targetDirectoryUnpackaged
+        );
 
         if (existsSync(this.zipFilePath)) {
+
             unlinkSync(this.zipFilePath);
-        }// end if
 
-        await rename(this.targetDirectoryUnpackaged, this.targetDirectorySource);
+        }// End if
 
-    }// end method
+        await rename(
+            this.targetDirectoryUnpackaged,
+            this.targetDirectorySource
+        );
 
-    protected async querylistMetadata(metadataType: string): Promise<void> {
+    }// End method
+
+    protected async querylistMetadata (metadataType: string): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
-            let metaQueries: Array<ListMetadataQuery> = [{ type: metadataType }];
+            let metaQueries: Array<ListMetadataQuery> = [{"type": metadataType}];
 
-            this.org.getConnection().metadata.list(metaQueries, this.apiVersion).then((result: Array<FileProperties>) => {
+            this.org.getConnection().metadata.list(
+                metaQueries,
+                this.apiVersion
+            ).then(
+                (result: Array<FileProperties>) => {
 
-                result = MdapiCommon.objectToArray(result);
+                    result = MdapiCommon.objectToArray(result);
 
-                for (let x: number = 0; x < result.length; x++) {
-                    let metaItem: FileProperties = result[x];
-                    this.config.metadataObjectMembersLookup[metadataType].push(metaItem);
-                }// end for
+                    for (let x = 0; x < result.length; x++) {
 
-                resolve();
+                        let metaItem: FileProperties = result[x];
 
-            }, (error: any) => {
-                reject(error);
-            });// end promise
+                        this.config.metadataObjectMembersLookup[metadataType].push(metaItem);
+
+                    }// End for
+
+                    resolve();
+
+                },
+                (error: any) => {
+
+                    reject(error);
+
+                }
+            );// End promise
+
         });
 
-    }// end method
+    }// End method
 
-    protected updateFlowDefinitionFilesToDeactivate(): void {
+    protected updateFlowDefinitionFilesToDeactivate (): void {
 
-        let directory: string = (this.targetDirectorySource + MdapiCommon.PATH_SEP + MdapiConfig.flowDefinitions);
-        let fileItems: Array<string> = readdirSync(directory);
+        let directory: string = this.targetDirectorySource + MdapiCommon.PATH_SEP + MdapiConfig.flowDefinitions,
+            fileItems: Array<string> = readdirSync(directory);
 
-        for (let x: number = 0; x < fileItems.length; x++) {
+        for (let x = 0; x < fileItems.length; x++) {
 
-            let fileItem: string = fileItems[x];
-            let filePath: string = path.join(directory, fileItem);
-            let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
-            let flowDefinition: Object = jsonObject[MdapiConfig.FlowDefinition];
+            let fileItem: string = fileItems[x],
+                filePath: string = path.join(
+                    directory,
+                    fileItem
+                ),
+                jsonObject: object = MdapiCommon.xmlFileToJson(filePath),
+                flowDefinition: object = jsonObject[MdapiConfig.FlowDefinition],
 
-            let activeVersionNumber: Object = flowDefinition[MdapiConfig.activeVersionNumber];
+                activeVersionNumber: object = flowDefinition[MdapiConfig.activeVersionNumber];
+
             if (!activeVersionNumber) {
-                flowDefinition[MdapiConfig.activeVersionNumber] = { _text: 0 };
-            }// end if
+
+                flowDefinition[MdapiConfig.activeVersionNumber] = {"_text": 0};
+
+            }// End if
 
             flowDefinition[MdapiConfig.activeVersionNumber]._text = 0;
-            MdapiCommon.jsonToXmlFile(jsonObject, filePath);
+            MdapiCommon.jsonToXmlFile(
+                jsonObject,
+                filePath
+            );
 
-        }// end for
+        }// End for
 
-    }// end method
+    }// End method
 
-    protected updateFlowDefinitionFilesToActivate(): void {
+    protected updateFlowDefinitionFilesToActivate (): void {
 
-        let directory: string = (this.targetDirectorySource + MdapiCommon.PATH_SEP + MdapiConfig.flowDefinitions);
-        let fileItems: Array<string> = readdirSync(directory);
+        let directory: string = this.targetDirectorySource + MdapiCommon.PATH_SEP + MdapiConfig.flowDefinitions,
+            fileItems: Array<string> = readdirSync(directory);
 
-        for (let x: number = 0; x < fileItems.length; x++) {
+        for (let x = 0; x < fileItems.length; x++) {
 
-            let fileItem: string = fileItems[x];
-            let filePath: string = path.join(directory, fileItem);
-            let developerName: string = fileItem.split(MdapiCommon.DOT)[0];
+            let fileItem: string = fileItems[x],
+                filePath: string = path.join(
+                    directory,
+                    fileItem
+                ),
+                developerName: string = fileItem.split(MdapiCommon.DOT)[0];
 
-            // included means need to activate.
+            // Included means need to activate.
             if (this.includedFlows[developerName]) {
 
-                let jsonObject: Object = MdapiCommon.xmlFileToJson(filePath);
+                let jsonObject: object = MdapiCommon.xmlFileToJson(filePath),
 
-                let includedFlow: Flow = this.includedFlows[developerName];
+                    includedFlow: Flow = this.includedFlows[developerName],
 
-                let flowDefinition: Object = jsonObject[MdapiConfig.FlowDefinition];
+                    flowDefinition: object = jsonObject[MdapiConfig.FlowDefinition],
 
-                let activeVersionNumber: Object = flowDefinition[MdapiConfig.activeVersionNumber];
+                    activeVersionNumber: object = flowDefinition[MdapiConfig.activeVersionNumber];
+
                 if (!activeVersionNumber) {
-                    flowDefinition[MdapiConfig.activeVersionNumber] = { _text: 0 };
-                }// end if
+
+                    flowDefinition[MdapiConfig.activeVersionNumber] = {"_text": 0};
+
+                }// End if
 
                 flowDefinition[MdapiConfig.activeVersionNumber]._text = includedFlow.versionNumber;
-                MdapiCommon.jsonToXmlFile(jsonObject, filePath);
+                MdapiCommon.jsonToXmlFile(
+                    jsonObject,
+                    filePath
+                );
 
-            }// end if
+            }// End if
             else if (this.ignoredFlows[developerName]) {
+
                 if (existsSync(filePath)) {
+
                     unlinkSync(filePath);
-                }// end if
-            }// end if
+
+                }// End if
+
+            }// End if
             else {
+
                 throw "unexpected event could not resolve flow definition developer name";
-            }// end else
 
-        }// end for
+            }// End else
 
-    }// end method
+        }// End for
 
-    protected updateIncludedPackageXml(): void {
+    }// End method
 
-        for (let x: number = 0; x < this.config.metadataTypes.length; x++) {
+    protected updateIncludedPackageXml (): void {
+
+        for (let x = 0; x < this.config.metadataTypes.length; x++) {
 
             let metaType: string = this.config.metadataTypes[x];
 
-            if (this.config.metadataObjectMembersLookup[metaType].length === 0) { continue; }
+            if (this.config.metadataObjectMembersLookup[metaType].length === 0) {
+
+                continue;
+
+            }
 
             let metaItems: Array<FileProperties> = this.config.metadataObjectMembersLookup[metaType];
 
-            for (let y: number = 0; y < metaItems.length; y++) {
+            for (let y = 0; y < metaItems.length; y++) {
+
                 let fileProperties: FileProperties = metaItems[y];
-                if (this.ignoredFlows[fileProperties.fullName]) { // exclude already active
-                    metaItems.splice(y, 1);
+
+                if (this.ignoredFlows[fileProperties.fullName]) { // Exclude already active
+
+                    metaItems.splice(
+                        y,
+                        1
+                    );
                     break;
-                }// end if
 
-            }// end for
+                }// End if
 
-        }// end for
+            }// End for
 
-        let updatePackageXml: string = (this.targetDirectorySource + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
+        }// End for
 
-        MdapiConfig.createPackageFile(this.config, this.settings, updatePackageXml);
+        let updatePackageXml: string = this.targetDirectorySource + MdapiCommon.PATH_SEP + MdapiConfig.packageXml;
 
-    }// end method
+        MdapiConfig.createPackageFile(
+            this.config,
+            this.settings,
+            updatePackageXml
+        );
 
-    public async deploy(): Promise<void> {
+    }// End method
+
+    public async deploy (): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
-            let command: string = ('sfdx force:mdapi:deploy -g -w -1 -u ' + this.orgAlias + ' -d ' + this.targetDirectorySource);
+            let command = `sfdx force:mdapi:deploy -g -w -1 -u ${this.orgAlias} -d ${this.targetDirectorySource}`;
 
             this.ux.log(command);
 
-            MdapiCommon.command(command).then((result) => {
-                this.ux.log(result);
-                resolve();
-            }, (error) => {
-                this.ux.error(error);
-                reject(error);
-            });
+            MdapiCommon.command(command).then(
+                (result) => {
 
-        });// end promise
+                    this.ux.log(result);
+                    resolve();
 
-    }// end if
+                },
+                (error) => {
 
-    // cannot reactive previous version
-    // the version of the flow you're updating was active and can't be overwritten
-    protected async queryLatestAndActivateFlows(): Promise<void> {
+                    this.ux.error(error);
+                    reject(error);
 
-        let result: QueryResult<Object> = await this.org.getConnection().tooling.query(
-            "SELECT DeveloperName, LatestVersion.VersionNumber, LatestVersion.Status FROM FlowDefinition");
-        let queryRecords: Array<Object> = MdapiCommon.objectToArray(result.records);
+                }
+            );
 
-        for (let x: number = 0; x < queryRecords.length; x++) {
+        });// End promise
 
-            let record: Object = queryRecords[x];
+    }// End if
 
-            let flowDefinitionId: string = MdapiCommon.isolateLeafNode(record[MdapiConfig.attributes].url, MdapiCommon.PATH_SEP);
-            let developerName: string = record[MdapiConfig.DeveloperName];
-            let latestVersion: Object = record[MdapiConfig.LatestVersion];
-            let flowId: string = MdapiCommon.isolateLeafNode(latestVersion[MdapiConfig.attributes].url, MdapiCommon.PATH_SEP);
-            let status: string = latestVersion[MdapiConfig.Status];
-            let versionNumber: number = latestVersion[MdapiConfig.VersionNumber];
+    /*
+     * Cannot reactive previous version
+     * the version of the flow you're updating was active and can't be overwritten
+     */
+    protected async queryLatestAndActivateFlows (): Promise<void> {
 
-            if (status === MdapiConfig.Obsolete) { // exclude drafts and invalid draft and already active
+        let result: QueryResult<object> = await this.org.getConnection().tooling.query("SELECT DeveloperName, LatestVersion.VersionNumber, LatestVersion.Status FROM FlowDefinition"),
+            queryRecords: Array<object> = MdapiCommon.objectToArray(result.records);
+
+        for (let x = 0; x < queryRecords.length; x++) {
+
+            let record: object = queryRecords[x],
+
+                flowDefinitionId: string = MdapiCommon.isolateLeafNode(
+                    record[MdapiConfig.attributes].url,
+                    MdapiCommon.PATH_SEP
+                ),
+                developerName: string = record[MdapiConfig.DeveloperName],
+                latestVersion: object = record[MdapiConfig.LatestVersion],
+                flowId: string = MdapiCommon.isolateLeafNode(
+                    latestVersion[MdapiConfig.attributes].url,
+                    MdapiCommon.PATH_SEP
+                ),
+                status: string = latestVersion[MdapiConfig.Status],
+                versionNumber: number = latestVersion[MdapiConfig.VersionNumber];
+
+            if (status === MdapiConfig.Obsolete) { // Exclude drafts and invalid draft and already active
 
                 this.includedFlows[developerName] = <Flow>{
-                    "flowId": flowId,
-                    "flowDefinitionId": flowDefinitionId,
-                    "developerName": developerName,
-                    "versionNumber": versionNumber,
-                    "status": status
-                }// end if
+                    flowId,
+                    flowDefinitionId,
+                    developerName,
+                    versionNumber,
+                    status
+                };// End if
 
-            }// end method
+            }// End method
             else {
+
                 this.ignoredFlows[developerName] = <Flow>{
-                    "flowId": flowId,
-                    "flowDefinitionId": flowDefinitionId,
-                    "developerName": developerName,
-                    "versionNumber": versionNumber,
-                    "status": status
-                }// end else
-            }// end else
+                    flowId,
+                    flowDefinitionId,
+                    developerName,
+                    versionNumber,
+                    status
+                };// End else
 
-        }// end for
+            }// End else
 
-    }// end method
+        }// End for
 
-    public async process(): Promise<void> {
+    }// End method
 
-        // init
-        this.ux.startSpinner('initialising');
+    public async process (): Promise<void> {
+
+        // Init
+        this.ux.startSpinner("initialising");
         this.init();
         this.ux.stopSpinner();
 
-        // async calls
-        this.ux.startSpinner('describe metadata');
-        await MdapiConfig.describeMetadata(this.org, this.config, this.settings);
+        // Async calls
+        this.ux.startSpinner("describe metadata");
+        await MdapiConfig.describeMetadata(
+            this.org,
+            this.config,
+            this.settings
+        );
         this.ux.stopSpinner();
 
-        this.ux.startSpinner('list metadata');
-        await MdapiConfig.querylistMetadata(this.org, MdapiConfig.FlowDefinition, this.config, this.settings);
+        this.ux.startSpinner("list metadata");
+        await MdapiConfig.querylistMetadata(
+            this.org,
+            MdapiConfig.FlowDefinition,
+            this.config,
+            this.settings
+        );
         this.ux.stopSpinner();
 
-        // create package.xml
-        this.ux.startSpinner('package.xml file');
+        // Create package.xml
+        this.ux.startSpinner("package.xml file");
         this.packageFile();
         this.ux.stopSpinner();
 
-        // retrieve metadata files
-        this.ux.startSpinner('retrieve metadata');
+        // Retrieve metadata files
+        this.ux.startSpinner("retrieve metadata");
         await this.retrieveMetadata();
         this.ux.stopSpinner();
 
-        // unzip retrieve and backup zip
-        this.ux.startSpinner('unzipping');
+        // Unzip retrieve and backup zip
+        this.ux.startSpinner("unzipping");
         await this.unzip();
         this.ux.stopSpinner();
 
-        // iterate FlowDefinitions files and update
+        // Iterate FlowDefinitions files and update
         if (this.deactivate) {
-            this.ux.startSpinner('deactivate flow definition files');
+
+            this.ux.startSpinner("deactivate flow definition files");
             this.updateFlowDefinitionFilesToDeactivate();
             this.ux.stopSpinner();
-        }// end if 
+
+        }// End if
         else {
-            this.ux.startSpinner('query latest flows');
+
+            this.ux.startSpinner("query latest flows");
             await this.queryLatestAndActivateFlows();
             this.ux.stopSpinner();
 
-            this.ux.startSpinner('activate flow definition files');
+            this.ux.startSpinner("activate flow definition files");
             this.updateFlowDefinitionFilesToActivate();
             this.ux.stopSpinner();
 
-            this.ux.startSpinner('update package.xml');
+            this.ux.startSpinner("update package.xml");
             this.updateIncludedPackageXml();
             this.ux.stopSpinner();
-        }// end else
 
-        this.ux.startSpinner('deploy');
+        }// End else
+
+        this.ux.startSpinner("deploy");
         await this.deploy();
         this.ux.stopSpinner();
 
-    }// end process
+    }// End process
 
-}// end class
+}// End class

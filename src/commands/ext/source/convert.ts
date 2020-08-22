@@ -1,78 +1,99 @@
 /**
  * @name Convert (from sfdx to mdapi source)
- * @author brianewardsaunders 
+ * @author brianewardsaunders
  * @date 2019-07-10
  */
 
-import { SfdxCommand, flags } from '@salesforce/command';
-import { Messages, SfdxError } from '@salesforce/core';
-import { SourceConvertUtility } from '../../../scripts/source-convert-utility';
+import {SfdxCommand, flags} from "@salesforce/command";
+import {Messages, SfdxError} from "@salesforce/core";
+import {SourceConvertUtility} from "../../../scripts/source-convert-utility";
 
 Messages.importMessagesDirectory(__dirname);
 
-const messages = Messages.loadMessages('sfdx-ext', 'source-convert');
+let messages = Messages.loadMessages(
+    "sfdx-ext",
+    "source-convert"
+);
 
 export default class Convert extends SfdxCommand {
 
-  public static description = messages.getMessage('commandDescription');
+    public static description = messages.getMessage("commandDescription");
 
-  public static examples = [
-    `
+    public static examples = [
+        `
     $ sfdx ext:mdapi:convert --targetusername user@target.com --sourcedirectory force-app --targetdirectory ../unmanaged
     `,
-    `
+        `
     $ sfdx ext:mdapi:convert -u user@target.com -r force-app -d ../unmanaged
     `
-  ];
+    ];
 
-  protected static flagsConfig = {
-    sourcedirectory: flags.string({ char: 'r', description: messages.getMessage('sourcedirectoryFlagDescription') }),
-    targetdirectory: flags.string({ char: 'd', description: messages.getMessage('targetdirectoryFlagDescription') }),
-  };
+    protected static flagsConfig = {
+        "sourcedirectory": flags.string({"char": "r",
+            "description": messages.getMessage("sourcedirectoryFlagDescription")}),
+        "targetdirectory": flags.string({"char": "d",
+            "description": messages.getMessage("targetdirectoryFlagDescription")})
+    };
 
-  protected static requiresUsername = true;
-  protected static requiresProject = true;
+    protected static requiresUsername = true;
 
-  public async run(): Promise<any> {
+    protected static requiresProject = true;
 
-    let defaultSourceDirectory: string = 'force-app';
-    let defaultApiVersion: string = await this.org.retrieveMaxApiVersion();
-    let targetusername: string = this.flags.targetusername;
-    let sourcedirectory: string = this.flags.sourcedirectory || defaultSourceDirectory;
-    let targetdirectory: string = this.flags.targetdirectory;
-    let apiversion: string = this.flags.apiVersion || defaultApiVersion;
+    public async run (): Promise<any> {
 
-    if (targetdirectory === undefined) {
-      throw new SfdxError(messages.getMessage('errorTargetDirectoryRequired', []));
-    }// end else if
+        let defaultSourceDirectory = "force-app",
+            defaultApiVersion: string = await this.org.retrieveMaxApiVersion(),
+            {targetusername} = this.flags,
+            sourcedirectory: string = this.flags.sourcedirectory || defaultSourceDirectory,
+            {targetdirectory} = this.flags,
+            apiversion: string = this.flags.apiVersion || defaultApiVersion;
 
-    this.ux.log("-----------------------------");
-    this.ux.log("sfdx ext:source:convert");
-    this.ux.log("-----------------------------");
-    this.ux.log("targetusername    : " + targetusername);
-    this.ux.log("sourcedirectory   : " + sourcedirectory);
-    this.ux.log("targetdirectory   : " + targetdirectory);
-    this.ux.log("apiversion        : " + apiversion);
-    this.ux.log("-----------------------------");
+        if (targetdirectory === undefined) {
 
-    let util = new SourceConvertUtility(
-      this.org,
-      this.ux,
-      sourcedirectory,
-      targetdirectory,
-      apiversion);
+            throw new SfdxError(messages.getMessage(
+                "errorTargetDirectoryRequired",
+                []
+            ));
 
-    util.process().then(() => {
-      this.ux.log('success.');
-      return { "status": 'success' };
-    }, (error: any) => {
-      this.ux.error(error);
-      return {
-        "status": 'error',
-        "error": error
-      };
-    });
+        }// End else if
 
-  }// end method
+        this.ux.log("-----------------------------");
+        this.ux.log("sfdx ext:source:convert");
+        this.ux.log("-----------------------------");
+        this.ux.log(`targetusername    : ${targetusername}`);
+        this.ux.log(`sourcedirectory   : ${sourcedirectory}`);
+        this.ux.log(`targetdirectory   : ${targetdirectory}`);
+        this.ux.log(`apiversion        : ${apiversion}`);
+        this.ux.log("-----------------------------");
 
-}// end class
+        let util = new SourceConvertUtility(
+            this.org,
+            this.ux,
+            sourcedirectory,
+            targetdirectory,
+            apiversion
+        );
+
+        util.process().then(
+            () => {
+
+                this.ux.log("success.");
+
+                return {"status": "success"};
+
+            },
+            (error: any) => {
+
+                this.ux.error(error);
+
+                return {
+                    "status": "error",
+                    error
+                };
+
+            }
+        );
+
+    }// End method
+
+}// End class

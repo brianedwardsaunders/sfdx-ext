@@ -1,105 +1,201 @@
 /**
  * @name MdapiCommon
- * @author brianewardsaunders 
+ * @author brianewardsaunders
  * @date 2019-07-10
  */
 
-import { exec } from "child_process";
-import { readFileSync, writeFileSync } from "fs-extra";
-import { xml2json, json2xml } from "xml-js";
-import path = require('path');
+import {exec} from "child_process";
+import {readFileSync, writeFileSync} from "fs-extra";
+import {json2xml, xml2json} from "xml-js";
+import path = require("path");
 
 export class MdapiCommon {
 
-    public static stageRoot: string = 'stage';
-    public static backupRoot: string = 'backup';
-    public static retrieveRoot: string = 'retrieve';
-    public static configRoot: string = 'config';
-    public static deployRoot: string = 'deploy';
-    public static backupExt: string = ".backup";
+    public static stageRoot = "stage";
 
-    public static _text: string = "_text";
-    public static xml: string = 'xml';
-    public static UTF8: string = 'utf8';
-    public static PATH_SEP: string = '/';
-    public static DOT: string = '.';
-    public static ASTERIX: string = '*';
-    public static BLANK: string = '';
-    public static DASH: string = '-';
-    public static TWO_SPACE: string = '  ';
-    public static FOUR_SPACE: string = '    ';
+    public static backupRoot = "backup";
 
-    public static bufferOptions: Object = { maxBuffer: 10 * 1024 * 1024 };
-    public static convertOptions: Object = { compact: true, spaces: 4 };
-    public static jsonSpaces: number = 2;
+    public static retrieveRoot = "retrieve";
 
-    public static command(cmd: string): Promise<any> {
+    public static configRoot = "config";
+
+    public static deployRoot = "deploy";
+
+    public static backupExt = ".backup";
+
+    public static _text = "_text";
+
+    public static xml = "xml";
+
+    public static UTF8 = "utf8";
+
+    public static PATH_SEP = "/";
+
+    public static DOT = ".";
+
+    public static ASTERIX = "*";
+
+    public static BLANK = "";
+
+    public static DASH = "-";
+
+    public static TWO_SPACE = "  ";
+
+    public static FOUR_SPACE = "    ";
+
+    public static bufferOptions: object = {"maxBuffer": 10 * 1024 * 1024};
+
+    public static convertOptions: object = {"compact": true,
+        "spaces": 4};
+
+    public static jsonSpaces = 2;
+
+    public static command (cmd: string): Promise<any> {
+
         return new Promise((resolve, reject) => {
-            exec(cmd, MdapiCommon.bufferOptions, (error: any, stdout: any, stderr: any) => {
-                if (error) {
-                    console.error(stderr);
-                    reject(error);
-                }// end if
-                else {
-                    resolve(stdout);
-                }// end else
-            });
-        });// end promise
-    }// end method
 
-    public static hashCode(input: string): number {
-        let hash: number = 0;
-        if (!input || (input.length === 0)) { return hash; }
-        for (let i: number = 0; i < input.length; i++) {
+            exec(
+                cmd,
+                MdapiCommon.bufferOptions,
+                (error: any, stdout: any, stderr: any) => {
+
+                    if (error) {
+
+                        console.error(stderr);
+                        reject(error);
+
+                    }// End if
+                    else {
+
+                        resolve(stdout);
+
+                    }// End else
+
+                }
+            );
+
+        });// End promise
+
+    }// End method
+
+    public static hashCode (input: string): number {
+
+        let hash = 0;
+
+        if (!input || input.length === 0) {
+
+            return hash;
+
+        }
+        for (let i = 0; i < input.length; i++) {
+
             let chr = input.charCodeAt(i);
-            hash = (((hash << 5) - hash) + chr);
+
+            hash = (hash << 5) - hash + chr;
             hash |= 0;
-        }// end for
+
+        }// End for
+
         return hash;
-    }// end method
 
-    public static objectToArray<T>(objectOrArray: T | Array<T>): Array<T> {
+    }// End method
+
+    public static objectToArray<T> (objectOrArray: T | Array<T>): Array<T> {
+
         let returned: Array<T> = [];
+
         if (objectOrArray) {
-            if (objectOrArray instanceof Array) { return objectOrArray; }
-            else { returned.push(objectOrArray); }// end else
-        }// end if
+
+            if (objectOrArray instanceof Array) {
+
+                return objectOrArray;
+
+            }
+            returned.push(objectOrArray); // End else
+
+        }// End if
+
         return returned;
-    }// end method
 
-    public static fileToJson<T>(filePath: string): T {
-        return JSON.parse(readFileSync(filePath, MdapiCommon.UTF8));
-    }// end method
+    }// End method
 
-    public static xmlFileToJson<T>(filePath: string): T {
-        return JSON.parse(xml2json(readFileSync(filePath, MdapiCommon.UTF8), MdapiCommon.convertOptions));
-    }// end method
+    public static fileToJson<T> (filePath: string): T {
 
-    public static jsonToXmlFile(jsonObject: Object, filePath: string): void {
-        writeFileSync(filePath, json2xml(JSON.stringify(jsonObject), MdapiCommon.convertOptions));
-    }// end method
+        return JSON.parse(readFileSync(
+            filePath,
+            MdapiCommon.UTF8
+        ));
 
-    public static jsonToFile(jsonObject: Object, filePath: string): void {
-        writeFileSync(filePath, JSON.stringify(jsonObject, null, MdapiCommon.jsonSpaces), MdapiCommon.convertOptions);
-    }// end method
+    }// End method
 
-    public static isolateLeafNode(filePath: string, pathSeperator?: string): string {
+    public static xmlFileToJson<T> (filePath: string): T {
+
+        return JSON.parse(xml2json(
+            readFileSync(
+                filePath,
+                MdapiCommon.UTF8
+            ),
+            MdapiCommon.convertOptions
+        ));
+
+    }// End method
+
+    public static jsonToXmlFile (jsonObject: object, filePath: string): void {
+
+        writeFileSync(
+            filePath,
+            json2xml(
+                JSON.stringify(jsonObject),
+                MdapiCommon.convertOptions
+            )
+        );
+
+    }// End method
+
+    public static jsonToFile (jsonObject: object, filePath: string): void {
+
+        writeFileSync(
+            filePath,
+            JSON.stringify(
+                jsonObject,
+                null,
+                MdapiCommon.jsonSpaces
+            ),
+            MdapiCommon.convertOptions
+        );
+
+    }// End method
+
+    public static isolateLeafNode (filePath: string, pathSeperator?: string): string {
+
         if (!pathSeperator) {
-            pathSeperator = path.sep; // default
-        }// end if
+
+            pathSeperator = path.sep; // Default
+
+        }// End if
         let items: Array<string> = filePath.split(pathSeperator);
+
         return items[items.length - 1];
-    }// end method
 
-    public static join(segments: Array<string>, joinChar: string): string {
+    }// End method
+
+    public static join (segments: Array<string>, joinChar: string): string {
+
         let returned: string = MdapiCommon.BLANK;
-        for (let x: number = 0; (segments && x < segments.length); x++) {
-            returned += segments[x];
-            if (x < (segments.length - 1)) {
-                returned += joinChar;
-            }// end if
-        }// end for
-        return returned;
-    }// end method 
 
-}// end class
+        for (let x = 0; segments && x < segments.length; x++) {
+
+            returned += segments[x];
+            if (x < segments.length - 1) {
+
+                returned += joinChar;
+
+            }// End if
+
+        }// End for
+
+        return returned;
+
+    }// End method
+
+}// End class
