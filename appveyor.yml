@@ -7,6 +7,13 @@ cache:
 install:
   - ps: Install-Product node $env:nodejs_version x64
   - yarn
+
+build: off
+
+build_script:
+  - ps: Write-Host “Prepack plugin”
+  - yarn prepack
+
 test_script:
   - yarn test
 
@@ -16,7 +23,4 @@ after_test:
       $env:PATH = 'C:\msys64\usr\bin;' + $env:PATH
       Invoke-WebRequest -Uri 'https://codecov.io/bash' -OutFile codecov.sh
       bash codecov.sh
-
-
-build: off
 
