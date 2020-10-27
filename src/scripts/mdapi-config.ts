@@ -1325,7 +1325,7 @@ export class MdapiConfig {
                     },
                     (error: any) => {
 
-                        if (error && error instanceof object) {
+                        if (error && error instanceof Object) {
 
                             let errorString: string = JSON.stringify(error);
 

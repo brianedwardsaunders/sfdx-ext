@@ -102,9 +102,9 @@ export class MdapiConvertUtility {
 
     protected removeUnsupportedMetaTypesFromManifestPackageXml (): void {
 
-        let jsonObject: object = MdapiCommon.xmlFileToJson(this.targetManifestPackageXmlPath),
+        let jsonObject: Object = MdapiCommon.xmlFileToJson(this.targetManifestPackageXmlPath),
 
-            metaTypes: Array<object> = MdapiCommon.objectToArray(jsonObject.types);
+            metaTypes: Array<Object> = MdapiCommon.objectToArray(jsonObject['types']);
 
         for (let x = 0; x < metaTypes.length; x++) {
 

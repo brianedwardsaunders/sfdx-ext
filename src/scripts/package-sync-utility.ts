@@ -217,7 +217,7 @@ export class PackageSyncUtility {
                     this.ux.log(result);
                     let jsonObject: object = JSON.parse(result);
 
-                    this.leftPackageList = jsonObject.result;
+                    this.leftPackageList = jsonObject['result'];
 
                     // CommandSfdxRightPackageList
                     let commandSfdxRightPackageList = `sfdx force:package:installed:list -u ${this.targetOrgAlias} --json`;
@@ -232,7 +232,7 @@ export class PackageSyncUtility {
                             this.ux.log(result);
                             let jsonObject: object = JSON.parse(result);
 
-                            this.rightPackageList = jsonObject.result;
+                            this.rightPackageList = jsonObject['result'];
 
                             this.comparePackageList();
                             if (this.diffPackageList.length > 0) {
