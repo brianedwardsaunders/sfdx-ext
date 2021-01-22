@@ -27,12 +27,12 @@ export class ChangesetExcludeDefault implements ChangesetExclude {
         "presenceDeclineReasons",
         "presenceUserConfigs",
         "queueRoutingConfigs",
-        "entitlementProcesses",
-        "milestoneTypes",
         /*
          * "serviceChannels",
          * "servicePresenceStatuses",
          * "sharingSets",
+         * "entitlementProcesses",
+         * "milestoneTypes",
          */
         "userCriteria",
         "wave"
