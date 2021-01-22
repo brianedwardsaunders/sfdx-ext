@@ -1825,10 +1825,10 @@ export class MdapiConfig {
 
                 } else {
 
-                    // Fatal event
-                    console.error(`unexpected metatype found at parent directory: ${parentDirectory
+                    // Potentially Fatal event (log warning - could be significant diff between environments or reduced subset of metadata)
+                    console.warn(`unexpected metatype found at parent directory: ${parentDirectory
                     } please check metaobject definitions are up to date - unresolved file path: ${filePath}`);
-                    throw parentDirectory; // Terminate
+                    return; // return
 
                 }
 

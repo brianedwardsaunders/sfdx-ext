@@ -1120,7 +1120,7 @@ export class MdapiChangesetUtility {
             this.ux.log(`sourceFileTotal      : ${this.config.sourceFileTotal}`);
             this.ux.log(`sourceCheckZero      : ${sourceCheckZero}`);
             this.ux.log("--------------------------------");
-            throw "sourceCheckZero recon failure expecting 0 to balance";
+            console.warn("sourceCheckZero recon failure expecting 0 to balance");
 
         }// End if
 
@@ -1135,7 +1135,7 @@ export class MdapiChangesetUtility {
             this.ux.log(`targetFileTotal      : ${this.config.targetFileTotal}`);
             this.ux.log(`targetCheckZero      : ${targetCheckZero}`);
             this.ux.log("--------------------------------");
-            throw "targetCheckZero recon failure expecting 0 to balance";
+            console.warn("targetCheckZero recon failure expecting 0 to balance");
 
         }// End if
 
@@ -1154,7 +1154,7 @@ export class MdapiChangesetUtility {
             this.ux.log(`packageCombinedCount     : ${this.diffStats.packageCombinedCount}`);
             this.ux.log(`packageCheckZeroSum      : ${packageCheckZero}`);
             this.ux.log("--------------------------------");
-            throw "packageCheckZeroSum recon failure expecting 0 to balance";
+            console.warn("packageCheckZeroSum recon failure expecting 0 to balance");
 
         }// End if
 
@@ -1170,7 +1170,7 @@ export class MdapiChangesetUtility {
             this.ux.log(`destructiveCombinedCount : ${this.diffStats.destructiveCombinedCount}`);
             this.ux.log(`destructiveCheckZero     : ${destructiveCheckZero}`);
             this.ux.log("--------------------------------");
-            throw "destructiveCheckZero recon failure expecting 0 to balance";
+            console.warn("destructiveCheckZero recon failure expecting 0 to balance");
 
         }// End if
 
