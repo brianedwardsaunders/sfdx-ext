@@ -1571,10 +1571,7 @@ export class MdapiConfig {
                     zipfile.once(
                         "close",
                         () => {
-
-                            resolve();
-
-
+                            resolve(null);
                         }
                     );// End close
 
