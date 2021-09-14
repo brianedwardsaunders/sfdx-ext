@@ -67,7 +67,7 @@ export default class Changeset extends SfdxCommand {
             ignorecomments: boolean = this.flags.ignorecomments || false,
             {targetusername} = this.flags,
             {sourceusername} = this.flags,
-            excludepath: string = this.flags.excludepath || null,
+            ignorepath: string = this.flags.ignorepath || null,
             revisionfrom: string = this.flags.revisionfrom || null,
             revisionto: string = this.flags.revisionto || null,
             apiversion: string = this.flags.apiversion || defaultApiVersion;
@@ -90,7 +90,7 @@ export default class Changeset extends SfdxCommand {
         this.ux.log(`targetusername   : ${targetusername}`);
         this.ux.log(`apiversion       : ${apiversion}`);
         this.ux.log(`ignorecomments   : ${ignorecomments}`);
-        this.ux.log(`excludepath      : ${excludepath}`);
+        this.ux.log(`ignorepath       : ${ignorepath}`);
         this.ux.log(`revisionfrom     : ${revisionfrom}`);
         this.ux.log(`revisionto       : ${revisionto}`);
         this.ux.log("-----------------------------");
@@ -102,7 +102,7 @@ export default class Changeset extends SfdxCommand {
             targetusername,
             apiversion,
             ignorecomments,
-            excludepath,
+            ignorepath,
             revisionfrom,
             revisionto
         );
