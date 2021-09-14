@@ -1399,7 +1399,7 @@ export class MdapiChangesetUtility {
                     } else {
 
                         xmlContent += `${MdapiCommon.FOUR_SPACE}<members>${member}</members>`;
-                        !this.ignoreComments ? xmlContent += ` <!-- ${limitedComments.get(member)} -->` : "";
+                        (!this.ignoreComments && !isGlobalException) ? xmlContent += ` <!-- ${limitedComments.get(member)} -->` : "";
                         xmlContent += "\n";
 
                     }
@@ -1410,7 +1410,7 @@ export class MdapiChangesetUtility {
 
                 if (isGlobalException) {
 
-                    xmlContent += " -->";
+                    xmlContent += ` -->\n`;
 
                 }// End if
 
