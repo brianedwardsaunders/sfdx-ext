@@ -130,13 +130,22 @@ export class MdapiCommon {
 
     public static xmlFileToJson<T> (filePath: string): T {
 
-        return JSON.parse(xml2json(
-            readFileSync(
-                filePath,
-                MdapiCommon.UTF8
-            ),
-            MdapiCommon.convertOptions
-        ));
+        let returned = null;
+
+        try {
+            returned = JSON.parse(xml2json(
+                readFileSync(
+                    filePath,
+                    MdapiCommon.UTF8
+                ),
+                MdapiCommon.convertOptions
+            ));
+        }
+        catch (e) {
+            console.error(filePath + ' file could not be parsed to json');
+        }
+
+        return returned;
 
     }// End method
 
