@@ -199,7 +199,7 @@ export class MdapiChangesetUtility {
         }// End if
 
         // E.g. stage/DevOrg/retrieve
-        this.sourceRetrieveBaseDir = this.sourceBaseDir + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot;
+        this.sourceRetrieveBaseDir = this.sourceBaseDir + MdapiCommon.PATH_SEP + MdapiCommon.retrievedRoot;
         if (!existsSync(this.sourceRetrieveBaseDir)) {
 
             mkdirSync(this.sourceRetrieveBaseDir);
@@ -217,7 +217,7 @@ export class MdapiChangesetUtility {
         }// End if
 
         // E.g. stage/ReleaseOrg/retrieve
-        this.targetRetrieveBaseDir = this.targetBaseDir + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot;
+        this.targetRetrieveBaseDir = this.targetBaseDir + MdapiCommon.PATH_SEP + MdapiCommon.retrievedRoot;
         if (!existsSync(this.targetRetrieveBaseDir)) {
 
             mkdirSync(this.targetRetrieveBaseDir);

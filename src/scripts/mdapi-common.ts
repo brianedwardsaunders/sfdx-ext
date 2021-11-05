@@ -15,7 +15,7 @@ export class MdapiCommon {
 
     public static backupRoot = "backup";
 
-    public static retrieveRoot = "retrieve";
+    public static retrievedRoot = "retrieved";
 
     public static configRoot = "config";
 

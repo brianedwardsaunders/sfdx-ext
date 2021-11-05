@@ -6,7 +6,7 @@
  */
 
 import {
-    copyFileSync, copySync, createWriteStream, existsSync, mkdirSync, mkdirp, removeSync, rename, unlinkSync
+    copyFileSync, copySync, createWriteStream, existsSync, mkdirSync, mkdirp, removeSync, rename, unlinkSync, moveSync
 } from "fs-extra";
 import {
     FileProperties, ListMetadataQuery
@@ -14,10 +14,10 @@ import {
 
 import path = require("path");
 import yauzl = require("yauzl");
-import {Org} from "@salesforce/core";
-import {UX} from "@salesforce/command";
-import {IConfig, ISettings, MdapiConfig} from "./mdapi-config";
-import {MdapiCommon} from "./mdapi-common";
+import { Org } from "@salesforce/core";
+import { UX } from "@salesforce/command";
+import { IConfig, ISettings, MdapiConfig } from "./mdapi-config";
+import { MdapiCommon } from "./mdapi-common";
 
 export interface BatchCtrl {
     counter: number;
@@ -32,7 +32,7 @@ export interface Params {
 
 export class MdapiRetrieveUtility {
 
-    constructor (
+    constructor(
         protected org: Org,
         protected ux: UX,
         protected orgAlias: string,
@@ -44,7 +44,8 @@ export class MdapiRetrieveUtility {
         protected ignoreFolders: boolean,
         protected ignoreStaticResources: boolean,
         protected manifestOnly: boolean,
-        protected devMode: boolean
+        protected devMode: boolean,
+        protected splitMode: boolean,
     ) {
         // Noop
     }// End constructor
@@ -52,17 +53,39 @@ export class MdapiRetrieveUtility {
     // Define working folders
     protected stageOrgAliasDirectoryPath: string = (MdapiCommon.stageRoot + MdapiCommon.PATH_SEP + this.orgAlias);
 
-    protected retrievePath: string = (this.stageOrgAliasDirectoryPath + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot);
+    protected retrievedPath: string = (this.stageOrgAliasDirectoryPath + MdapiCommon.PATH_SEP + MdapiCommon.retrievedRoot);
 
-    protected zipFilePath: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
+    protected zipFilePath: string = (this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
 
-    protected targetDirectoryUnpackaged: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedFolder);
+    protected targetDirectoryUnpackaged: string = (this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedFolder);
 
-    protected targetDirectorySource: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
+    protected retrievedPath1: string = (this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackaged1Folder);
+
+    protected retrievedPath2: string = (this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackaged2Folder);
+
+    protected zipFilePath1: string = (this.retrievedPath1 + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
+
+    protected zipFilePath2: string = (this.retrievedPath2 + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
+
+    protected targetDirectoryUnpackaged1: string = (this.retrievedPath1 + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedFolder);
+
+    protected targetDirectoryUnpackaged2: string = (this.retrievedPath2 + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedFolder);
+
+    protected targetDirectorySource: string = (this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
+
+    protected targetDirectorySource1: string = (this.retrievedPath1 + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
+
+    protected targetDirectorySource2: string = (this.retrievedPath2 + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
+
+    protected targetDirectorySourcePackageXml: string = (this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
 
     protected manifestDirectory: string = (this.stageOrgAliasDirectoryPath + MdapiCommon.PATH_SEP + MdapiConfig.manifestFolder);
 
     protected filePackageXmlPath = (this.manifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
+
+    protected filePackage1XmlPath = (this.manifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.package1Xml);
+
+    protected filePackage2XmlPath = (this.manifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.package2Xml);
 
     protected config: IConfig;
 
@@ -72,7 +95,7 @@ export class MdapiRetrieveUtility {
 
     protected transientMetadataTypes: Array<string> = [];
 
-    protected listMetadataFolderBatch (config: IConfig, metaType: string): Promise<void> {
+    protected listMetadataFolderBatch(config: IConfig, metaType: string): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
@@ -130,7 +153,7 @@ export class MdapiRetrieveUtility {
     }// End method
 
     // Create backup of retrieve meta in-case needed later
-    protected backup (): void {
+    protected backup(): void {
 
         let iso: string = new Date().toISOString();
 
@@ -142,7 +165,7 @@ export class MdapiRetrieveUtility {
         let backupFolder: string = MdapiCommon.backupRoot + MdapiCommon.PATH_SEP + this.orgAlias, // E.g. backup/DevOrg
             backupOrgFolder: string = backupFolder + MdapiCommon.PATH_SEP + iso, // E.g. backup/DevOrg/2000-00-00T11-11-11
             backupProjectFile: string = backupOrgFolder + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip,
-            sourceProjectFile: string = this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip;
+            sourceProjectFile: string = this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip;
 
         if (!this.ignoreBackup) {
 
@@ -182,7 +205,7 @@ export class MdapiRetrieveUtility {
 
     }// End method
 
-    protected async unzipUnpackaged (): Promise<void> {
+    protected async unzipUnpackaged(): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
@@ -190,7 +213,7 @@ export class MdapiRetrieveUtility {
 
             yauzl.open(
                 this.zipFilePath,
-                {"lazyEntries": true},
+                { "lazyEntries": true },
                 (openErr, zipfile) => {
 
                     if (openErr) {
@@ -232,9 +255,9 @@ export class MdapiRetrieveUtility {
 
                                     }// End else if
                                     let outputDir = path.join(
-                                            this.targetDirectoryUnpackaged,
-                                            path.dirname(entry.fileName)
-                                        ),
+                                        this.targetDirectoryUnpackaged,
+                                        path.dirname(entry.fileName)
+                                    ),
                                         outputFile = path.join(
                                             this.targetDirectoryUnpackaged,
                                             entry.fileName
@@ -275,30 +298,43 @@ export class MdapiRetrieveUtility {
 
     }// End method
 
-    protected async setupRetrieveDirectory (): Promise<void> {
+    protected async setupRetrieveDirectory(): Promise<void> {
 
-        this.ux.log(`refreshing retrieve directory: ${this.retrievePath}`);
+        this.ux.log(`refreshing retrieve directory: ${this.retrievedPath}`);
 
-        if (existsSync(this.retrievePath)) {
+        if (existsSync(this.retrievedPath)) {
 
-            removeSync(this.retrievePath);
+            removeSync(this.retrievedPath);
 
         }// End if
 
-        mkdirSync(this.retrievePath);
+        mkdirSync(this.retrievedPath);
 
         this.ux.log("retrieve directory created");
 
     }// End method.
 
-    protected async retrieveMetadata (): Promise<void> {
+    protected async retrieveMetadata(): Promise<void> {
 
         await this.setupRetrieveDirectory();
 
+        if (this.splitMode === false) {
+            return this.retrieveMetadataCompletePackage();
+        }
+        else {
+            await this.retrieveMetadataPackage1();
+
+            return this.retrieveMetadataPackage2();
+        }
+
+    }// End method
+
+
+    protected async retrieveMetadataCompletePackage(): Promise<void> {
         return new Promise((resolve, reject) => {
 
             let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackageXmlPath
-            } -r ${this.retrievePath} -w -1 -u ${this.orgAlias}`;
+                } -r ${this.retrievedPath} -w -1 -u ${this.orgAlias}`;
 
             /*
              * Let retrieveCommand: string = ('sfdx force:mdapi:retrieve -k ' + this.filePackageXmlPath
@@ -307,16 +343,12 @@ export class MdapiRetrieveUtility {
 
             MdapiCommon.command(retrieveCommand).then(
                 (result: any) => {
-
                     this.ux.log(result);
                     resolve();
-
                 },
                 (error: any) => {
-
                     this.ux.error(error);
                     reject(error);
-
                 }
             );
 
@@ -324,7 +356,50 @@ export class MdapiRetrieveUtility {
 
     }// End method
 
-    protected packageFile (): void {
+    protected async retrieveMetadataPackage1(): Promise<void> {
+        return new Promise((resolve, reject) => {
+
+            let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackage1XmlPath
+                } -r ${this.retrievedPath1} -w -1 -u ${this.orgAlias}`;
+
+            MdapiCommon.command(retrieveCommand).then(
+                (result: any) => {
+                    this.ux.log(result);
+                    resolve();
+                },
+                (error: any) => {
+                    this.ux.error(error);
+                    reject(error);
+                }
+            );
+
+        }); // End promise
+
+    }// End method
+
+    protected async retrieveMetadataPackage2(): Promise<void> {
+        return new Promise((resolve, reject) => {
+
+            let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackage2XmlPath
+                } -r ${this.retrievedPath2} -w -1 -u ${this.orgAlias}`;
+
+            MdapiCommon.command(retrieveCommand).then(
+                (result: any) => {
+                    this.ux.log(result);
+                    resolve();
+                },
+                (error: any) => {
+                    this.ux.error(error);
+                    reject(error);
+                }
+            );
+
+        }); // End promise
+
+    }// End method
+
+
+    protected packageFiles(): void {
 
         if (!existsSync(this.manifestDirectory)) {
 
@@ -339,9 +414,25 @@ export class MdapiRetrieveUtility {
             this.filePackageXmlPath
         );
 
+        if (this.splitMode) {
+            this.ux.log(`splitting package.xml files`);
+
+            MdapiConfig.createPackageFile(
+                this.config,
+                this.settings,
+                this.filePackage1XmlPath
+            );
+
+            MdapiConfig.createPackageFile(
+                this.config,
+                this.settings,
+                this.filePackage2XmlPath
+            );
+        }// End if
+
     }// End method
 
-    protected init (): void {
+    protected init(): void {
 
         // Setup config and setting properties
         this.config = MdapiConfig.createConfig();
@@ -371,7 +462,7 @@ export class MdapiRetrieveUtility {
 
     }// End method
 
-    protected async unzip (): Promise<void> {
+    protected async unzip(): Promise<void> {
 
         if (existsSync(this.targetDirectorySource)) {
 
@@ -379,36 +470,76 @@ export class MdapiRetrieveUtility {
 
         }// End if
 
-        await MdapiConfig.unzipUnpackaged(
-            this.zipFilePath,
-            this.targetDirectoryUnpackaged
-        );
+        if (this.splitMode === false) {
 
-        // Rename unmanaged to src
-        await rename(
-            this.targetDirectoryUnpackaged,
-            this.targetDirectorySource
-        );
+            await MdapiConfig.unzipUnpackaged(
+                this.zipFilePath,
+                this.targetDirectoryUnpackaged
+            );
+
+            // Rename unmanaged to src
+            await rename(
+                this.targetDirectoryUnpackaged,
+                this.targetDirectorySource
+            );
+        }// End if
+        else {
+
+            await MdapiConfig.unzipUnpackaged(
+                this.zipFilePath1,
+                this.targetDirectoryUnpackaged1
+            );
+
+            await rename(
+                this.targetDirectoryUnpackaged1,
+                this.targetDirectorySource1
+            );
+
+            moveSync(this.targetDirectorySource1, this.targetDirectorySource);
+
+            await MdapiConfig.unzipUnpackaged(
+                this.zipFilePath2,
+                this.targetDirectoryUnpackaged2
+            );
+
+            await rename(
+                this.targetDirectoryUnpackaged2,
+                this.targetDirectorySource2
+            );
+
+            copySync(this.targetDirectorySource2, this.targetDirectorySource);
+
+            removeSync(this.retrievedPath1);
+
+            removeSync(this.retrievedPath2);
+
+            removeSync(this.targetDirectorySourcePackageXml);
+
+            copyFileSync(this.filePackageXmlPath, this.targetDirectorySourcePackageXml);
+
+        } // End else
 
     }// End method
 
-    protected queryListMetadata (params: Params, batchCtrl: BatchCtrl): void {
+    protected queryListMetadata(params: Params, batchCtrl: BatchCtrl): void {
 
         let metaQueries: Array<ListMetadataQuery>;
 
-        let {metaType} = params,
+        let { metaType } = params,
             folderName: string = params.folder;
 
         if (folderName) {
 
             metaQueries = [
-                {"type": metaType,
-                    "folder": folderName}
+                {
+                    "type": metaType,
+                    "folder": folderName
+                }
             ];
 
         } else {
 
-            metaQueries = [{"type": metaType}];
+            metaQueries = [{ "type": metaType }];
 
         }
 
@@ -425,7 +556,7 @@ export class MdapiRetrieveUtility {
                     let metaItem: FileProperties = result[x];
 
                     if (metaItem.manageableState === MdapiConfig.deleted ||
-                    metaItem.manageableState === MdapiConfig.deprecated) {
+                        metaItem.manageableState === MdapiConfig.deprecated) {
 
                         this.ux.log(`ignoring ${metaType} ${metaItem.manageableState} item ${metaItem.fullName}`);
                         continue;
@@ -436,14 +567,14 @@ export class MdapiRetrieveUtility {
                         this.settings,
                         metaItem
                     ) &&
-                    !MdapiConfig.ignoreNamespaces(
-                        this.settings,
-                        metaItem
-                    ) &&
-                    !MdapiConfig.ignoreHiddenOrNonEditable(
-                        this.settings,
-                        metaItem
-                    )) {
+                        !MdapiConfig.ignoreNamespaces(
+                            this.settings,
+                            metaItem
+                        ) &&
+                        !MdapiConfig.ignoreHiddenOrNonEditable(
+                            this.settings,
+                            metaItem
+                        )) {
 
                         this.config.metadataObjectMembersLookup[metaType].push(metaItem);
 
@@ -468,7 +599,7 @@ export class MdapiRetrieveUtility {
 
     }// End method
 
-    protected listMetadataBatch (): Promise<void> {
+    protected listMetadataBatch(): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
@@ -513,7 +644,7 @@ export class MdapiRetrieveUtility {
 
     }// End method
 
-    protected async listMetadata (): Promise<void> {
+    protected async listMetadata(): Promise<void> {
 
         this.transientMetadataTypes = [...this.config.metadataTypes]; // Create queue
 
@@ -525,7 +656,7 @@ export class MdapiRetrieveUtility {
 
     }// End method
 
-    protected async listMetadataFolders (): Promise<void> {
+    protected async listMetadataFolders(): Promise<void> {
 
         if (!this.ignoreFolders) {
 
@@ -550,7 +681,7 @@ export class MdapiRetrieveUtility {
 
     }// End method
 
-    protected checkStageOrDevModePackageXml (): void {
+    protected checkStageOrDevModePackageXml(): void {
 
         if (this.devMode) {
 
@@ -558,13 +689,13 @@ export class MdapiRetrieveUtility {
                 this.filePackageXmlPath,
                 MdapiConfig.packageXml
             );
-            this.ux.log(`copied ${MdapiConfig.packageXml}`);
+            this.ux.log(`copied ${MdapiConfig.packageXml} file`);
 
         }// End if
 
     }// End method
 
-    protected checkStageOrDevModeFiles (): void {
+    protected checkStageOrDevModeFiles(): void {
 
         if (this.devMode) {
 
@@ -602,7 +733,7 @@ export class MdapiRetrieveUtility {
 
     }// End method
 
-    public async process (): Promise<void> {
+    public async process(): Promise<void> {
 
         try {
 
@@ -640,8 +771,8 @@ export class MdapiRetrieveUtility {
             MdapiConfig.repositionSettings(this.config);
 
             // Create package.xml
-            this.ux.startSpinner("create package.xml file");
-            this.packageFile();
+            this.ux.startSpinner("create package.xml file(s)");
+            this.packageFiles();
             this.ux.stopSpinner();
 
             this.checkStageOrDevModePackageXml();
@@ -660,7 +791,7 @@ export class MdapiRetrieveUtility {
 
                 // Backup zip
                 this.ux.startSpinner("backup zip");
-                await this.backup();
+                this.backup();
                 this.ux.stopSpinner();
 
                 // Check if staging only or clean for src dev only

@@ -44,7 +44,7 @@ export class FlowsActivationUtility {
     // Define working folders
     protected stageOrgAliasDirectoryPath: string = (MdapiCommon.stageRoot + MdapiCommon.PATH_SEP + this.orgAlias);
 
-    protected retrievePath: string = (this.stageOrgAliasDirectoryPath + MdapiCommon.PATH_SEP + MdapiCommon.retrieveRoot);
+    protected retrievePath: string = (this.stageOrgAliasDirectoryPath + MdapiCommon.PATH_SEP + MdapiCommon.retrievedRoot);
 
     protected zipFilePath: string = (this.retrievePath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
 
@@ -81,7 +81,7 @@ export class FlowsActivationUtility {
                 (result: any) => {
 
                     this.ux.log(result);
-                    resolve();
+                    resolve(null);
 
                 },
                 (error: any) => {

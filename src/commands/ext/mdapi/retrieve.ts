@@ -21,10 +21,10 @@ export default class Retrieve extends SfdxCommand {
 
     public static examples = [
         `
-    $ sfdx ext:mdapi:retrieve --targetusername user@example.com --apiversion 46.0 --ignorebackup --ignoreinstalled --ignorenamespaces --ignorehidden --ignorefolders --ignorestaticresources --manifestonly --stagemode
+    $ sfdx ext:mdapi:retrieve --targetusername user@example.com --apiversion 46.0 --ignorebackup --ignoreinstalled --ignorenamespaces --ignorehidden --ignorefolders --ignorestaticresources --manifestonly --stagemode --split
     `,
         `
-    $ sfdx ext:mdapi:retrieve -u user@example.com -b -i -n -h -f -s -x
+    $ sfdx ext:mdapi:retrieve -u user@example.com -b -i -n -h -f -s -x -t
     `,
         `
     $ sfdx ext:mdapi:retrieve -u user@example.com -z
@@ -50,7 +50,9 @@ export default class Retrieve extends SfdxCommand {
         "manifestonly": flags.boolean({"char": "x",
             "description": messages.getMessage("manifestonlyFlagDescription")}),
         "stagemode": flags.boolean({"char": "z",
-            "description": messages.getMessage("stagemodeFlagDescription")})
+            "description": messages.getMessage("stagemodeFlagDescription")}),
+        "split": flags.boolean({"char": "t",
+            "description": messages.getMessage("splitFlagDescription")})
     };
 
     protected static requiresUsername = true;
@@ -69,7 +71,8 @@ export default class Retrieve extends SfdxCommand {
             ignorefolders: boolean = this.flags.ignorefolders || false,
             ignorestaticresources: boolean = this.flags.ignorestaticresources || false,
             manifestonly: boolean = this.flags.manifestonly || false,
-            stagemode: boolean = this.flags.stagemode || false, // Default
+            stagemode: boolean = this.flags.stagemode || false, // Default,
+            splitmode: boolean = this.flags.split || false, 
             devmode = !stagemode;
 
         this.ux.log("-----------------------------");
@@ -85,6 +88,7 @@ export default class Retrieve extends SfdxCommand {
         this.ux.log(`ignorestaticresources : ${ignorestaticresources}`);
         this.ux.log(`manifestonly          : ${manifestonly}`);
         this.ux.log(`retrievemode          : ${devmode ? "dev" : "stage"}`);
+        this.ux.log(`split                 : ${splitmode}`);
         this.ux.log("-----------------------------");
 
         let util = new MdapiRetrieveUtility(
@@ -99,7 +103,8 @@ export default class Retrieve extends SfdxCommand {
             ignorefolders,
             ignorestaticresources,
             manifestonly,
-            devmode
+            devmode,
+            splitmode
         );
 
         util.process().then(

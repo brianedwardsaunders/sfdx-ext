@@ -207,6 +207,10 @@ export class MdapiConfig {
 
     public static unpackagedFolder = "unpackaged";
 
+    public static unpackaged1Folder = "unpackaged1";
+
+    public static unpackaged2Folder = "unpackaged2";
+
     public static srcFolder = "src";
 
     public static manifestFolder = "manifest";
@@ -214,6 +218,10 @@ export class MdapiConfig {
     public static unpackagedZip = "unpackaged.zip";
 
     public static packageXml = "package.xml";
+
+    public static package1Xml = "package1.xml";
+
+    public static package2Xml = "package2.xml";
 
     public static packageManifest = "package.manifest";
 
@@ -280,6 +288,8 @@ export class MdapiConfig {
 
     public static ApexTrigger = "ApexTrigger";
 
+    public static AppMenu = "AppMenu";
+
     public static LightningComponentBundle = "LightningComponentBundle";
 
     public static AuraDefinitionBundle = "AuraDefinitionBundle";
@@ -290,15 +300,25 @@ export class MdapiConfig {
 
     public static CustomSetting = "CustomSetting";
 
+    public static CustomTab = "CustomTab";
+
     public static CustomLabel = "CustomLabel";
+
+    public static DataCategoryGroup = "DataCategoryGroup";
+
+    public static DuplicateRule = "DuplicateRule";
 
     public static SharingReason = "SharingReason";
 
     public static CompactLayout = "CompactLayout";
 
+    public static CustomApplication = "CustomApplication";
+
     public static PlatformCachePartition = "PlatformCachePartition";
 
     public static HomePageComponent = "HomePageComponent";
+
+    public static Layout = "Layout";
 
     public static DeveloperName = "DeveloperName";
 
@@ -361,9 +381,15 @@ export class MdapiConfig {
     // object related
     public static Profile = "Profile";
 
+    public static QuickAction = "QuickAction";
+
     public static CustomObject = "CustomObject";
 
     public static CustomField = "CustomField";
+
+    public static CustomIndex = "CustomIndex";
+
+    public static CustomPageWebLink = "CustomPageWebLink";
 
     public static Index = "Index";
 
@@ -371,40 +397,44 @@ export class MdapiConfig {
 
     public static WebLink = "WebLink";
 
+    // Workflow related
+    public static Workflow = "Workflow";
+    public static WorkflowKnowledgePublish = "WorkflowKnowledgePublish";
+    public static WorkflowTask = "WorkflowTask";
+    public static WorkflowAlert = "WorkflowAlert";
+    public static WorkflowSend = "WorkflowSend";
+    public static WorkflowOutboundMessage = "WorkflowOutboundMessage";
+    public static WorkflowRule = "WorkflowRule";
+    public static WorkflowFieldUpdate = "WorkflowFieldUpdate";
+    public static WorkflowFlowAction = "WorkflowFlowAction";
+
     public static ValidationRule = "ValidationRule";
 
     public static ListView = "ListView";
 
     public static FieldSet = "FieldSet";
 
-    // Workflow related
-    public static WorkflowAlert = "WorkflowAlert";
-
-    public static WorkflowFieldUpdate = "WorkflowFieldUpdate";
-
-    public static WorkflowFlowAction = "WorkflowFlowAction";
-
-    public static WorkflowKnowledgePublish = "WorkflowKnowledgePublish";
-
-    public static WorkflowOutboundMessage = "WorkflowOutboundMessage";
-
-    public static WorkflowSend = "WorkflowSend";
-
-    public static WorkflowRule = "WorkflowRule";
-
-    public static WorkflowTask = "WorkflowTask";
-
     // https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_assignmentrule.htm
     public static AssignmentRule = "AssignmentRule";
+
+    public static AssignmentRules = "AssignmentRules";
 
     // https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_autoresponserules.htm
     public static AutoResponseRule = "AutoResponseRule";
 
+    public static AutoResponseRules = "AutoResponseRules";
+
     // https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_escalationrules.htm
     public static EscalationRule = "EscalationRule";
 
+    public static EscalationRules = "EscalationRules";
+
     // https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_matchingrule.htm
     public static MatchingRule = "MatchingRule";
+
+    public static MatchingRules = "MatchingRules";
+
+    public static MilestoneType = "MilestoneType";
 
     // https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_sharingrules.htm
     public static SharingOwnerRule = "SharingOwnerRule";
@@ -483,7 +513,7 @@ export class MdapiConfig {
     public static escalationRule = "escalationRule";
 
     // https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_matchingrule.htm
-    public static matchingRules = "matchingRules";
+    public static _matchingRules = "matchingRules";
 
     // https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/meta_sharingrules.htm
     public static sharingCriteriaRules = "sharingCriteriaRules";
@@ -543,6 +573,61 @@ export class MdapiConfig {
         MdapiConfig.CustomPermission,
         // MdapiConfig.CustomSetting, checkthis
         MdapiConfig.HomePageComponent
+    ];
+
+    public static package1MetaTypes = [
+        MdapiConfig.ApexClass,
+        MdapiConfig.ApexComponent,
+        MdapiConfig.ApexPage,
+        MdapiConfig.ApexTrigger,
+        MdapiConfig.AppMenu,
+        MdapiConfig.AuraDefinitionBundle,
+        MdapiConfig.AssignmentRule,
+        MdapiConfig.AssignmentRules,
+        MdapiConfig.EscalationRule,
+        MdapiConfig.EscalationRules,
+        MdapiConfig.AutoResponseRule,
+        MdapiConfig.AutoResponseRules,
+        MdapiConfig.BusinessProcess,
+        MdapiConfig.CompactLayout,
+        MdapiConfig.CustomApplication,
+        MdapiConfig.CustomField,
+        MdapiConfig.CustomIndex,
+        MdapiConfig.CustomObject,
+        MdapiConfig.CustomPageWebLink,
+        MdapiConfig.CustomPermission,
+        MdapiConfig.CustomTab,
+        MdapiConfig.CustomSetting,
+        MdapiConfig.DataCategoryGroup,
+        MdapiConfig.DuplicateRule,
+        MdapiConfig.FieldSet,
+        MdapiConfig.FlexiPage,
+        MdapiConfig.Flow,
+        MdapiConfig.FlowDefinition,
+        MdapiConfig.HomePageComponent,
+        MdapiConfig.Layout,
+        MdapiConfig.LightningComponentBundle,
+        MdapiConfig.ListView,
+        MdapiConfig.MatchingRule,
+        MdapiConfig.MatchingRules,
+        MdapiConfig.MilestoneType,
+        MdapiConfig.PermissionSet,
+        MdapiConfig.Profile,
+        MdapiConfig.QuickAction,
+        MdapiConfig.RecordType,
+        MdapiConfig.StandardValueSet,
+        MdapiConfig.ValidationRule,
+        MdapiConfig.WebLink,
+        MdapiConfig.Workflow,
+        MdapiConfig.WorkflowKnowledgePublish,
+        MdapiConfig.WorkflowTask,
+        MdapiConfig.WorkflowAlert,
+        MdapiConfig.WorkflowSend,
+        MdapiConfig.WorkflowOutboundMessage,
+        MdapiConfig.WorkflowRule,
+        MdapiConfig.WorkflowFieldUpdate,
+        MdapiConfig.WorkflowFlowAction,
+        MdapiConfig.Settings
     ];
 
     // Prod specific variables
@@ -729,7 +814,7 @@ export class MdapiConfig {
         // Escalation rule
         MdapiConfig.escalationRule,
         // Matching rule
-        MdapiConfig.matchingRules,
+        MdapiConfig._matchingRules,
         // Sharing rules
         MdapiConfig.sharingOwnerRules,
         MdapiConfig.sharingCriteriaRules,
@@ -769,7 +854,7 @@ export class MdapiConfig {
         // Escalation Rule (singular)
         "EscalationRule": MdapiConfig.escalationRule,
         // Matching Rules (plural)
-        "MatchingRule": MdapiConfig.matchingRules,
+        "MatchingRule": MdapiConfig._matchingRules,
         // SharingOwnerRule
         "SharingOwnerRule": MdapiConfig.sharingOwnerRules,
         "SharingCriteriaRule": MdapiConfig.sharingCriteriaRules,
@@ -950,6 +1035,26 @@ export class MdapiConfig {
             let unsupportedMetadataType: string = MdapiConfig.unsupportedMetadataTypes[x];
 
             if (unsupportedMetadataType === metaType) {
+
+                return true;
+
+            }// End if
+
+        }// End for
+
+        return false;
+
+    }// End method
+
+    public static isPackage1MetaType (metaType: string): boolean {
+
+        for (let x = 0; x < MdapiConfig.package1MetaTypes.length; x++) {
+
+            let package1MetaType: string = MdapiConfig.package1MetaTypes[x];
+
+            // console.error(metaType + ' ' + package1MetaType + ' ' + package1MetaType === metaType);
+
+            if (package1MetaType === metaType) {
 
                 return true;
 
@@ -1434,14 +1539,30 @@ export class MdapiConfig {
             let metaType: string = config.metadataTypes[x];
 
             if (config.metadataObjectMembersLookup[metaType].length === 0) {
-
+                // if no entry continue
                 continue;
+            }
 
+            if (packageXmlPath.endsWith(this.packageXml)) 
+            {
+                // do nothing carry on
+            }
+            else if (packageXmlPath.endsWith(this.package1Xml)) 
+            {
+                if (MdapiConfig.isPackage1MetaType(metaType) === false) {
+                    continue;
+                }
+            }
+            else if (packageXmlPath.endsWith(this.package2Xml)) 
+            {
+                if (MdapiConfig.isPackage1MetaType(metaType) === true) 
+                { 
+                    continue;
+                }
             }
 
             let metaItems: Array<FileProperties> = config.metadataObjectMembersLookup[metaType],
-
-                sortedMembers: Array<string> = MdapiConfig.toSortedMembers(metaItems);
+            sortedMembers: Array<string> = MdapiConfig.toSortedMembers(metaItems);
 
             xmlContent += `${MdapiCommon.TWO_SPACE}<types>\n`;
 
