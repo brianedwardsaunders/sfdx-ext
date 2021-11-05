@@ -21,7 +21,7 @@ export default class Retrieve extends SfdxCommand {
 
     public static examples = [
         `
-    $ sfdx ext:mdapi:retrieve --targetusername user@example.com --apiversion 46.0 --ignorebackup --ignoreinstalled --ignorenamespaces --ignorehidden --ignorefolders --ignorestaticresources --manifestonly --stagemode --split
+    $ sfdx ext:mdapi:retrieve --targetusername user@example.com --apiversion 53.0 --ignorebackup --ignoreinstalled --ignorenamespaces --ignorehidden --ignorefolders --ignorestaticresources --manifestonly --stagemode --split
     `,
         `
     $ sfdx ext:mdapi:retrieve -u user@example.com -b -i -n -h -f -s -x -t

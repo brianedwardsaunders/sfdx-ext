@@ -6,7 +6,7 @@
  */
 
 import {
-    copyFileSync, copySync, createWriteStream, existsSync, mkdirSync, mkdirp, removeSync, rename, unlinkSync, moveSync
+    copyFileSync, copySync, createWriteStream, existsSync, mkdirSync, mkdirp, removeSync, rename, unlinkSync
 } from "fs-extra";
 import {
     FileProperties, ListMetadataQuery
@@ -164,8 +164,13 @@ export class MdapiRetrieveUtility {
 
         let backupFolder: string = MdapiCommon.backupRoot + MdapiCommon.PATH_SEP + this.orgAlias, // E.g. backup/DevOrg
             backupOrgFolder: string = backupFolder + MdapiCommon.PATH_SEP + iso, // E.g. backup/DevOrg/2000-00-00T11-11-11
+
             backupProjectFile: string = backupOrgFolder + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip,
-            sourceProjectFile: string = this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip;
+            backupProjectFile1: string = backupOrgFolder + MdapiCommon.PATH_SEP + MdapiConfig.unpackaged1Zip,
+            backupProjectFile2: string = backupOrgFolder + MdapiCommon.PATH_SEP + MdapiConfig.unpackaged2Zip,
+            sourceProjectFile: string = this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip,
+            sourceProjectFile1: string = this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackaged1Folder + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip,
+            sourceProjectFile2: string = this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackaged2Folder + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip;
 
         if (!this.ignoreBackup) {
 
@@ -187,12 +192,31 @@ export class MdapiRetrieveUtility {
 
             }// End if
 
-            this.ux.log(`backing up from ${sourceProjectFile} to ${backupProjectFile}`);
-            copyFileSync(
-                sourceProjectFile,
-                backupProjectFile
-            );
-            this.ux.log(`backup finished to file ${backupProjectFile}`);
+            if (this.splitMode === false) {
+
+                this.ux.log(`backing up from ${sourceProjectFile} to ${backupProjectFile}`);
+                copyFileSync(
+                    sourceProjectFile,
+                    backupProjectFile
+                );
+                this.ux.log(`backup finished to file ${backupProjectFile}`);
+
+            } else {
+
+                this.ux.log(`backing up from ${sourceProjectFile1} to ${backupProjectFile1}`);
+                copyFileSync(
+                    sourceProjectFile1,
+                    backupProjectFile1
+                );
+                this.ux.log(`backup finished to file ${backupProjectFile1}`);
+
+                this.ux.log(`backing up from ${sourceProjectFile2} to ${backupProjectFile2}`);
+                copyFileSync(
+                    sourceProjectFile2,
+                    backupProjectFile2
+                );
+                this.ux.log(`backup finished to file ${backupProjectFile2}`);
+            }
 
         }// End if
 
@@ -202,6 +226,13 @@ export class MdapiRetrieveUtility {
             this.ux.log(`deleting file ${sourceProjectFile}`);
 
         }// End if
+
+        if (this.splitMode === true) {
+            removeSync(this.retrievedPath1);
+
+            removeSync(this.retrievedPath2);
+        }
+
 
     }// End method
 
@@ -495,7 +526,7 @@ export class MdapiRetrieveUtility {
                 this.targetDirectorySource1
             );
 
-            moveSync(this.targetDirectorySource1, this.targetDirectorySource);
+            copySync(this.targetDirectorySource1, this.targetDirectorySource);
 
             await MdapiConfig.unzipUnpackaged(
                 this.zipFilePath2,
@@ -508,10 +539,6 @@ export class MdapiRetrieveUtility {
             );
 
             copySync(this.targetDirectorySource2, this.targetDirectorySource);
-
-            removeSync(this.retrievedPath1);
-
-            removeSync(this.retrievedPath2);
 
             removeSync(this.targetDirectorySourcePackageXml);
 

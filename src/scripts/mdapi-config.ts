@@ -4,201 +4,201 @@
  * @date 2019-07-10
  */
 
-import {DescribeMetadataResult, FileProperties, ListMetadataQuery, MetadataObject, QueryResult} from "jsforce";
-import {Stats, createWriteStream, existsSync, mkdirSync, mkdirp, readFileSync, statSync, unlinkSync, writeFileSync} from "fs-extra";
-import {Org} from "@salesforce/core";
-import {MdapiCommon} from "./mdapi-common";
+import { DescribeMetadataResult, FileProperties, ListMetadataQuery, MetadataObject, QueryResult } from "jsforce";
+import { Stats, createWriteStream, existsSync, mkdirSync, mkdirp, readFileSync, statSync, unlinkSync, writeFileSync } from "fs-extra";
+import { Org } from "@salesforce/core";
+import { MdapiCommon } from "./mdapi-common";
 import path = require("path");
 import yauzl = require("yauzl");
 
 export interface IConfig {
-  metadataTypes: Array<string>; // E.g. ['ApexClass', 'CustomObjet'] // from describeMetada also acts a key index for metadataObjectLookup and metadataObjectMembersLookup
-  metadataFolders: Array<string>; // E.g. ['ReportFolder', 'DocumentFolder'] // don't exist so inject
-  metadataTypeChildren: Array<string>; // E.g. ['CustomField']; // exist only within childXmlNames
-  metadataObjectLookup: Record<string, MetadataObject>; // E.g. {'ApexClass, Array<MetadataObject>} quick lookup to object based on meta type name
-  metadataObjectMembersLookup: Record<string, Array<FileProperties>>; // E.g. {'ApexClass', Array<FileProperties>} where files are members
-  metadataDirectoryLookup: Record<string, Array<MetadataObject>>; // E.g. {'objects', Array<MetaObject>} // one directory can have multiple types.
-  metadataObjects: Array<MetadataObject>; // E.g. directly from describemetadata.metadataObjects
-  sourceFileTotal: number,
-  targetFileTotal: number,
-  sourceFileIgnored: number,
-  targetFileIgnored: number,
-  sourceFileProcessed: number,
-  targetFileProcessed: number
+    metadataTypes: Array<string>; // E.g. ['ApexClass', 'CustomObjet'] // from describeMetada also acts a key index for metadataObjectLookup and metadataObjectMembersLookup
+    metadataFolders: Array<string>; // E.g. ['ReportFolder', 'DocumentFolder'] // don't exist so inject
+    metadataTypeChildren: Array<string>; // E.g. ['CustomField']; // exist only within childXmlNames
+    metadataObjectLookup: Record<string, MetadataObject>; // E.g. {'ApexClass, Array<MetadataObject>} quick lookup to object based on meta type name
+    metadataObjectMembersLookup: Record<string, Array<FileProperties>>; // E.g. {'ApexClass', Array<FileProperties>} where files are members
+    metadataDirectoryLookup: Record<string, Array<MetadataObject>>; // E.g. {'objects', Array<MetaObject>} // one directory can have multiple types.
+    metadataObjects: Array<MetadataObject>; // E.g. directly from describemetadata.metadataObjects
+    sourceFileTotal: number,
+    targetFileTotal: number,
+    sourceFileIgnored: number,
+    targetFileIgnored: number,
+    sourceFileProcessed: number,
+    targetFileProcessed: number
 }
 
 export interface ISettings {
-  ignoreHiddenOrNonEditable?: boolean;
-  ignoreInstalled?: boolean;
-  ignoreNamespaces?: boolean;
-  ignoreStaticResources?: boolean;
-  ignoreFolders?: boolean;
-  apiVersion: string;
+    ignoreHiddenOrNonEditable?: boolean;
+    ignoreInstalled?: boolean;
+    ignoreNamespaces?: boolean;
+    ignoreStaticResources?: boolean;
+    ignoreFolders?: boolean;
+    apiVersion: string;
 }
 
 export enum RelativePosition {
-  Source = "Source",
-  Target = "Target"
+    Source = "Source",
+    Target = "Target"
 }
 
 export enum ChangeType {
-  Package = "Package",
-  DestructiveChanges = "DestructiveChanges"
+    Package = "Package",
+    DestructiveChanges = "DestructiveChanges"
 }
 
 export enum DiffType {
-  Left = "Left",
-  Right = "Right",
-  Match = "Match",
-  Diff = "Diff",
-  None = "None"
+    Left = "Left",
+    Right = "Right",
+    Match = "Match",
+    Diff = "Diff",
+    None = "None"
 }
 
 export interface DiffRecord {
-  memberKey: string;
-  memberName: string, // E.g. Account
-  filePath: string;
-  fileHash: number; // Only hash as contents is large
-  directory: string; // Sfdx directory e.g. triggers
-  folderXml: boolean;
-  metadataName: string;
-  metadataObject: MetadataObject;
-  fileSize: number;
-  lastModified: Date;
-  diffType: DiffType;
-  diffSize: number; // Init
-  fileContent: string; // Specifically for profile
-  title: string; // Name info
-  comment: string;
+    memberKey: string;
+    memberName: string, // E.g. Account
+    filePath: string;
+    fileHash: number; // Only hash as contents is large
+    directory: string; // Sfdx directory e.g. triggers
+    folderXml: boolean;
+    metadataName: string;
+    metadataObject: MetadataObject;
+    fileSize: number;
+    lastModified: Date;
+    diffType: DiffType;
+    diffSize: number; // Init
+    fileContent: string; // Specifically for profile
+    title: string; // Name info
+    comment: string;
 }
 
 export interface ChangesetExclude {
-  directoryExcludes: Array<string>;
-  fileExcludes: Array<string>;
+    directoryExcludes: Array<string>;
+    fileExcludes: Array<string>;
 }
 
 export interface Profile {
-  layoutAssignments?: LayoutAssignment | Array<LayoutAssignment>;
-  userPermissions?: UserPermission | Array<UserPermission>;
-  tabVisibilities?: TabVisibility | Array<TabVisibility>;
-  fieldPermissions?: FieldPermission | Array<FieldPermission>;
-  objectPermissions?: ObjectPermission | Array<ObjectPermission>;
-  customPermissions?: CustomPermission | Array<CustomPermission>;
-  classAccesses?: ClassAccess | Array<ClassAccess>;
-  applicationVisibilities?: ApplicationVisibility | Array<ApplicationVisibility>;
-  pageAccesses?: PageAccess | Array<PageAccess>;
-  recordTypeVisibilities?: RecordTypeVisibility | Array<RecordTypeVisibility>;
-  custom: Textable;
+    layoutAssignments?: LayoutAssignment | Array<LayoutAssignment>;
+    userPermissions?: UserPermission | Array<UserPermission>;
+    tabVisibilities?: TabVisibility | Array<TabVisibility>;
+    fieldPermissions?: FieldPermission | Array<FieldPermission>;
+    objectPermissions?: ObjectPermission | Array<ObjectPermission>;
+    customPermissions?: CustomPermission | Array<CustomPermission>;
+    classAccesses?: ClassAccess | Array<ClassAccess>;
+    applicationVisibilities?: ApplicationVisibility | Array<ApplicationVisibility>;
+    pageAccesses?: PageAccess | Array<PageAccess>;
+    recordTypeVisibilities?: RecordTypeVisibility | Array<RecordTypeVisibility>;
+    custom: Textable;
 }
 
 export interface RecordTypeVisibility {
-  default: Textable;
-  recordType: Textable;
-  visible: Textable;
+    default: Textable;
+    recordType: Textable;
+    visible: Textable;
 }
 
 export interface PageAccess {
-  apexPage: Textable;
-  enabled: Textable;
+    apexPage: Textable;
+    enabled: Textable;
 }
 
 export interface ApplicationVisibility {
-  application: Textable;
-  default: Textable;
-  visible: Textable;
+    application: Textable;
+    default: Textable;
+    visible: Textable;
 }
 
 export interface ObjectPermission {
-  allowCreate: Textable;
-  allowDelete: Textable;
-  allowEdit: Textable;
-  allowRead: Textable;
-  modifyAllRecords: Textable;
-  viewAllRecords: Textable;
-  object: Textable;
+    allowCreate: Textable;
+    allowDelete: Textable;
+    allowEdit: Textable;
+    allowRead: Textable;
+    modifyAllRecords: Textable;
+    viewAllRecords: Textable;
+    object: Textable;
 }
 
 export interface ClassAccess {
-  apexClass: Textable;
-  enabled: Textable;
+    apexClass: Textable;
+    enabled: Textable;
 }
 
 export interface FieldPermission {
-  field: Textable;
-  editable: Textable;
-  readable: Textable;
+    field: Textable;
+    editable: Textable;
+    readable: Textable;
 }
 
 export interface CustomPermission {
-  enabled: Textable;
-  name: Textable;
+    enabled: Textable;
+    name: Textable;
 }
 
 export interface TabVisibility {
-  tab: Textable;
-  visibility: Textable; // DefaultOn, DefaultOff, Hidden
+    tab: Textable;
+    visibility: Textable; // DefaultOn, DefaultOff, Hidden
 }
 
 export interface UserPermission {
-  name: Textable;
-  enabled: Textable;
+    name: Textable;
+    enabled: Textable;
 }
 
 export interface LayoutAssignment {
-  layout: Textable;
-  recordType?: Textable;
+    layout: Textable;
+    recordType?: Textable;
 }
 
 export interface CustomObject {
-  listViews: ListView | Array<ListView>;
+    listViews: ListView | Array<ListView>;
 }
 
 export interface CustomObjectChild {
-  fullName?: Textable;
-  label?: Textable;
-  actionName?: Textable;
-  type?: Textable;
+    fullName?: Textable;
+    label?: Textable;
+    actionName?: Textable;
+    type?: Textable;
 }
 
 export interface ListView {
-  fullName: Textable;
-  columns: Textable | Array<Textable>;
-  label: Textable;
+    fullName: Textable;
+    columns: Textable | Array<Textable>;
+    label: Textable;
 }
 
 export interface Dashboard {
-  dashboardType: Textable;
-  runningUser: Textable;
-  title: Textable;
+    dashboardType: Textable;
+    runningUser: Textable;
+    title: Textable;
 }
 
 export interface Report {
-  name: Textable;
+    name: Textable;
 }
 
 export interface OrgPreferenceSettings {
-  preferences: Preference | Array<Preference>;
+    preferences: Preference | Array<Preference>;
 }
 
 export interface Preference {
-  settingName: Textable;
-  settingValue: Textable;
+    settingName: Textable;
+    settingValue: Textable;
 }
 
 export interface SearchSettings {
-  searchSettingsByObject: SearchSettingsByObject;
+    searchSettingsByObject: SearchSettingsByObject;
 }
 
 export interface SearchSettingsByObject {
-  searchSettingsByObject: SearchSettingsByObject | Array<SearchSettingsByObject>;
-  enhancedLookupEnabled?: Textable;
-  lookupAutoCompleteEnabled?: Textable;
-  name?: Textable;
-  resultsPerPageCount?: Textable;
+    searchSettingsByObject: SearchSettingsByObject | Array<SearchSettingsByObject>;
+    enhancedLookupEnabled?: Textable;
+    lookupAutoCompleteEnabled?: Textable;
+    name?: Textable;
+    resultsPerPageCount?: Textable;
 }
 
 export interface Textable {
-  _text: string;
+    _text: string;
 }
 
 export class MdapiConfig {
@@ -216,6 +216,10 @@ export class MdapiConfig {
     public static manifestFolder = "manifest";
 
     public static unpackagedZip = "unpackaged.zip";
+
+    public static unpackaged1Zip = "unpackaged1.zip";
+
+    public static unpackaged2Zip = "unpackaged2.zip";
 
     public static packageXml = "package.xml";
 
@@ -581,11 +585,9 @@ export class MdapiConfig {
         MdapiConfig.ApexPage,
         MdapiConfig.ApexTrigger,
         MdapiConfig.AppMenu,
-        MdapiConfig.AuraDefinitionBundle,
         MdapiConfig.AssignmentRule,
         MdapiConfig.AssignmentRules,
-        MdapiConfig.EscalationRule,
-        MdapiConfig.EscalationRules,
+        MdapiConfig.AuraDefinitionBundle,
         MdapiConfig.AutoResponseRule,
         MdapiConfig.AutoResponseRules,
         MdapiConfig.BusinessProcess,
@@ -596,10 +598,12 @@ export class MdapiConfig {
         MdapiConfig.CustomObject,
         MdapiConfig.CustomPageWebLink,
         MdapiConfig.CustomPermission,
-        MdapiConfig.CustomTab,
         MdapiConfig.CustomSetting,
+        MdapiConfig.CustomTab,
         MdapiConfig.DataCategoryGroup,
         MdapiConfig.DuplicateRule,
+        MdapiConfig.EscalationRule,
+        MdapiConfig.EscalationRules,
         MdapiConfig.FieldSet,
         MdapiConfig.FlexiPage,
         MdapiConfig.Flow,
@@ -615,19 +619,19 @@ export class MdapiConfig {
         MdapiConfig.Profile,
         MdapiConfig.QuickAction,
         MdapiConfig.RecordType,
+        MdapiConfig.Settings,
         MdapiConfig.StandardValueSet,
         MdapiConfig.ValidationRule,
         MdapiConfig.WebLink,
         MdapiConfig.Workflow,
-        MdapiConfig.WorkflowKnowledgePublish,
-        MdapiConfig.WorkflowTask,
         MdapiConfig.WorkflowAlert,
-        MdapiConfig.WorkflowSend,
-        MdapiConfig.WorkflowOutboundMessage,
-        MdapiConfig.WorkflowRule,
         MdapiConfig.WorkflowFieldUpdate,
         MdapiConfig.WorkflowFlowAction,
-        MdapiConfig.Settings
+        MdapiConfig.WorkflowKnowledgePublish,
+        MdapiConfig.WorkflowOutboundMessage,
+        MdapiConfig.WorkflowRule,
+        MdapiConfig.WorkflowSend,
+        MdapiConfig.WorkflowTask
     ];
 
     // Prod specific variables
@@ -759,7 +763,7 @@ export class MdapiConfig {
         "bots",
         "managedContentTypes",
         "managedTopics"
-    // 'navigationMenus'
+        // 'navigationMenus'
     ];
 
     // This must match above directory
@@ -786,7 +790,7 @@ export class MdapiConfig {
     ];
 
     public static childMetadataDirectories = [
-    // Label
+        // Label
         MdapiConfig.labels,
         // object
         MdapiConfig.fields,
@@ -826,7 +830,7 @@ export class MdapiConfig {
     ];
 
     public static childMetadataDirectoryLookup = {
-    // Custom Label
+        // Custom Label
         "CustomLabel": MdapiConfig.labels,
         // Cusom object
         "CustomField": MdapiConfig.fields,
@@ -867,7 +871,7 @@ export class MdapiConfig {
         "Territory2Rule": MdapiConfig.rules
     };
 
-    public static isFolderRootDirectory (directory: string): boolean {
+    public static isFolderRootDirectory(directory: string): boolean {
 
         let returned = false;
 
@@ -886,7 +890,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static resolveIfAncestorIsFolderDirectory (filepath: string): string {
+    public static resolveIfAncestorIsFolderDirectory(filepath: string): string {
 
         let returned: string = null;
 
@@ -905,7 +909,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static extractAncestorDirectoryPath (filePath: string, baseDirectory: string): string {
+    public static extractAncestorDirectoryPath(filePath: string, baseDirectory: string): string {
 
         let returned = "";
         let items: Array<string> = filePath.split(path.sep),
@@ -938,7 +942,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static isBundleDirectory (directory: string): boolean {
+    public static isBundleDirectory(directory: string): boolean {
 
         let returned = false;
 
@@ -958,7 +962,7 @@ export class MdapiConfig {
     }// End method
 
     // Territory 2 folders don't follow the describemetadata pattern of child or folder (handled as exception)
-    public static isTerritory2ModelsDirectory (directory: string): boolean {
+    public static isTerritory2ModelsDirectory(directory: string): boolean {
 
         return directory === MdapiConfig.territory2Models;
 
@@ -969,12 +973,12 @@ export class MdapiConfig {
      * or managed packages and should be handled seperately (installed)
      * aura and lwc types don't appear to have namespace charateristics in bundles so use excludes if necessary
      */
-    public static isExcludedNamespaceFile (fileName: string, metadataObject: MetadataObject): boolean {
+    public static isExcludedNamespaceFile(fileName: string, metadataObject: MetadataObject): boolean {
 
         let excluded = false;
 
         if (fileName && metadataObject &&
-      MdapiConfig.isHiddenOrNonEditableInstalledMetaType(metadataObject.xmlName)) {
+            MdapiConfig.isHiddenOrNonEditableInstalledMetaType(metadataObject.xmlName)) {
 
             if (fileName.includes(MdapiConfig.doubleUnderscore)) {
 
@@ -988,7 +992,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static isExcludedFile (input: string): boolean {
+    public static isExcludedFile(input: string): boolean {
 
         let excluded = false;
 
@@ -1008,7 +1012,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static isExcludedDirectory (input: string): boolean {
+    public static isExcludedDirectory(input: string): boolean {
 
         let excluded = false;
 
@@ -1028,7 +1032,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static isUnsupportedMetaType (metaType: string): boolean {
+    public static isUnsupportedMetaType(metaType: string): boolean {
 
         for (let x = 0; x < MdapiConfig.unsupportedMetadataTypes.length; x++) {
 
@@ -1046,7 +1050,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static isPackage1MetaType (metaType: string): boolean {
+    public static isPackage1MetaType(metaType: string): boolean {
 
         for (let x = 0; x < MdapiConfig.package1MetaTypes.length; x++) {
 
@@ -1066,7 +1070,7 @@ export class MdapiConfig {
 
     }// End method
 
-    protected static isHiddenOrNonEditableInstalledMetaType (metadataType: string): boolean {
+    protected static isHiddenOrNonEditableInstalledMetaType(metadataType: string): boolean {
 
         if (!metadataType) {
 
@@ -1089,10 +1093,10 @@ export class MdapiConfig {
 
     }// End method
 
-    protected static isHiddenOrNonEditable (metaItem: FileProperties): boolean {
+    protected static isHiddenOrNonEditable(metaItem: FileProperties): boolean {
 
         if (metaItem && metaItem.manageableState &&
-      metaItem.manageableState === MdapiConfig.installed) {
+            metaItem.manageableState === MdapiConfig.installed) {
 
             return MdapiConfig.isHiddenOrNonEditableInstalledMetaType(metaItem.type);
 
@@ -1102,7 +1106,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static ignoreHiddenOrNonEditable (settings: ISettings, metaItem: FileProperties): boolean {
+    public static ignoreHiddenOrNonEditable(settings: ISettings, metaItem: FileProperties): boolean {
 
         if (!settings.ignoreHiddenOrNonEditable) {
 
@@ -1114,15 +1118,15 @@ export class MdapiConfig {
 
     }// End method
 
-    protected static isIgnoreNamespaces (metaItem: FileProperties): boolean {
+    protected static isIgnoreNamespaces(metaItem: FileProperties): boolean {
 
         return metaItem.namespacePrefix &&
-      metaItem.namespacePrefix !== null &&
-      metaItem.namespacePrefix !== MdapiCommon.BLANK; // Pi or Finserv etc
+            metaItem.namespacePrefix !== null &&
+            metaItem.namespacePrefix !== MdapiCommon.BLANK; // Pi or Finserv etc
 
     }// End method
 
-    public static ignoreNamespaces (settings: ISettings, metaItem: FileProperties): boolean {
+    public static ignoreNamespaces(settings: ISettings, metaItem: FileProperties): boolean {
 
         if (!settings.ignoreNamespaces) {
 
@@ -1134,14 +1138,14 @@ export class MdapiConfig {
 
     }// End method
 
-    protected static isIgnoreInstalled (metaItem: FileProperties): boolean {
+    protected static isIgnoreInstalled(metaItem: FileProperties): boolean {
 
         return metaItem.manageableState &&
-      metaItem.manageableState === MdapiConfig.installed;
+            metaItem.manageableState === MdapiConfig.installed;
 
     }// End method
 
-    public static ignoreInstalled (settings: ISettings, metaItem: FileProperties): boolean {
+    public static ignoreInstalled(settings: ISettings, metaItem: FileProperties): boolean {
 
         if (!settings.ignoreInstalled) {
 
@@ -1153,7 +1157,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static toSortedMembers (fileProperties: Array<FileProperties>): Array<string> {
+    public static toSortedMembers(fileProperties: Array<FileProperties>): Array<string> {
 
         let members: Array<string> = [];
 
@@ -1174,7 +1178,7 @@ export class MdapiConfig {
      * @param config
      * @param metaTypeNameArray
      */
-    public static describeMetadataArray (config: IConfig, metaTypeNameArray: Array<string>) {
+    public static describeMetadataArray(config: IConfig, metaTypeNameArray: Array<string>) {
 
         for (let x = 0; x < metaTypeNameArray.length; x++) {
 
@@ -1185,20 +1189,20 @@ export class MdapiConfig {
             // There is no specific directory for other types e.g. customfield for mdapi
 
             config.metadataObjectLookup[metaTypeName] = <MetadataObject>
-            {
-                "directoryName": MdapiConfig.childMetadataDirectoryLookup[metaTypeName],
-                "inFolder": false,
-                "metaFile": false,
-                "suffix": null,
-                "xmlName": metaTypeName,
-                "childXmlNames": null
-            };
+                {
+                    "directoryName": MdapiConfig.childMetadataDirectoryLookup[metaTypeName],
+                    "inFolder": false,
+                    "metaFile": false,
+                    "suffix": null,
+                    "xmlName": metaTypeName,
+                    "childXmlNames": null
+                };
 
         }// End for
 
     }// End method
 
-    public static describeMetadataFile (result: DescribeMetadataResult): void {
+    public static describeMetadataFile(result: DescribeMetadataResult): void {
 
         if (!existsSync(MdapiCommon.configRoot)) {
 
@@ -1221,7 +1225,7 @@ export class MdapiConfig {
      * @param config
      * @param settings
      */
-    public static describeMetadata (org: Org, config: IConfig, settings: ISettings): Promise<void> {
+    public static describeMetadata(org: Org, config: IConfig, settings: ISettings): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
@@ -1240,7 +1244,7 @@ export class MdapiConfig {
 
                             let metadataObject: MetadataObject = metadataObjects[x],
                                 metaTypeName: string = metadataObject.xmlName,
-                                {directoryName} = metadataObject;
+                                { directoryName } = metadataObject;
 
                             if (MdapiConfig.isUnsupportedMetaType(metaTypeName)) {
 
@@ -1361,25 +1365,25 @@ export class MdapiConfig {
      * https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/standardvalueset_names.htm
      * @param config
      */
-    public static setStandardValueSets (config: IConfig): void {
+    public static setStandardValueSets(config: IConfig): void {
 
         for (let x = 0; x < MdapiConfig.standardValueSets.length; x++) {
 
             config.metadataObjectMembersLookup[MdapiConfig.StandardValueSet].push(<FileProperties>
-            {
-                "type": MdapiConfig.StandardValueSet,
-                "createdById": null,
-                "createdByName": null,
-                "createdDate": null,
-                "fileName": null,
-                "fullName": MdapiConfig.standardValueSets[x],
-                "id": null,
-                "lastModifiedById": null,
-                "lastModifiedByName": null,
-                "lastModifiedDate": null,
-                "manageableState": null,
-                "namespacePrefix": null
-            });
+                {
+                    "type": MdapiConfig.StandardValueSet,
+                    "createdById": null,
+                    "createdByName": null,
+                    "createdDate": null,
+                    "fileName": null,
+                    "fullName": MdapiConfig.standardValueSets[x],
+                    "id": null,
+                    "lastModifiedById": null,
+                    "lastModifiedByName": null,
+                    "lastModifiedDate": null,
+                    "manageableState": null,
+                    "namespacePrefix": null
+                });
 
         }// End for
 
@@ -1390,12 +1394,12 @@ export class MdapiConfig {
      * @param org
      * @param config
      */
-    public static async resolvePersonAccountRecordTypes (org: Org, config: IConfig): Promise<void> {
+    public static async resolvePersonAccountRecordTypes(org: Org, config: IConfig): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
             org.getConnection().query("SELECT DeveloperName, SobjectType, IsPersonType FROM RecordType " +
-        " WHERE SobjectType = 'Account' AND IsPersonType = true").
+                " WHERE SobjectType = 'Account' AND IsPersonType = true").
                 then(
                     (result: QueryResult<any>) => {
 
@@ -1457,7 +1461,7 @@ export class MdapiConfig {
      * RepositionSettings at end in prep for package.xml creation
      * @param config
      */
-    public static repositionSettings (config: IConfig): void {
+    public static repositionSettings(config: IConfig): void {
 
         let found = false;
 
@@ -1483,7 +1487,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static getMetadataNameFromCurrentDirectory (parentDirectory: string): string {
+    public static getMetadataNameFromCurrentDirectory(parentDirectory: string): string {
 
         let segments: Array<string> = parentDirectory.split(path.sep);
 
@@ -1491,7 +1495,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static getMetadataNameFromParentDirectory (parentDir: string): string {
+    public static getMetadataNameFromParentDirectory(parentDir: string): string {
 
         let segments: Array<string> = parentDir.split(path.sep);
 
@@ -1499,7 +1503,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static isolateMetadataObjectName (fileName: string): string {
+    public static isolateMetadataObjectName(fileName: string): string {
 
         if (fileName.endsWith(MdapiConfig.metaXmlSuffix)) {
 
@@ -1528,7 +1532,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static createPackageFile (config: IConfig, settings: ISettings, packageXmlPath: string): void {
+    public static createPackageFile(config: IConfig, settings: ISettings, packageXmlPath: string): void {
 
         let xmlContent: string = this.packageXmlHeader();
 
@@ -1543,26 +1547,22 @@ export class MdapiConfig {
                 continue;
             }
 
-            if (packageXmlPath.endsWith(this.packageXml)) 
-            {
+            if (packageXmlPath.endsWith(this.packageXml)) {
                 // do nothing carry on
             }
-            else if (packageXmlPath.endsWith(this.package1Xml)) 
-            {
+            else if (packageXmlPath.endsWith(this.package1Xml)) {
                 if (MdapiConfig.isPackage1MetaType(metaType) === false) {
                     continue;
                 }
             }
-            else if (packageXmlPath.endsWith(this.package2Xml)) 
-            {
-                if (MdapiConfig.isPackage1MetaType(metaType) === true) 
-                { 
+            else if (packageXmlPath.endsWith(this.package2Xml)) {
+                if (MdapiConfig.isPackage1MetaType(metaType) === true) {
                     continue;
                 }
             }
 
             let metaItems: Array<FileProperties> = config.metadataObjectMembersLookup[metaType],
-            sortedMembers: Array<string> = MdapiConfig.toSortedMembers(metaItems);
+                sortedMembers: Array<string> = MdapiConfig.toSortedMembers(metaItems);
 
             xmlContent += `${MdapiCommon.TWO_SPACE}<types>\n`;
 
@@ -1589,7 +1589,7 @@ export class MdapiConfig {
 
     }// End function
 
-    public static getMetadataObjectFromDirectoryName (config: IConfig, directoryName: string, metaFile?: string): MetadataObject {
+    public static getMetadataObjectFromDirectoryName(config: IConfig, directoryName: string, metaFile?: string): MetadataObject {
 
         let metadataObjects: Array<MetadataObject> = MdapiCommon.objectToArray(config.metadataDirectoryLookup[directoryName]);
 
@@ -1603,7 +1603,7 @@ export class MdapiConfig {
             let metaObject: MetadataObject = metadataObjects[x];
 
             if (metaObject.suffix && (metaFile.endsWith(metaObject.suffix) ||
-        metaFile.endsWith(metaObject.suffix + MdapiConfig.metaXmlSuffix))) { // E.g. for moderation different types
+                metaFile.endsWith(metaObject.suffix + MdapiConfig.metaXmlSuffix))) { // E.g. for moderation different types
 
                 return metaObject;
 
@@ -1615,7 +1615,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static getMetadataObjectFromFileExtension (config: IConfig, metaFile: string): MetadataObject {
+    public static getMetadataObjectFromFileExtension(config: IConfig, metaFile: string): MetadataObject {
 
         let metadataObjects: Array<MetadataObject> = MdapiCommon.objectToArray(config.metadataObjects);
 
@@ -1637,7 +1637,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static createConfig (): IConfig {
+    public static createConfig(): IConfig {
 
         return <IConfig>{
             "metadataTypes": [],
@@ -1657,7 +1657,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static createSettings (): ISettings {
+    public static createSettings(): ISettings {
 
         return <ISettings>{
             "ignoreHiddenOrNonEditable": false,
@@ -1670,13 +1670,13 @@ export class MdapiConfig {
 
     }// End method
 
-    public static async unzipUnpackaged (zipFilePath: string, targetDirectoryUnpackaged: string): Promise<any> {
+    public static async unzipUnpackaged(zipFilePath: string, targetDirectoryUnpackaged: string): Promise<any> {
 
         return new Promise((resolve, reject) => {
 
             yauzl.open(
                 zipFilePath,
-                {"lazyEntries": true},
+                { "lazyEntries": true },
                 (openErr, zipfile) => {
 
                     if (openErr) {
@@ -1717,9 +1717,9 @@ export class MdapiConfig {
 
                                     }// End else if
                                     let outputDir = path.join(
-                                            targetDirectoryUnpackaged,
-                                            path.dirname(entry.fileName)
-                                        ),
+                                        targetDirectoryUnpackaged,
+                                        path.dirname(entry.fileName)
+                                    ),
                                         outputFile = path.join(
                                             targetDirectoryUnpackaged,
                                             entry.fileName
@@ -1762,11 +1762,11 @@ export class MdapiConfig {
 
     }// End method
 
-    public static async querylistMetadata (org: Org, metadataType: string, config: IConfig, settings: ISettings): Promise<void> {
+    public static async querylistMetadata(org: Org, metadataType: string, config: IConfig, settings: ISettings): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
-            let metaQueries: Array<ListMetadataQuery> = [{"type": metadataType}];
+            let metaQueries: Array<ListMetadataQuery> = [{ "type": metadataType }];
 
             org.getConnection().metadata.list(
                 metaQueries,
@@ -1798,7 +1798,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static inspectMdapiFile (
+    public static inspectMdapiFile(
         position: RelativePosition, config: IConfig, filePath: string,
         parentDirectory: string, metaRegister: Record<string, DiffRecord>
     ): void {
@@ -1822,7 +1822,7 @@ export class MdapiConfig {
 
         // Don't process top level directories (from excluded list)
         if (MdapiConfig.isExcludedDirectory(directory) ||
-      MdapiConfig.isExcludedFile(fileName)) {
+            MdapiConfig.isExcludedFile(fileName)) {
 
             if (position === RelativePosition.Source) {
 
@@ -1936,10 +1936,10 @@ export class MdapiConfig {
                     );
                     // AnchorName = (metadataObject.directoryName + MdapiCommon.PATH_SEP + metadataCurrentName);
                     anchorName = metadataObject.directoryName + MdapiCommon.PATH_SEP +
-          MdapiConfig.extractAncestorDirectoryPath(
-              filePath,
-              metadataParentName
-          );
+                        MdapiConfig.extractAncestorDirectoryPath(
+                            filePath,
+                            metadataParentName
+                        );
                     // Immediate relative folder per package.xml
                     memberName = metadataCurrentName + MdapiCommon.PATH_SEP + MdapiConfig.isolateMetadataObjectName(fileName);
                     folderXml = MdapiConfig.isFolderXmlFile(filePath);
@@ -1948,7 +1948,7 @@ export class MdapiConfig {
 
                     // Potentially Fatal event (log warning - could be significant diff between environments or reduced subset of metadata)
                     console.warn(`unexpected metatype found at parent directory: ${parentDirectory
-                    } please check metaobject definitions are up to date - unresolved file path: ${filePath}`);
+                        } please check metaobject definitions are up to date - unresolved file path: ${filePath}`);
                     return; // return
 
                 }
@@ -1969,7 +1969,7 @@ export class MdapiConfig {
                 "unexpected unresolved metaobject - key: ",
                 `${memberKey
                 } (filename: ${fileName}) anchorName: (${anchorName}), ` +
-        ` parentdirectory: ${parentDirectory}, metadataobject: ${metadataObject}`
+                ` parentdirectory: ${parentDirectory}, metadataobject: ${metadataObject}`
             );
             throw "unresolved metadataObject";
 
@@ -2038,7 +2038,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static extractReportName (filePath: string): string {
+    public static extractReportName(filePath: string): string {
 
         let jsonObject: object = MdapiCommon.xmlFileToJson(filePath),
             report: Report = jsonObject[MdapiConfig.Report];
@@ -2047,7 +2047,7 @@ export class MdapiConfig {
 
     }// End if
 
-    public static extractDashboardTitle (filePath: string): string {
+    public static extractDashboardTitle(filePath: string): string {
 
         let jsonObject: object = MdapiCommon.xmlFileToJson(filePath),
             dashboard: Dashboard = jsonObject[MdapiConfig.Dashboard];
@@ -2056,7 +2056,7 @@ export class MdapiConfig {
 
     }// End if
 
-    public static isFolderXmlFile (filePath: string): boolean {
+    public static isFolderXmlFile(filePath: string): boolean {
 
         if (!filePath.endsWith(MdapiConfig.metaXmlSuffix)) {
 
@@ -2089,7 +2089,7 @@ export class MdapiConfig {
     }// End if
 
     // Children only present on one side so no compare needed but do list
-    public static inspectMetaChildren (config: IConfig, packageDiffRecords: Record<string, Array<DiffRecord>>, parent: DiffRecord): void {
+    public static inspectMetaChildren(config: IConfig, packageDiffRecords: Record<string, Array<DiffRecord>>, parent: DiffRecord): void {
 
         let childMetaObject: object = MdapiCommon.xmlFileToJson(parent.filePath),
             childXmlNames: Array<string> = MdapiCommon.objectToArray(parent.metadataObject.childXmlNames);
@@ -2140,14 +2140,14 @@ export class MdapiConfig {
 
     }// End method
 
-    public static metadataObjectHasChildren (metadataObject: MetadataObject): boolean {
+    public static metadataObjectHasChildren(metadataObject: MetadataObject): boolean {
 
         return metadataObject.childXmlNames &&
-      MdapiCommon.objectToArray(metadataObject.childXmlNames).length > 0;
+            MdapiCommon.objectToArray(metadataObject.childXmlNames).length > 0;
 
     }// End method
 
-    public static initDiffRecordsLookup (config: IConfig, diffRecordsLookup: Record<string, Array<DiffRecord>>): void {
+    public static initDiffRecordsLookup(config: IConfig, diffRecordsLookup: Record<string, Array<DiffRecord>>): void {
 
         config.metadataTypes.forEach((metaTypeKey) => {
 
@@ -2157,7 +2157,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static sortDiffRecordTypes (DiffRecords: Record<string, Array<DiffRecord>>): Array<string> {
+    public static sortDiffRecordTypes(DiffRecords: Record<string, Array<DiffRecord>>): Array<string> {
 
         let metadataObjectNames: Array<string> = [];
 
@@ -2173,7 +2173,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static packageXmlHeader (): string {
+    public static packageXmlHeader(): string {
 
         let xmlContent = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 
@@ -2183,7 +2183,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static packageXmlFooter (): string {
+    public static packageXmlFooter(): string {
 
         let xmlContent = "</Package>\n";
 

@@ -62,7 +62,7 @@ OPTIONS
 
 EXAMPLES
 
-       $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --apiversion 46.0 --ignorecomments
+       $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --apiversion 53.0 --ignorecomments
 
 
        $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com
@@ -108,7 +108,7 @@ Retrieve and refresh org metadata to local directory (i.e. retrieve all metadata
 
 ```
 USAGE
-  $ sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-h] [-f] [-s] [-x] [-z] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]
+  $ sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-h] [-f] [-s] [-x] [-z] [-t] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]
 
 OPTIONS
   -b, --ignorebackup                                                                flag to ignore creating a local backup of retrieved files
@@ -117,6 +117,7 @@ OPTIONS
   -i, --ignoreinstalled                                                             flag to ignore retrieving installed (or managed) package files (excludes all installed metadata)
   -n, --ignorenamespaces                                                            flag to ignore retrieving namespace prefixed package files (excludes all namespaced metadata)
   -s, --ignorestaticresources                                                       flag to ignore retrieving all static resources
+  -t, --split                                                                       flag to split package.xml into package1.xml and package2.xml to address 10000 file download limit per request
   -u, --targetusername=targetusername                                               username or alias for the target org; overrides default target org
   -x, --manifestonly                                                                flag to only create manifest/package.xml and don't download meta data files
   -z, --stagemode                                                                   stage mode (default is false) otherwise dev mode (default is true) e.g. src
@@ -126,10 +127,10 @@ OPTIONS
 
 EXAMPLES
 
-       $ sfdx ext:mdapi:retrieve --targetusername user@example.com --apiversion 46.0 --ignorebackup --ignoreinstalled --ignorenamespaces --ignorehidden --ignorefolders --ignorestaticresources --manifestonly --stagemode
+       $ sfdx ext:mdapi:retrieve --targetusername user@example.com --apiversion 53.0 --ignorebackup --ignoreinstalled --ignorenamespaces --ignorehidden --ignorefolders --ignorestaticresources --manifestonly --stagemode --split
 
 
-       $ sfdx ext:mdapi:retrieve -u user@example.com -b -i -n -h -f -s -x
+       $ sfdx ext:mdapi:retrieve -u user@example.com -b -i -n -h -f -s -x -t
 
 
        $ sfdx ext:mdapi:retrieve -u user@example.com -z
