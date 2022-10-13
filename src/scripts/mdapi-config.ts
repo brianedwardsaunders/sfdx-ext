@@ -223,6 +223,8 @@ export class MdapiConfig {
 
     public static packageXml = "package.xml";
 
+    public static packageCsv = "package.csv";
+
     public static package1Xml = "package1.xml";
 
     public static package2Xml = "package2.xml";
@@ -1342,7 +1344,8 @@ export class MdapiConfig {
 
                     } catch (exception) {
 
-                        console.error(exception);
+                      console.error('describeMetadata exception occurred.');
+                      console.error(exception);
                         reject(exception);
 
                     }// End catch
@@ -1350,6 +1353,7 @@ export class MdapiConfig {
                 },
                 (error: any) => {
 
+                    console.error('describeMetadata error occurred.');
                     console.error(error);
                     reject(error);
 
@@ -1531,6 +1535,41 @@ export class MdapiConfig {
         );
 
     }// End method
+
+    public static createCsvFile(config: IConfig, packageCsvPath: string): void {
+
+      let csvContent: string;
+
+      csvContent = `Key,Type,Name\n`;
+
+      for (let x = 0; x < config.metadataTypes.length; x++) {
+
+          let metaType: string = config.metadataTypes[x];
+
+          if (config.metadataObjectMembersLookup[metaType].length === 0) {
+              // if no entry continue
+              continue;
+          }
+
+          let metaItems: Array<FileProperties> = config.metadataObjectMembersLookup[metaType],
+              sortedMembers: Array<string> = MdapiConfig.toSortedMembers(metaItems);
+
+          for (let y = 0; y < sortedMembers.length; y++) {
+
+              let item: string = sortedMembers[y];
+
+              csvContent += `${metaType}-${item},${metaType},${item}\n`;
+
+          }// End for
+
+      }// End for
+
+      writeFileSync(
+          packageCsvPath,
+          csvContent
+      );
+
+  }// End function
 
     public static createPackageFile(config: IConfig, settings: ISettings, packageXmlPath: string): void {
 

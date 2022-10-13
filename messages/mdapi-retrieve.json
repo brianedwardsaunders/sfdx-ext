@@ -9,5 +9,8 @@
   "manifestonlyFlagDescription": "flag to only create manifest/package.xml and don't download meta data files",
   "stagedirectoryFlagDescription": "staging root folder (default is stage) e.g. DevOrg/retrieve/src",
   "stagemodeFlagDescription": "stage mode (default is false) otherwise dev mode (default is true) e.g. src",
-  "splitFlagDescription": "flag to split package.xml into package1.xml and package2.xml to address 10000 file download limit per request"
+  "splitFlagDescription": "flag to split package.xml into package1.xml and package2.xml to address 10000 file download limit per request",
+  "containsFiltersFlagDescription": "filters (case sensitive) for only meta components containing text e.g. -r ABC_,Xyz",
+  "startsWithFiltersFlagDescription": "filters (case sensitive) for only meta components starting with text e.g. -w xyz",
+  "createcsvFlagDescription": "create csv flag to create csv file to easily compare metadata items in excel"
 }
