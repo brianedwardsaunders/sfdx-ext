@@ -6,5 +6,6 @@
   "revisionfromFlagDescription": "base revision to generate the diff e.g. 84965e9e or feature/SprintX or feature/FeatureX",
   "revisiontoFlagDescription": "target revision to generate the diff e.g. HEAD or release",
   "errorSourceusernameRequired": "Source org username is required",
-  "errorBothRevisionsRequired": "Both revisionfrom and revisionto values required"
+  "errorBothRevisionsRequired": "Both revisionfrom and revisionto values required",
+  "createcsvFlagDescription": "Create diff list in csv format"
 }

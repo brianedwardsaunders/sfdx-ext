@@ -86,7 +86,7 @@ export class MdapiRetrieveUtility {
 
   protected filePackageXmlPath = (this.manifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
 
-  protected filePackageCsvPath = (this.manifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.packageCsv);
+  protected filePackageCsvPath = (this.manifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.diffCsv);
 
   protected filePackage1XmlPath = (this.manifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.package1Xml);
 
@@ -470,7 +470,8 @@ export class MdapiRetrieveUtility {
       //create csv file
       MdapiConfig.createCsvFile(
         this.config,
-        this.filePackageCsvPath
+        this.filePackageCsvPath,
+        this.orgAlias
       );
     }
 
@@ -651,15 +652,16 @@ export class MdapiRetrieveUtility {
                 }
               }
 
+              //default no filter applied
               if (this.containsFilters == null && this.startsWithFilters == null) {
                 this.config.metadataObjectMembersLookup[metaType].push(metaItem);
               }
 
+              //todo force standard inclusions e.g. settings.
+
             }// End if
 
           }// End for
-
-          //this.ux.log(`metadata.list PROCESSED: ${metaType}.`);
 
           if (--batchCtrl.counter <= 0) {
 

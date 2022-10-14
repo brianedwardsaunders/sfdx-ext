@@ -223,7 +223,7 @@ export class MdapiConfig {
 
     public static packageXml = "package.xml";
 
-    public static packageCsv = "package.csv";
+    public static diffCsv = "diff.csv";
 
     public static package1Xml = "package1.xml";
 
@@ -1536,11 +1536,11 @@ export class MdapiConfig {
 
     }// End method
 
-    public static createCsvFile(config: IConfig, packageCsvPath: string): void {
+    public static createCsvFile(config: IConfig, packageCsvPath: string, orgAlias: string): void {
 
       let csvContent: string;
 
-      csvContent = `Key,Type,Name\n`;
+      csvContent = `Key,Type,Name,Alias\n`;
 
       for (let x = 0; x < config.metadataTypes.length; x++) {
 
@@ -1558,7 +1558,7 @@ export class MdapiConfig {
 
               let item: string = sortedMembers[y];
 
-              csvContent += `${metaType}-${item},${metaType},${item}\n`;
+              csvContent += `${metaType}-${item},${metaType},${item},${orgAlias}\n`;
 
           }// End for
 
