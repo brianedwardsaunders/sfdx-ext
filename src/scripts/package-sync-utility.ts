@@ -4,314 +4,341 @@
  * @date 2019-07-10
  */
 
-import {UX} from "@salesforce/command";
-import {MdapiCommon} from "./mdapi-common";
+import { UX } from "@salesforce/command";
+import { writeFileSync } from "fs-extra";
+import { MdapiCommon } from "./mdapi-common";
 
 export interface PackageVersion {
-    SubscriberPackageName: string;
-    SubscriberPackageId: string;
-    SubscriberPackageVersionId: string;
-    SubscriberPackageVersionNumber: string;
-    action?: string; // Injected
+  Id:string;
+  SubscriberPackageName: string;
+  SubscriberPackageId: string;
+  SubscriberPackageNamespace: string;
+  SubscriberPackageVersionId: string;
+  SubscriberPackageVersionName: string;
+  SubscriberPackageVersionNumber: string;
+  action?: string; // Injected
 }
 
 export class PackageSyncUtility {
 
-    protected leftPackageList: Array<PackageVersion> = [];
+  protected leftPackageList: Array<PackageVersion> = [];
 
-    protected rightPackageList: Array<PackageVersion> = [];
+  protected rightPackageList: Array<PackageVersion> = [];
 
-    protected diffPackageList: Array<PackageVersion> = [];
+  protected diffPackageList: Array<PackageVersion> = [];
 
-    protected matchPackageList: Array<PackageVersion> = [];
+  protected matchPackageList: Array<PackageVersion> = [];
 
-    // Works on principle left migrates to right so descructive rules should also apply.
-    protected actionInstall = "install";
+  // Works on principle left migrates to right so descructive rules should also apply.
+  protected actionInstall = "install";
 
-    protected actionUninstall = "uninstall";
+  protected actionUninstall = "uninstall";
 
-    protected actionNone = "none";
+  protected actionNone = "none";
 
-    constructor (
-        protected ux: UX,
-        protected sourceOrgAlias: string, // Left
-        protected targetOrgAlias: string, // Right
-        protected flagCheckOnly: boolean, // Return result if diff
-        protected flagCheckError: boolean, // Throw error if diff
-        protected flagInstallOnly: boolean,
-        protected flagUninstallOnly: boolean,
-        protected flagSync: boolean
-    ) {
-        // Noop
-    }// End constructor
+  protected syncFile = 'sync.csv';
 
-    // Compare the packages
-    protected comparePackageList (): void {
+  constructor(
+    protected ux: UX,
+    protected sourceOrgAlias: string, // Left
+    protected targetOrgAlias: string, // Right
+    protected flagCheckOnly: boolean, // Return result if diff
+    protected flagCheckError: boolean, // Throw error if diff
+    protected flagInstallOnly: boolean,
+    protected flagUninstallOnly: boolean,
+    protected flagSync: boolean,
+    protected createcsv: boolean,
+  ) {
+    // Noop
+  }// End constructor
 
-        // Left to right
-        for (let i = 0; i < this.leftPackageList.length; i++) {
+  // Compare the packages
+  protected comparePackageList(): void {
 
-            let leftPackage: PackageVersion = this.leftPackageList[i],
-                found = false;
+    // Left to right
+    for (let i = 0; i < this.leftPackageList.length; i++) {
 
-            for (let j = 0; j < this.rightPackageList.length; j++) {
+      let leftPackage: PackageVersion = this.leftPackageList[i],
+        found = false;
 
-                let rightPackage = this.rightPackageList[j];
+      for (let j = 0; j < this.rightPackageList.length; j++) {
 
-                if (leftPackage.SubscriberPackageId === rightPackage.SubscriberPackageId) {
+        let rightPackage = this.rightPackageList[j];
 
-                    if (leftPackage.SubscriberPackageVersionId === rightPackage.SubscriberPackageVersionId) {
+        if (leftPackage.SubscriberPackageId === rightPackage.SubscriberPackageId) {
 
-                        found = true;
-                        break;
+          if (leftPackage.SubscriberPackageVersionId === rightPackage.SubscriberPackageVersionId) {
 
-                    }// End if
+            found = true;
+            break;
 
-                }// End if
+          }// End if
 
-            }// End for
+        }// End if
 
-            if (!found) {
+      }// End for
 
-                leftPackage.action = this.actionInstall;
-                this.diffPackageList.push(leftPackage);
+      if (!found) {
 
-            } else {
+        leftPackage.action = this.actionInstall;
+        this.diffPackageList.push(leftPackage);
 
-                leftPackage.action = this.actionNone;
-                this.matchPackageList.push(leftPackage);
+      } else {
 
-            } // End else
+        leftPackage.action = this.actionNone;
+        this.matchPackageList.push(leftPackage);
 
-        }// End for
+      } // End else
 
-        // Right to left
-        for (let x = 0; x < this.rightPackageList.length; x++) {
+    }// End for
 
-            let rightPackage: PackageVersion = this.rightPackageList[x],
-                found = false;
+    // Right to left
+    for (let x = 0; x < this.rightPackageList.length; x++) {
 
-            for (let y = 0; y < this.leftPackageList.length; y++) {
+      let rightPackage: PackageVersion = this.rightPackageList[x],
+        found = false;
 
-                let leftPackage = this.leftPackageList[y];
+      for (let y = 0; y < this.leftPackageList.length; y++) {
 
-                if (rightPackage.SubscriberPackageId === leftPackage.SubscriberPackageId) {
+        let leftPackage = this.leftPackageList[y];
 
-                    found = true;
-                    break;
+        if (rightPackage.SubscriberPackageId === leftPackage.SubscriberPackageId) {
 
-                }// End if
+          found = true;
+          break;
 
-            }// End for
+        }// End if
 
-            if (!found) {
+      }// End for
 
-                rightPackage.action = this.actionUninstall;
-                this.diffPackageList.push(rightPackage);
+      if (!found) {
 
-            }// End if
+        rightPackage.action = this.actionUninstall;
+        this.diffPackageList.push(rightPackage);
 
-        }// End for
+      }// End if
 
-    }// End method
+    }// End for
 
-    // SyncPackage by installing or uninstalling
-    protected async syncPackages (): Promise<string> {
+  }// End method
 
-        return new Promise((resolve, reject) => {
+  // SyncPackage by installing or uninstalling
+  protected async syncPackages(): Promise<string> {
 
-            let counter = 0;
+    return new Promise((resolve, reject) => {
 
-            counter = this.diffPackageList.length;
-            let total: number = counter;
+      let counter = 0;
 
-            if (total === 0) {
+      counter = this.diffPackageList.length;
+      let total: number = counter;
+
+      if (total === 0) {
+
+        resolve(`check/update of (${total}) package(s) complete`);
+
+        return;
+
+      }// End if
+
+      let csvcomments: string = 'Source,Target,Id,SubscriberPackageId,SubscriberPackageName,SubscriberPackageNamespace,SubscriberPackageVersionId,SubscriberPackageVersionName,SubscriberPackageVersionNumber,SyncAction\n';
+
+      this.diffPackageList.forEach((diffPackage) => {
+
+        // Making sure flags are set correctly
+        let canInstall: boolean = !(this.flagCheckOnly || this.flagCheckError) && (this.flagInstallOnly || this.flagSync),
+          canUninstall: boolean = !(this.flagCheckOnly || this.flagCheckError) && (this.flagUninstallOnly || this.flagSync);
+        let commandSfdxPackageUpdate: string = null,
+          executeCommand = true;
+
+        csvcomments += `${this.sourceOrgAlias},${this.targetOrgAlias},${diffPackage.Id},${diffPackage.SubscriberPackageId},${diffPackage.SubscriberPackageName},${diffPackage.SubscriberPackageNamespace},${diffPackage.SubscriberPackageVersionName},${diffPackage.SubscriberPackageVersionId},${diffPackage.SubscriberPackageVersionNumber},${diffPackage.action}\n`
+
+        if (diffPackage.action === this.actionInstall && canInstall) {
+
+          this.ux.log(`installing ${diffPackage.SubscriberPackageName} (${diffPackage.SubscriberPackageVersionNumber}) in ${this.targetOrgAlias} please standby...`);
+          commandSfdxPackageUpdate = `sfdx force:package:install --package ${diffPackage.SubscriberPackageVersionId} -u ${this.targetOrgAlias} -w 10 --json`;
+
+        }// End if
+        else if (diffPackage.action === this.actionUninstall && canUninstall) {
+
+          this.ux.log(`uninstalling ${diffPackage.SubscriberPackageName} (${diffPackage.SubscriberPackageVersionNumber}) in ${this.targetOrgAlias} please standby...`);
+          commandSfdxPackageUpdate = `sfdx force:package:uninstall --package ${diffPackage.SubscriberPackageVersionId} -u ${this.targetOrgAlias} -w 10 --json`;
+
+        } // End else if
+        else {
+
+          this.ux.log(`ignoring action (${diffPackage.action}) ${diffPackage.SubscriberPackageName} (${diffPackage.SubscriberPackageVersionNumber}) in ${this.targetOrgAlias} please standby...`);
+          executeCommand = false;
+          if (--counter <= 0) {
+
+            //write out the csv
+            if (this.createcsv) {
+              writeFileSync(
+                this.syncFile,
+                csvcomments
+              );
+            }
+
+            resolve(`check/update of (${total}) package(s) complete`);
+
+          }// End if
+
+        }// End else
+
+        // Execute resolved command
+        if (executeCommand) {
+
+          this.ux.log(commandSfdxPackageUpdate);
+          MdapiCommon.command(commandSfdxPackageUpdate).then(
+            (result: any) => {
+
+              this.ux.log(result);
+              if (--counter <= 0) {
+
+                //write out the csv
+                if (this.createcsv) {
+                  writeFileSync(
+                    this.syncFile,
+                    csvcomments
+                  );
+                }
 
                 resolve(`check/update of (${total}) package(s) complete`);
 
-                return;
+              }// End if
 
-            }// End if
+            },
+            (error: any) => {
 
-            this.diffPackageList.forEach((diffPackage) => {
+              reject(error);
 
-                // Making sure flags are set correctly
-                let canInstall: boolean = !(this.flagCheckOnly || this.flagCheckError) && (this.flagInstallOnly || this.flagSync),
-                    canUninstall: boolean = !(this.flagCheckOnly || this.flagCheckError) && (this.flagUninstallOnly || this.flagSync);
-                let commandSfdxPackageUpdate: string = null,
-                    executeCommand = true;
+            }
+          );
 
-                if (diffPackage.action === this.actionInstall && canInstall) {
+        }
 
-                    this.ux.log(`installing ${diffPackage.SubscriberPackageName} (${diffPackage.SubscriberPackageVersionNumber}) in ${this.targetOrgAlias} please standby...`);
-                    commandSfdxPackageUpdate = `sfdx force:package:install --package ${diffPackage.SubscriberPackageVersionId} -u ${this.targetOrgAlias} -w 10 --json`;
+      });
 
-                }// End if
-                else if (diffPackage.action === this.actionUninstall && canUninstall) {
+    });
 
-                    this.ux.log(`uninstalling ${diffPackage.SubscriberPackageName} (${diffPackage.SubscriberPackageVersionNumber}) in ${this.targetOrgAlias} please standby...`);
-                    commandSfdxPackageUpdate = `sfdx force:package:uninstall --package ${diffPackage.SubscriberPackageVersionId} -u ${this.targetOrgAlias} -w 10 --json`;
+  }// End method
 
-                } // End else if
-                else {
+  // Process compareSyncPackages
+  protected async compareSyncPackages(): Promise<number> {
 
-                    this.ux.log(`ignoring action (${diffPackage.action}) ${diffPackage.SubscriberPackageName} (${diffPackage.SubscriberPackageVersionNumber}) in ${this.targetOrgAlias} please standby...`);
-                    executeCommand = false;
-                    if (--counter <= 0) {
+    return new Promise((resolve, reject) => {
 
-                        resolve(`check/update of (${total}) package(s) complete`);
+      // Get packagelist on left as json
+      let commandSfdxLeftPackageList = `sfdx force:package:installed:list -u ${this.sourceOrgAlias} --json`;
 
-                    }// End if
+      /*
+       * This.ux.log(commandSfdxLeftPackageList);
+       * commandSfdxLeftPackageList
+       */
 
-                }// End else
+      this.ux.startSpinner(`retrieving installed packages from ${this.sourceOrgAlias}`);
 
-                // Execute resolved command
-                if (executeCommand) {
+      MdapiCommon.command(commandSfdxLeftPackageList).then(
+        (result: any) => {
 
-                    this.ux.log(commandSfdxPackageUpdate);
-                    MdapiCommon.command(commandSfdxPackageUpdate).then(
-                        (result: any) => {
+          this.ux.stopSpinner();
+          this.ux.log(result);
+          let jsonObject: object = JSON.parse(result);
 
-                            this.ux.log(result);
-                            if (--counter <= 0) {
+          this.leftPackageList = jsonObject['result'];
 
-                                resolve(`check/update of (${total}) package(s) complete`);
+          // CommandSfdxRightPackageList
+          let commandSfdxRightPackageList = `sfdx force:package:installed:list -u ${this.targetOrgAlias} --json`;
+          // This.ux.log(commandSfdxRightPackageList);
 
-                            }// End if
+          this.ux.startSpinner(`retrieving installed packages from ${this.targetOrgAlias}`);
 
-                        },
-                        (error: any) => {
+          MdapiCommon.command(commandSfdxRightPackageList).then(
+            (result: any) => {
 
-                            reject(error);
+              this.ux.stopSpinner();
+              this.ux.log(result);
+              let jsonObject: object = JSON.parse(result);
 
-                        }
-                    );
+              this.rightPackageList = jsonObject['result'];
 
-                }
+              this.comparePackageList();
+              if (this.diffPackageList.length > 0) {
 
-            });
+                this.ux.logJson(this.diffPackageList);
 
-        });
+              }// End if
+              this.ux.log(`(${this.diffPackageList.length}) installed package version difference(s) found`);
+              let diffCount: number = this.diffPackageList.length;
 
-    }// End method
+              if (diffCount > 0 && this.flagCheckError) {
 
-    // Process compareSyncPackages
-    protected async compareSyncPackages (): Promise<number> {
+                this.ux.error("throwing diff package check not zero error and flag checkerror is true");
+                reject(diffCount);
 
-        return new Promise((resolve, reject) => {
+              }// End if
+              else {
 
-            // Get packagelist on left as json
-            let commandSfdxLeftPackageList = `sfdx force:package:installed:list -u ${this.sourceOrgAlias} --json`;
-
-            /*
-             * This.ux.log(commandSfdxLeftPackageList);
-             * commandSfdxLeftPackageList
-             */
-
-            this.ux.startSpinner(`retrieving installed packages from ${this.sourceOrgAlias}`);
-
-            MdapiCommon.command(commandSfdxLeftPackageList).then(
-                (result: any) => {
+                // SyncPackages
+                this.ux.startSpinner("syncPackages");
+                this.syncPackages().then(
+                  (result: string) => {
 
                     this.ux.stopSpinner();
                     this.ux.log(result);
-                    let jsonObject: object = JSON.parse(result);
+                    resolve(diffCount);
 
-                    this.leftPackageList = jsonObject['result'];
-
-                    // CommandSfdxRightPackageList
-                    let commandSfdxRightPackageList = `sfdx force:package:installed:list -u ${this.targetOrgAlias} --json`;
-                    // This.ux.log(commandSfdxRightPackageList);
-
-                    this.ux.startSpinner(`retrieving installed packages from ${this.targetOrgAlias}`);
-
-                    MdapiCommon.command(commandSfdxRightPackageList).then(
-                        (result: any) => {
-
-                            this.ux.stopSpinner();
-                            this.ux.log(result);
-                            let jsonObject: object = JSON.parse(result);
-
-                            this.rightPackageList = jsonObject['result'];
-
-                            this.comparePackageList();
-                            if (this.diffPackageList.length > 0) {
-
-                                this.ux.logJson(this.diffPackageList);
-
-                            }// End if
-                            this.ux.log(`(${this.diffPackageList.length}) installed package version difference(s) found`);
-                            let diffCount: number = this.diffPackageList.length;
-
-                            if (diffCount > 0 && this.flagCheckError) {
-
-                                this.ux.error("throwing diff package check not zero error and flag checkerror is true");
-                                reject(diffCount);
-
-                            }// End if
-                            else {
-
-                                // SyncPackages
-                                this.ux.startSpinner("syncPackages");
-                                this.syncPackages().then(
-                                    (result: string) => {
-
-                                        this.ux.stopSpinner();
-                                        this.ux.log(result);
-                                        resolve(diffCount);
-
-                                    },
-                                    (error: any) => {
-
-                                        this.ux.error(error);
-                                        reject(error);
-
-                                    }
-                                );
-
-                            }// End else
-
-                        },
-                        (error: any) => {
-
-                            this.ux.error(error);
-                            reject(error);
-
-                        }
-                    );
-
-                },
-                (error: any) => {
+                  },
+                  (error: any) => {
 
                     this.ux.error(error);
                     reject(error);
 
-                }
-            );
+                  }
+                );
 
-        });
+              }// End else
 
-    }// End method
+            },
+            (error: any) => {
 
-    public async process (): Promise<any> {
+              this.ux.error(error);
+              reject(error);
 
-        return new Promise((resolve, reject) => {
+            }
+          );
 
-            this.compareSyncPackages().then(
-                (result) => {
+        },
+        (error: any) => {
 
-                    resolve(result);
+          this.ux.error(error);
+          reject(error);
 
-                },
-                (error) => {
+        }
+      );
 
-                    reject(error);
+    });
 
-                }
-            );
+  }// End method
 
-        });
+  public async process(): Promise<any> {
 
-    }// End process
+    return new Promise((resolve, reject) => {
+
+      this.compareSyncPackages().then(
+        (result) => {
+
+          resolve(result);
+
+        },
+        (error) => {
+
+          reject(error);
+
+        }
+      );
+
+    });
+
+  }// End process
 
 }// End class

@@ -6,5 +6,6 @@
   "installonlyFlagDescription": "flag to only install package versions detected as missing or different from source org to target org",
   "uninstallonlyFlagDescription": "flag to only uninstall package versions detected as present in target org but not present in source org",
   "syncpackagesFlagDescription": "flag to sync all package versions from source org to target org (i.e. both install and uninstall in target if necessary)",
-  "errorSourceusernameRequired": "Source org username is required"
+  "errorSourceusernameRequired": "Source org username is required",
+  "createcsvFlagDescription": "create csv flag to create csv file of sync comparison in excel. Recommend using with check flag"
 }
