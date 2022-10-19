@@ -223,7 +223,7 @@ export class MdapiConfig {
 
     public static packageXml = "package.xml";
 
-    public static diffCsv = "diff.csv";
+    public static diffCsv = "package.csv";
 
     public static package1Xml = "package1.xml";
 
