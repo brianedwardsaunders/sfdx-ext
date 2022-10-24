@@ -48,6 +48,7 @@ export class MdapiRetrieveUtility {
     protected splitMode: boolean,
     protected containsFilters: Array<string>,
     protected startsWithFilters: Array<string>,
+    protected includeTypes: Array<string>,
     protected createcsv: boolean
   ) {
     // Noop
@@ -570,24 +571,19 @@ export class MdapiRetrieveUtility {
       folderName: string = params.folder;
 
     if (folderName) {
-
       metaQueries = [
         {
           "type": metaType,
           "folder": folderName
         }
       ];
-
     } else {
-
       metaQueries = [{ "type": metaType }];
-
-    }
+    }// End else
 
     let foundFlag: boolean;
 
     try {
-
       this.org.getConnection().metadata.list(
         metaQueries,
         this.apiVersion
@@ -623,8 +619,22 @@ export class MdapiRetrieveUtility {
                 metaItem
               )) {
 
+              //starts with check
+              if (this.startsWithFilters != null) {
+                try {
+                  this.startsWithFilters.forEach(filter => {
+                    if (metaItem.fullName.startsWith(filter)) {
+                      this.config.metadataObjectMembersLookup[metaType].push(metaItem);
+                      throw 'Break';
+                    }
+                  });
+                } catch (e) {
+                  if (e !== 'Break') throw e;
+                }
+              }// End if
+
               //contains check
-              if (this.containsFilters != null) {
+              if (this.containsFilters != null && !foundFlag) {
                 try {
                   this.containsFilters.forEach(filter => {
                     if (metaItem.fullName.includes(filter)) {
@@ -634,39 +644,36 @@ export class MdapiRetrieveUtility {
                     }
                   });
                 } catch (e) {
-                  if (e !== 'Break') throw e
+                  if (e !== 'Break') throw e;
                 }
-              }
+              }// End if
 
-              //starts with check
-              if (this.startsWithFilters != null && !foundFlag) {
+              //contains type not already previously found
+              if (this.includeTypes != null && !foundFlag) {
                 try {
-                  this.startsWithFilters.forEach(filter => {
-                    if (metaItem.fullName.startsWith(filter)) {
+                  this.includeTypes.forEach(filter => {
+                    if (metaType === filter) {
                       this.config.metadataObjectMembersLookup[metaType].push(metaItem);
+                      foundFlag = true;
                       throw 'Break';
                     }
                   });
                 } catch (e) {
-                  if (e !== 'Break') throw e
+                  if (e !== 'Break') throw e;
                 }
-              }
+              }// End if
 
               //default no filter applied
-              if (this.containsFilters == null && this.startsWithFilters == null) {
+              if ((this.containsFilters == null) && (this.startsWithFilters == null) && !foundFlag) {
                 this.config.metadataObjectMembersLookup[metaType].push(metaItem);
               }
-
-              //todo force standard inclusions e.g. settings.
 
             }// End if
 
           }// End for
 
           if (--batchCtrl.counter <= 0) {
-
             batchCtrl.resolve();
-
           }// End if
 
         },

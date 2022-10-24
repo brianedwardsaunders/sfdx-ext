@@ -11,6 +11,7 @@
   "stagemodeFlagDescription": "stage mode (default is false) otherwise dev mode (default is true) e.g. src",
   "splitFlagDescription": "flag to split package.xml into package1.xml and package2.xml to address 10000 file download limit per request",
   "containsFiltersFlagDescription": "filters (case sensitive) for only meta components containing text e.g. -r ABC_,Xyz",
-  "startsWithFiltersFlagDescription": "filters (case sensitive) for only meta components starting with text e.g. -w xyz",
+  "startsWithFiltersFlagDescription": "filters (case sensitive) for only meta components such as lwc starting with text e.g. -w xyz",
+  "includeTypesFiltersFlagDescription": "filters (case sensitive and whole words) for only meta types such as Settings",
   "createcsvFlagDescription": "create csv flag to create csv file to easily compare metadata items in excel"
 }

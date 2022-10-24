@@ -82,6 +82,10 @@ export default class Retrieve extends SfdxCommand {
     "startswithfilters": flags.array({
       "char": "w",
       "description": messages.getMessage("startsWithFiltersFlagDescription")
+    }),
+    "includetypes": flags.array({
+      "char": "y",
+      "description": messages.getMessage("includeTypesFiltersFlagDescription")
     })
   };
 
@@ -106,6 +110,7 @@ export default class Retrieve extends SfdxCommand {
       createcsv: boolean = this.flags.createcsv || false,
       containsFilters: Array<string> = this.flags.containsfilters || null,
       startsWithFilters: Array<string> = this.flags.startswithfilters || null,
+      includeTypes: Array<string> = this.flags.includetypes || null,
       devmode = !stagemode;
 
 
@@ -123,8 +128,9 @@ export default class Retrieve extends SfdxCommand {
     this.ux.log(`manifestonly          : ${manifestonly}`);
     this.ux.log(`retrievemode          : ${devmode ? "dev" : "stage"}`);
     this.ux.log(`split                 : ${splitmode}`);
-    this.ux.log(`containsfilters       : ${containsFilters}`);
     this.ux.log(`startswithfilters     : ${startsWithFilters}`);
+    this.ux.log(`containsfilters       : ${containsFilters}`);
+    this.ux.log(`includetypes          : ${includeTypes}`);
     this.ux.log(`createcsv             : ${createcsv}`);
     this.ux.log("-----------------------------");
 
@@ -144,6 +150,7 @@ export default class Retrieve extends SfdxCommand {
       splitmode,
       containsFilters,
       startsWithFilters,
+      includeTypes,
       createcsv
     );
 
