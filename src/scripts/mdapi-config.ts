@@ -1346,7 +1346,7 @@ export class MdapiConfig {
 
                       console.error('describeMetadata exception occurred.');
                       console.error(exception);
-                        reject(exception);
+                      reject(exception);
 
                     }// End catch
 

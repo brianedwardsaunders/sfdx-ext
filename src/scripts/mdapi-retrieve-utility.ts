@@ -97,7 +97,7 @@ export class MdapiRetrieveUtility {
 
   protected settings: ISettings;
 
-  protected BATCH_SIZE = 20;
+  protected BATCH_SIZE = 30;
 
   protected transientMetadataTypes: Array<string> = [];
 
@@ -620,7 +620,7 @@ export class MdapiRetrieveUtility {
               )) {
 
               //starts with check
-              if (this.startsWithFilters != null) {
+              if (this.startsWithFilters !== null) {
                 try {
                   this.startsWithFilters.forEach(filter => {
                     if (metaItem.fullName.startsWith(filter)) {
@@ -634,7 +634,7 @@ export class MdapiRetrieveUtility {
               }// End if
 
               //contains check
-              if (this.containsFilters != null && !foundFlag) {
+              if (this.containsFilters !== null && !foundFlag) {
                 try {
                   this.containsFilters.forEach(filter => {
                     if (metaItem.fullName.includes(filter)) {
@@ -649,7 +649,7 @@ export class MdapiRetrieveUtility {
               }// End if
 
               //contains type not already previously found
-              if (this.includeTypes != null && !foundFlag) {
+              if (this.includeTypes !== null && !foundFlag) {
                 try {
                   this.includeTypes.forEach(filter => {
                     if (metaType === filter) {
@@ -664,7 +664,7 @@ export class MdapiRetrieveUtility {
               }// End if
 
               //default no filter applied
-              if ((this.containsFilters == null) && (this.startsWithFilters == null) && !foundFlag) {
+              if ((this.containsFilters === null) && (this.startsWithFilters === null) && !foundFlag) {
                 this.config.metadataObjectMembersLookup[metaType].push(metaItem);
               }
 
@@ -673,26 +673,25 @@ export class MdapiRetrieveUtility {
           }// End for
 
           if (--batchCtrl.counter <= 0) {
-            batchCtrl.resolve();
+            batchCtrl.resolve('batchCtrl resolved');
           }// End if
 
         },
         (error: any) => {
-
-          this.ux.error('queryListMetadata error');
-          this.ux.error(error);
+          this.ux.warn('unexpected queryListMetadata error ' + error);
           batchCtrl.reject(error);
         }
 
       );// End promise
 
     } catch (e) {
-      this.ux.error('catch ' + e);
+      this.ux.warn('unexpected queryListMetadata catch error ' + e);
+      batchCtrl.reject(e);
     }
 
   }// End method
 
-  protected listMetadataBatch(): Promise<void> {
+  protected listMetadataBatch(): Promise<any> {
 
     return new Promise((resolve, reject) => {
 
@@ -704,36 +703,42 @@ export class MdapiRetrieveUtility {
           reject
         };
 
-      for (let x = 0; x < this.BATCH_SIZE; x++) {
+      try {
 
-        let metaType: string = this.transientMetadataTypes.pop();
+        for (let x = 0; x < this.BATCH_SIZE; x++) {
 
-        if (!metaType) {
+          let metaType: string = this.transientMetadataTypes.pop();
 
-          if (batchCtrl.counter <= 0) {
+          if (!metaType) {
 
-            resolve();
+            if (batchCtrl.counter <= 0) {
 
-            return;
+              resolve('resolved');
 
-          } continue;
+              return;
 
-        }// End if
+            } else {
+              continue;
+            }
 
-        batchCtrl.counter = ++counter;
+          }// End if
 
-        let params = <Params>{
-          metaType
-        };
+          batchCtrl.counter = ++counter;
 
-        // console.log('metaType: ' + metaType);
+          let params = <Params>{
+            metaType
+          };
 
-        this.queryListMetadata(
-          params,
-          batchCtrl
-        );
+          this.queryListMetadata(
+            params,
+            batchCtrl
+          );
 
-      }// End for
+        }// End for
+
+      } catch (error) {
+        reject('listMetadataBatch error: ' + error);
+      }
 
     });// End promse
 
@@ -741,7 +746,7 @@ export class MdapiRetrieveUtility {
 
   protected async listMetadata(): Promise<void> {
 
-    this.transientMetadataTypes = [...this.config.metadataTypes]; // Create queue
+    this.transientMetadataTypes = [...this.config.metadataTypes]; // create queue
 
     while (this.transientMetadataTypes.length > 0) {
 
