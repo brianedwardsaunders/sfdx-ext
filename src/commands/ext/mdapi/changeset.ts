@@ -5,8 +5,9 @@
  */
 
 import { SfdxCommand, flags } from "@salesforce/command";
-import { Messages, SfdxError } from "@salesforce/core";
+import { Messages, SfError } from "@salesforce/core";
 import { MdapiChangesetUtility } from "../../../scripts/mdapi-changeset-utility";
+
 
 Messages.importMessagesDirectory(__dirname);
 
@@ -33,13 +34,6 @@ export default class Changeset extends SfdxCommand {
     $ sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6
     `,
     `
-    $ sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -i config/changeset-exclude.json -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6
-
-      -i FILE EXAMPLE: config/changeset-exclude.json =
-      {
-          "directoryExcludes": ["flowDefinitions"],
-          "fileExcludes": ["appMenus/AppSwitcher.appMenu"]
-      }
     `
   ];
 
@@ -51,10 +45,6 @@ export default class Changeset extends SfdxCommand {
     "ignorecomments": flags.boolean({
       "char": "x",
       "description": messages.getMessage("ignorecommentsFlagDescription")
-    }),
-    "ignorepath": flags.string({
-      "char": "i",
-      "description": messages.getMessage("ignorepathFlagDescription")
     }),
     "revisionfrom": flags.string({
       "char": "r",
@@ -82,7 +72,6 @@ export default class Changeset extends SfdxCommand {
       ignorecomments: boolean = this.flags.ignorecomments || false,
       { targetusername } = this.flags,
       { sourceusername } = this.flags,
-      ignorepath: string = this.flags.ignorepath || null,
       revisionfrom: string = this.flags.revisionfrom || null,
       revisionto: string = this.flags.revisionto || null,
       apiversion: string = this.flags.apiversion || defaultApiVersion,
@@ -90,12 +79,12 @@ export default class Changeset extends SfdxCommand {
 
     if (sourceusername === undefined) {
 
-      throw new SfdxError(messages.getMessage("errorSourceusernameRequired"));
+      throw new SfError(messages.getMessage("errorSourceusernameRequired"));
 
     }// End if
     else if (revisionfrom === null && revisionto !== null || revisionfrom !== null && revisionto === null) {
 
-      throw new SfdxError(messages.getMessage("errorBothRevisionsRequired"));
+      throw new SfError(messages.getMessage("errorBothRevisionsRequired"));
 
     }// End if
 
@@ -106,7 +95,6 @@ export default class Changeset extends SfdxCommand {
     this.ux.log(`targetusername   : ${targetusername}`);
     this.ux.log(`apiversion       : ${apiversion}`);
     this.ux.log(`ignorecomments   : ${ignorecomments}`);
-    this.ux.log(`ignorepath       : ${ignorepath}`);
     this.ux.log(`revisionfrom     : ${revisionfrom}`);
     this.ux.log(`revisionto       : ${revisionto}`);
     this.ux.log(`createcsv        : ${createcsv}`);
@@ -119,7 +107,6 @@ export default class Changeset extends SfdxCommand {
       targetusername,
       apiversion,
       ignorecomments,
-      ignorepath,
       revisionfrom,
       revisionto,
       createcsv

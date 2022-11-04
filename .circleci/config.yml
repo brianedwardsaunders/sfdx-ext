@@ -15,21 +15,11 @@ jobs:
           name: Install dependencies
           command: yarn
       - run:
+          name: Build plugin
+          command: yarn prepack
+      - run:
           name: Testing
           command: yarn test
-      - run:
-          name: Submitting code coverage to codecov
-          command: |
-            ./node_modules/.bin/nyc report --reporter text-lcov > coverage.lcov
-            curl -s https://codecov.io/bash | bash
-  node-8:
-    <<: *test
-    docker:
-      - image: node:8
-  node-10:
-    <<: *test
-    docker:
-      - image: node:10
   cache:
     <<: *test
     steps:
@@ -49,8 +39,6 @@ workflows:
   "sfdx-ext":
     jobs:
       - node-latest
-      - node-8
-      - node-10
       - cache:
           filters:
             tags:

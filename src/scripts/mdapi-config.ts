@@ -4,7 +4,8 @@
  * @date 2019-07-10
  */
 
-import { DescribeMetadataResult, FileProperties, ListMetadataQuery, MetadataObject, QueryResult } from "jsforce";
+import type { DescribeMetadataResult, DescribeMetadataObject, FileProperties, ListMetadataQuery } from "jsforce/api/metadata";
+import { QueryResult } from "jsforce";
 import { Stats, createWriteStream, existsSync, mkdirSync, mkdirp, readFileSync, statSync, unlinkSync, writeFileSync } from "fs-extra";
 import { Org } from "@salesforce/core";
 import { MdapiCommon } from "./mdapi-common";
@@ -15,10 +16,10 @@ export interface IConfig {
     metadataTypes: Array<string>; // E.g. ['ApexClass', 'CustomObjet'] // from describeMetada also acts a key index for metadataObjectLookup and metadataObjectMembersLookup
     metadataFolders: Array<string>; // E.g. ['ReportFolder', 'DocumentFolder'] // don't exist so inject
     metadataTypeChildren: Array<string>; // E.g. ['CustomField']; // exist only within childXmlNames
-    metadataObjectLookup: Record<string, MetadataObject>; // E.g. {'ApexClass, Array<MetadataObject>} quick lookup to object based on meta type name
+    metadataObjectLookup: Record<string, DescribeMetadataObject>; // E.g. {'ApexClass, Array<MetadataObject>} quick lookup to object based on meta type name
     metadataObjectMembersLookup: Record<string, Array<FileProperties>>; // E.g. {'ApexClass', Array<FileProperties>} where files are members
-    metadataDirectoryLookup: Record<string, Array<MetadataObject>>; // E.g. {'objects', Array<MetaObject>} // one directory can have multiple types.
-    metadataObjects: Array<MetadataObject>; // E.g. directly from describemetadata.metadataObjects
+    metadataDirectoryLookup: Record<string, Array<DescribeMetadataObject>>; // E.g. {'objects', Array<MetaObject>} // one directory can have multiple types.
+    metadataObjects: Array<DescribeMetadataObject>; // E.g. directly from describemetadata.metadataObjects
     sourceFileTotal: number,
     targetFileTotal: number,
     sourceFileIgnored: number,
@@ -62,7 +63,7 @@ export interface DiffRecord {
     directory: string; // Sfdx directory e.g. triggers
     folderXml: boolean;
     metadataName: string;
-    metadataObject: MetadataObject;
+    metadataObject: DescribeMetadataObject;
     fileSize: number;
     lastModified: Date;
     diffType: DiffType;
@@ -975,7 +976,7 @@ export class MdapiConfig {
      * or managed packages and should be handled seperately (installed)
      * aura and lwc types don't appear to have namespace charateristics in bundles so use excludes if necessary
      */
-    public static isExcludedNamespaceFile(fileName: string, metadataObject: MetadataObject): boolean {
+    public static isExcludedNamespaceFile(fileName: string, metadataObject: DescribeMetadataObject): boolean {
 
         let excluded = false;
 
@@ -1190,7 +1191,7 @@ export class MdapiConfig {
             config.metadataObjectMembersLookup[metaTypeName] = [];
             // There is no specific directory for other types e.g. customfield for mdapi
 
-            config.metadataObjectLookup[metaTypeName] = <MetadataObject>
+            config.metadataObjectLookup[metaTypeName] = <DescribeMetadataObject>
                 {
                     "directoryName": MdapiConfig.childMetadataDirectoryLookup[metaTypeName],
                     "inFolder": false,
@@ -1227,7 +1228,7 @@ export class MdapiConfig {
      * @param config
      * @param settings
      */
-    public static describeMetadata(org: Org, config: IConfig, settings: ISettings): Promise<void> {
+    public static async describeMetadata(org: Org, config: IConfig, settings: ISettings): Promise<void> {
 
         return new Promise((resolve, reject) => {
 
@@ -1238,32 +1239,26 @@ export class MdapiConfig {
 
                         MdapiConfig.describeMetadataFile(result);
 
-                        let metadataObjects: Array<MetadataObject> = MdapiCommon.objectToArray(result.metadataObjects);
+                        let metadataObjects: Array<DescribeMetadataObject> = MdapiCommon.objectToArray(result.metadataObjects);
 
                         config.metadataObjects = metadataObjects;
 
                         for (let x = 0; x < metadataObjects.length; x++) {
 
-                            let metadataObject: MetadataObject = metadataObjects[x],
+                            let metadataObject: DescribeMetadataObject = metadataObjects[x],
                                 metaTypeName: string = metadataObject.xmlName,
                                 { directoryName } = metadataObject;
 
                             if (MdapiConfig.isUnsupportedMetaType(metaTypeName)) {
-
                                 continue;
-
                             }
 
                             if (settings.ignoreStaticResources && metaTypeName === MdapiConfig.StaticResource) {
-
                                 continue;
-
                             }// End if
 
                             if (settings.ignoreFolders && metadataObject.inFolder) {
-
                                 continue;
-
                             }// End if
 
                             config.metadataTypes.push(metaTypeName);
@@ -1271,7 +1266,7 @@ export class MdapiConfig {
                             config.metadataObjectLookup[metaTypeName] = metadataObject;
 
                             // Set directory lookup
-                            let lookupArray: Array<MetadataObject> = config.metadataDirectoryLookup[directoryName];
+                            let lookupArray: Array<DescribeMetadataObject> = config.metadataDirectoryLookup[directoryName];
 
                             if (!lookupArray) {
 
@@ -1300,9 +1295,7 @@ export class MdapiConfig {
                                     let childXmlName = metadataObject.childXmlNames[y];
 
                                     if (MdapiConfig.isUnsupportedMetaType(childXmlName)) {
-
                                         continue;
-
                                     }
                                     config.metadataTypeChildren.push(childXmlName);
 
@@ -1326,7 +1319,7 @@ export class MdapiConfig {
 
                             let childMetadataObject = config.metadataObjectLookup[childmetaType],
                                 childDirectoryName: string = MdapiConfig.childMetadataDirectoryLookup[childmetaType],
-                                lookupArray: Array<MetadataObject> = config.metadataDirectoryLookup[childDirectoryName];
+                                lookupArray: Array<DescribeMetadataObject> = config.metadataDirectoryLookup[childDirectoryName];
 
                             if (!lookupArray) {
 
@@ -1343,20 +1336,14 @@ export class MdapiConfig {
                         resolve();
 
                     } catch (exception) {
-
-                      console.error('describeMetadata exception occurred.');
-                      console.error(exception);
-                      reject(exception);
-
+                        console.error('describeMetadata exception occurred: ' + exception);
+                        reject(exception);
                     }// End catch
 
                 },
                 (error: any) => {
-
-                    console.error('describeMetadata error occurred.');
-                    console.error(error);
+                    console.error('describeMetadata error occurred: ' + error);
                     reject(error);
-
                 }
             );// End describe
 
@@ -1538,38 +1525,38 @@ export class MdapiConfig {
 
     public static createCsvFile(config: IConfig, packageCsvPath: string, orgAlias: string): void {
 
-      let csvContent: string;
+        let csvContent: string;
 
-      csvContent = `Key,Type,Name,Alias\n`;
+        csvContent = `Key,Type,Name,Alias\n`;
 
-      for (let x = 0; x < config.metadataTypes.length; x++) {
+        for (let x = 0; x < config.metadataTypes.length; x++) {
 
-          let metaType: string = config.metadataTypes[x];
+            let metaType: string = config.metadataTypes[x];
 
-          if (config.metadataObjectMembersLookup[metaType].length === 0) {
-              // if no entry continue
-              continue;
-          }
+            if (config.metadataObjectMembersLookup[metaType].length === 0) {
+                // if no entry continue
+                continue;
+            }
 
-          let metaItems: Array<FileProperties> = config.metadataObjectMembersLookup[metaType],
-              sortedMembers: Array<string> = MdapiConfig.toSortedMembers(metaItems);
+            let metaItems: Array<FileProperties> = config.metadataObjectMembersLookup[metaType],
+                sortedMembers: Array<string> = MdapiConfig.toSortedMembers(metaItems);
 
-          for (let y = 0; y < sortedMembers.length; y++) {
+            for (let y = 0; y < sortedMembers.length; y++) {
 
-              let item: string = sortedMembers[y];
+                let item: string = sortedMembers[y];
 
-              csvContent += `${metaType}-${item},${metaType},${item},${orgAlias}\n`;
+                csvContent += `${metaType}-${item},${metaType},${item},${orgAlias}\n`;
 
-          }// End for
+            }// End for
 
-      }// End for
+        }// End for
 
-      writeFileSync(
-          packageCsvPath,
-          csvContent
-      );
+        writeFileSync(
+            packageCsvPath,
+            csvContent
+        );
 
-  }// End function
+    }// End function
 
     public static createPackageFile(config: IConfig, settings: ISettings, packageXmlPath: string): void {
 
@@ -1628,9 +1615,9 @@ export class MdapiConfig {
 
     }// End function
 
-    public static getMetadataObjectFromDirectoryName(config: IConfig, directoryName: string, metaFile?: string): MetadataObject {
+    public static getMetadataObjectFromDirectoryName(config: IConfig, directoryName: string, metaFile?: string): DescribeMetadataObject {
 
-        let metadataObjects: Array<MetadataObject> = MdapiCommon.objectToArray(config.metadataDirectoryLookup[directoryName]);
+        let metadataObjects: Array<DescribeMetadataObject> = MdapiCommon.objectToArray(config.metadataDirectoryLookup[directoryName]);
 
         if (metadataObjects.length === 1) {
 
@@ -1639,7 +1626,7 @@ export class MdapiConfig {
         }// End if
         for (let x = 0; x < metadataObjects.length; x++) {
 
-            let metaObject: MetadataObject = metadataObjects[x];
+            let metaObject: DescribeMetadataObject = metadataObjects[x];
 
             if (metaObject.suffix && (metaFile.endsWith(metaObject.suffix) ||
                 metaFile.endsWith(metaObject.suffix + MdapiConfig.metaXmlSuffix))) { // E.g. for moderation different types
@@ -1654,13 +1641,13 @@ export class MdapiConfig {
 
     }// End method
 
-    public static getMetadataObjectFromFileExtension(config: IConfig, metaFile: string): MetadataObject {
+    public static getMetadataObjectFromFileExtension(config: IConfig, metaFile: string): DescribeMetadataObject {
 
-        let metadataObjects: Array<MetadataObject> = MdapiCommon.objectToArray(config.metadataObjects);
+        let metadataObjects: Array<DescribeMetadataObject> = MdapiCommon.objectToArray(config.metadataObjects);
 
         for (let x = 0; x < metadataObjects.length; x++) {
 
-            let metaObject: MetadataObject = metadataObjects[x];
+            let metaObject: DescribeMetadataObject = metadataObjects[x];
             // May require additional checks
 
 
@@ -2016,7 +2003,7 @@ export class MdapiConfig {
 
         let fileContents: string = readFileSync(
             filePath,
-            MdapiCommon.UTF8
+            'utf8'
         ),
             stats: Stats = statSync(filePath),
 
@@ -2143,7 +2130,7 @@ export class MdapiConfig {
 
             }
 
-            let childMetadataObject: MetadataObject = config.metadataObjectLookup[childMetaName],
+            let childMetadataObject: DescribeMetadataObject = config.metadataObjectLookup[childMetaName],
                 childDirectoryName: string = MdapiConfig.childMetadataDirectoryLookup[childMetaName],
                 parentContents: object = childMetaObject[parent.metadataName],
                 children: Array<object> = MdapiCommon.objectToArray(parentContents[childDirectoryName]);
@@ -2179,7 +2166,7 @@ export class MdapiConfig {
 
     }// End method
 
-    public static metadataObjectHasChildren(metadataObject: MetadataObject): boolean {
+    public static metadataObjectHasChildren(metadataObject: DescribeMetadataObject): boolean {
 
         return metadataObject.childXmlNames &&
             MdapiCommon.objectToArray(metadataObject.childXmlNames).length > 0;

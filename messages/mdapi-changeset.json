@@ -2,7 +2,6 @@
   "commandDescription": "Generates a detailed changeset by comparing differences between two mdapi staged source directory files or source control commit versions.",
   "sourceusernameFlagDescription": "(Required) source org username or alias",
   "ignorecommentsFlagDescription": "Ignore compare differences comments in deployment package.xml",
-  "ignorepathFlagDescription": "(Optional) file path override to changeset-exclude.json including mdapi directory and files to exclude from changeset",
   "revisionfromFlagDescription": "base revision to generate the diff e.g. 84965e9e or feature/SprintX or feature/FeatureX",
   "revisiontoFlagDescription": "target revision to generate the diff e.g. HEAD or release",
   "errorSourceusernameRequired": "Source org username is required",

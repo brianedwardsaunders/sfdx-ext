@@ -8,9 +8,9 @@
 import {
   copyFileSync, copySync, createWriteStream, existsSync, mkdirSync, mkdirp, removeSync, rename, unlinkSync
 } from "fs-extra";
-import {
+import type {
   FileProperties, ListMetadataQuery
-} from "jsforce";
+} from "jsforce/api/metadata";
 
 import path = require("path");
 import yauzl = require("yauzl");
@@ -97,7 +97,7 @@ export class MdapiRetrieveUtility {
 
   protected settings: ISettings;
 
-  protected BATCH_SIZE = 30;
+  protected BATCH_SIZE = 20;
 
   protected transientMetadataTypes: Array<string> = [];
 
@@ -110,11 +110,8 @@ export class MdapiRetrieveUtility {
         let folderType: string = MdapiConfig.metadataTypeFolderLookup[metaType],
           folderArray: Array<FileProperties> = config.metadataObjectMembersLookup[folderType],
           counter = 0,
-
           batchCtrl = <BatchCtrl>{
-            counter,
-            resolve,
-            reject
+            counter, resolve, reject
           };
 
         if (folderArray && folderArray.length > 0) {
@@ -148,10 +145,8 @@ export class MdapiRetrieveUtility {
         }// End else
 
       } catch (exception) {
-
         this.ux.log(exception);
         reject(exception);
-
       }
 
     });// End promse
@@ -607,16 +602,13 @@ export class MdapiRetrieveUtility {
             }// End if
 
             if (!MdapiConfig.ignoreInstalled(
-              this.settings,
-              metaItem
+              this.settings, metaItem
             ) &&
               !MdapiConfig.ignoreNamespaces(
-                this.settings,
-                metaItem
+                this.settings, metaItem
               ) &&
               !MdapiConfig.ignoreHiddenOrNonEditable(
-                this.settings,
-                metaItem
+                this.settings, metaItem
               )) {
 
               //starts with check
@@ -673,25 +665,25 @@ export class MdapiRetrieveUtility {
           }// End for
 
           if (--batchCtrl.counter <= 0) {
-            batchCtrl.resolve('batchCtrl resolved');
+            batchCtrl.resolve();
           }// End if
 
         },
         (error: any) => {
           this.ux.warn('unexpected queryListMetadata error ' + error);
-          batchCtrl.reject(error);
+          batchCtrl.reject();
         }
 
       );// End promise
 
     } catch (e) {
       this.ux.warn('unexpected queryListMetadata catch error ' + e);
-      batchCtrl.reject(e);
+      batchCtrl.reject();
     }
 
   }// End method
 
-  protected listMetadataBatch(): Promise<any> {
+  protected async listMetadataBatch(): Promise<void> {
 
     return new Promise((resolve, reject) => {
 
@@ -709,35 +701,30 @@ export class MdapiRetrieveUtility {
 
           let metaType: string = this.transientMetadataTypes.pop();
 
-          if (!metaType) {
+          if (metaType) {
 
-            if (batchCtrl.counter <= 0) {
+            batchCtrl.counter = ++counter;
 
-              resolve('resolved');
+            let params = <Params>{
+              metaType
+            };
 
-              return;
-
-            } else {
-              continue;
+            this.queryListMetadata(
+              params,
+              batchCtrl
+            );
+          }
+          else {
+            if (counter === 0) {
+              batchCtrl.resolve();
             }
-
-          }// End if
-
-          batchCtrl.counter = ++counter;
-
-          let params = <Params>{
-            metaType
-          };
-
-          this.queryListMetadata(
-            params,
-            batchCtrl
-          );
+            break;
+          }
 
         }// End for
 
       } catch (error) {
-        reject('listMetadataBatch error: ' + error);
+        batchCtrl.reject();
       }
 
     });// End promse
@@ -903,7 +890,7 @@ export class MdapiRetrieveUtility {
 
     } catch (exception) {
 
-      this.ux.error(exception);
+      this.ux.error('process() exception: ' + exception);
 
     }// End catch
 

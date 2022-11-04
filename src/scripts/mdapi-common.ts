@@ -123,7 +123,7 @@ export class MdapiCommon {
 
         return JSON.parse(readFileSync(
             filePath,
-            MdapiCommon.UTF8
+            'utf8'
         ));
 
     }// End method
@@ -136,7 +136,7 @@ export class MdapiCommon {
             returned = JSON.parse(xml2json(
                 readFileSync(
                     filePath,
-                    MdapiCommon.UTF8
+                    'utf8'
                 ),
                 MdapiCommon.convertOptions
             ));

@@ -5,8 +5,9 @@
  */
 
 import { SfdxCommand, flags } from "@salesforce/command";
-import { Messages, SfdxError } from "@salesforce/core";
+import { Messages, SfError } from "@salesforce/core";
 import { PackageSyncUtility } from "../../../scripts/package-sync-utility";
+
 
 Messages.importMessagesDirectory(__dirname);
 
@@ -85,7 +86,7 @@ export default class Sync extends SfdxCommand {
 
     if (sourceusername === undefined) {
 
-      throw new SfdxError(messages.getMessage("errorSourceusernameRequired"));
+      throw new SfError(messages.getMessage("errorSourceusernameRequired"));
 
     }// End else
 

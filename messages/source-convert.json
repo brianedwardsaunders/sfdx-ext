@@ -1,6 +1,0 @@
-{
-  "commandDescription": "Convert from sfdx to mdapi src (and update target src package.xml files).",
-  "sourcedirectoryFlagDescription": "(Required - default: force-app) source mdapi retrieve directory within sfdx-project directory e.g. ./force-app",
-  "targetdirectoryFlagDescription": "(Required) target sfdx root directory e.g. ../unpackaged",
-  "errorTargetDirectoryRequired": "Target directory is required"
-}

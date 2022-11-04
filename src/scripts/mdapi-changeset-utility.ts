@@ -7,12 +7,13 @@ import {
   copyFileSync, copySync, existsSync, mkdirSync, readdirSync, removeSync,
   statSync, unlinkSync, writeFileSync
 } from "fs-extra";
-import { MetadataObject } from "jsforce";
+import type { DescribeMetadataObject} from "jsforce/api/metadata";
+
 import { Org } from "@salesforce/core";
 import { MdapiCommon } from "./mdapi-common";
-import { ChangesetExcludeDefault } from "../config/changeset-exclude-default";
+//import { ChangesetExcludeDefault } from "../config/changeset-exclude-default";
 import {
-  ApplicationVisibility, ChangeType, ChangesetExclude, ClassAccess, CustomObject, CustomObjectChild, CustomPermission,
+  ApplicationVisibility, ChangeType, ClassAccess, CustomObject, CustomObjectChild, CustomPermission,
   DiffRecord, DiffType, FieldPermission, IConfig, ISettings, LayoutAssignment, ListView,
   MdapiConfig,
   ObjectPermission,
@@ -104,11 +105,6 @@ export class MdapiChangesetUtility {
 
   protected packageExceptions = MdapiConfig.packageExceptions;
 
-  // Configurable see config/changeset-exclude-template.json and ignorePath
-  protected directoryExcludeList: Array<string> = [];
-
-  protected fileExcludeList: Array<string> = [];
-
   constructor(
     protected org: Org,
     protected ux: UX,
@@ -116,7 +112,6 @@ export class MdapiChangesetUtility {
     protected targetOrgAlias: string, // Right (target)
     protected apiVersion: string,
     protected ignoreComments: boolean,
-    protected ignorePath?: string,
     protected revisionFrom?: string, // Git revision
     protected revisionTo?: string,
     protected createcsv?: boolean,
@@ -483,7 +478,7 @@ export class MdapiChangesetUtility {
 
       }
 
-      let childMetadataObject: MetadataObject = this.config.metadataObjectLookup[childMetaName],
+      let childMetadataObject: DescribeMetadataObject = this.config.metadataObjectLookup[childMetaName],
         childDirectoryName: string = MdapiConfig.childMetadataDirectoryLookup[childMetaName],
 
         parentContents: object = childMetaObject[item.metadataName],
@@ -571,7 +566,7 @@ export class MdapiChangesetUtility {
 
       }
 
-      let childMetadataObject: MetadataObject = this.config.metadataObjectLookup[childMetaName],
+      let childMetadataObject: DescribeMetadataObject = this.config.metadataObjectLookup[childMetaName],
         childDirectoryName: string = MdapiConfig.childMetadataDirectoryLookup[childMetaName],
 
         leftParentContents: object = leftMetaObject[parentMetadataName],
@@ -1997,59 +1992,10 @@ export class MdapiChangesetUtility {
 
   }// End process
 
-  protected deleteExcludedDirectories(): void {
-
-    this.directoryExcludeList.forEach((folder) => {
-
-      let leftDir = this.sourceRetrieveDir + MdapiCommon.PATH_SEP + folder;
-
-      if (existsSync(leftDir)) {
-
-        removeSync(leftDir);
-
-      }// End if
-
-      let rightDir = this.targetRetrieveDir + MdapiCommon.PATH_SEP + folder;
-
-      if (existsSync(rightDir)) {
-
-        removeSync(rightDir);
-
-      }// End if
-
-    });
-
-  }// End method
-
-  protected deleteExcludedFiles(): void {
-
-    this.fileExcludeList.forEach((filePath) => {
-
-      let leftFile = this.sourceRetrieveDir + MdapiCommon.PATH_SEP + filePath;
-
-      if (existsSync(leftFile)) {
-
-        unlinkSync(leftFile);
-
-      }// End if
-
-      let rightFile = this.targetRetrieveDir + MdapiCommon.PATH_SEP + filePath;
-
-      if (existsSync(rightFile)) {
-
-        unlinkSync(rightFile);
-
-      }// End if
-
-    });
-
-  }// End method
-
   protected init(): void {
 
     this.config = MdapiConfig.createConfig();
     this.settings = MdapiConfig.createSettings();
-    let changesetExclude: ChangesetExclude = null;
 
     this.settings.apiVersion = this.apiVersion;
 
@@ -2070,41 +2016,6 @@ export class MdapiChangesetUtility {
       this.versionControlled = true;
 
     }
-
-    if (this.ignorePath) {
-
-      if (!existsSync(this.ignorePath)) {
-
-        throw "ignorepath file not found - please check path to file is correct";
-
-      }
-      changesetExclude = MdapiCommon.fileToJson<ChangesetExclude>(this.ignorePath);
-
-    }// End if
-    else {
-
-      // Load from default
-      changesetExclude = new ChangesetExcludeDefault();
-
-    }// End else
-
-    this.directoryExcludeList = changesetExclude.directoryExcludes;
-
-    this.ux.log(`excluded directories: ${JSON.stringify(
-      this.directoryExcludeList,
-      null,
-      MdapiCommon.jsonSpaces
-    )}`);
-
-    this.fileExcludeList = changesetExclude.fileExcludes;
-
-    this.ux.log(`excluded files: ${JSON.stringify(
-      this.fileExcludeList,
-      null,
-      MdapiCommon.jsonSpaces
-    )}`);
-
-    this.ux.log("changeset exclude items loaded (please regularly review these items: use the --ignorepath flag to modify)");
 
   }// End method
 
@@ -2199,12 +2110,6 @@ export class MdapiChangesetUtility {
             () => {
 
               this.ux.stopSpinner();
-
-              this.ux.log("deleting excluded directories");
-              this.deleteExcludedDirectories();
-
-              this.ux.log("deleting excluded files");
-              this.deleteExcludedFiles();
 
               this.ux.log("setup diff records...");
               this.setupDiffRecords();

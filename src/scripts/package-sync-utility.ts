@@ -264,7 +264,7 @@ export class PackageSyncUtility {
               this.comparePackageList();
               if (this.diffPackageList.length > 0) {
 
-                this.ux.logJson(this.diffPackageList);
+                this.ux.log(JSON.stringify(this.diffPackageList));
 
               }// End if
               this.ux.log(`(${this.diffPackageList.length}) installed package version difference(s) found`);
