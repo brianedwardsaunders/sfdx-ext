@@ -6,5 +6,11 @@
   "revisiontoFlagDescription": "target revision to generate the diff e.g. HEAD or release",
   "errorSourceusernameRequired": "Source org username is required",
   "errorBothRevisionsRequired": "Both revisionfrom and revisionto values required",
-  "createcsvFlagDescription": "Create diff list in csv format"
+  "createcsvFlagDescription": "Create diff list in csv format",
+  "examples": [
+    "sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --apiversion 46.0 --ignorecomments",
+    "sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com",
+    "sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --revisionfrom 9b834dbeec28b21f39756ad4b0183e8568ef7a7c --revisionto feature/SprintX",
+    "sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6"
+  ]
 }

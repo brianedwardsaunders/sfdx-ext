@@ -3,11 +3,10 @@
  * @author brianewardsaunders
  * @date 2019-07-10
  */
-
+import * as os from 'os';
 import { SfdxCommand, flags } from "@salesforce/command";
 import { Messages, SfError } from "@salesforce/core";
 import { PackageSyncUtility } from "../../../scripts/package-sync-utility";
-
 
 Messages.importMessagesDirectory(__dirname);
 
@@ -20,17 +19,7 @@ export default class Sync extends SfdxCommand {
 
   public static description = messages.getMessage("commandDescription");
 
-  public static examples = [
-    `
-    $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com
-    `,
-    `
-    $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com --compareerror
-    `,
-    `
-    $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com --compareonly --installonly --uninstallonly --syncpackages
-    `
-  ];
+  public static examples = messages.getMessage('examples').split(os.EOL);
 
   protected static flagsConfig = {
     "sourceusername": flags.string({
@@ -85,9 +74,7 @@ export default class Sync extends SfdxCommand {
     compareerror = !(compareonly || installonly || uninstallonly || syncpackages);
 
     if (sourceusername === undefined) {
-
       throw new SfError(messages.getMessage("errorSourceusernameRequired"));
-
     }// End else
 
     this.ux.log("-----------------------------");
@@ -116,30 +103,23 @@ export default class Sync extends SfdxCommand {
     );
 
     return new Promise((resolve, reject) => {
-
       util.process().then(
         (result) => {
-
           this.ux.log("success.");
           resolve({
             "status": "success",
             result
           });
-
         },
         (error: any) => {
-
           this.ux.error(error);
           reject({
             "status": "error",
             error
           });
-
         }
       );
-
     });
-
   }
 
 }// End class

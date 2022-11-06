@@ -2,13 +2,9 @@
 sfdx-ext
 ==========
 
-sfdx extensions to retrieve and compare salesforce orgs metadata
+sfdx extensions to retrieve and compare salesforce metadata from multiple orgs
 
 [![Version](https://img.shields.io/npm/v/sfdx-ext.svg)](https://npmjs.org/package/sfdx-ext)
-[![CircleCI](https://circleci.com/gh/brian.edward.saunders/sfdx-ext/tree/master.svg?style=shield)](https://circleci.com/gh/brian.edward.saunders/sfdx-ext/tree/master)
-[![Appveyor CI](https://ci.appveyor.com/api/projects/status/github/brian.edward.saunders/sfdx-ext?branch=master&svg=true)](https://ci.appveyor.com/project/heroku/sfdx-ext/branch/master)
-[![Greenkeeper](https://badges.greenkeeper.io/brian.edward.saunders/sfdx-ext.svg)](https://greenkeeper.io/)
-[![Known Vulnerabilities](https://snyk.io/test/github/brian.edward.saunders/sfdx-ext/badge.svg)](https://snyk.io/test/github/brian.edward.saunders/sfdx-ext)
 [![Downloads/week](https://img.shields.io/npm/dw/sfdx-ext.svg)](https://npmjs.org/package/sfdx-ext)
 [![License](https://img.shields.io/npm/l/sfdx-ext.svg)](https://github.com/brian.edward.saunders/sfdx-ext/blob/master/package.json)
 
@@ -33,7 +29,7 @@ USAGE
 <!-- usagestop -->
 <!-- commands -->
 * [`sfdx ext:mdapi:changeset [-s <string>] [-x] [-r <string>] [-t <string>] [-c] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-extmdapichangeset--s-string--x--r-string--t-string--c--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
-* [`sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-j <array>] [-y <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-extmdapiretrieve--b--i--n--d--f--s--x--z--t--c--r-array--w-array--j-array--y-array--k-array--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
+* [`sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-j <array>] [-m <array>] [-y <array>] [-q <array>] [-e <array>] [-o <array>] [-p <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-extmdapiretrieve--b--i--n--d--f--s--x--z--t--c--r-array--w-array--j-array--m-array--y-array--q-array--e-array--o-array--p-array--k-array--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
 * [`sfdx ext:package:sync [-s <string>] [-c] [-e] [-i] [-x] [-z] [-v] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-extpackagesync--s-string--c--e--i--x--z--v--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
 
 ## `sfdx ext:mdapi:changeset [-s <string>] [-x] [-r <string>] [-t <string>] [-c] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
@@ -70,29 +66,26 @@ DESCRIPTION
   control commit versions.
 
 EXAMPLES
-      $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --apiversion 46.0 --ignorecomments
-    
+  $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --apiversion 46.0 --ignorecomments
 
-      $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com
-    
+  $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com
 
-      $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --revisionfrom 9b834dbeec28b21f39756ad4b0183e8568ef7a7c --revisionto feature/SprintX
-    
+  $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --revisionfrom 9b834dbeec28b21f39756ad4b0183e8568ef7a7c --revisionto feature/SprintX
 
-      $ sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6
+  $ sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6
 ```
 
 _See code: [src/commands/ext/mdapi/changeset.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.1.0/src/commands/ext/mdapi/changeset.ts)_
 
-## `sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-j <array>] [-y <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
+## `sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-j <array>] [-m <array>] [-y <array>] [-q <array>] [-e <array>] [-o <array>] [-p <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
 
 retrieve and refresh org metadata to local directory (i.e. retrieve all or filtered metadata from org)
 
 ```
 USAGE
-  $ sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-j <array>] [-y
-    <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel
-    trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]
+  $ sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-j <array>] [-m
+    <array>] [-y <array>] [-q <array>] [-e <array>] [-o <array>] [-p <array>] [-k <array>] [-u <string>] [--apiversion
+    <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]
 
 FLAGS
   -b, --ignorebackup                                                                flag to ignore creating a local
@@ -104,6 +97,10 @@ FLAGS
                                                                                     retrieving hidden or non-editable
                                                                                     managed files such as managed
                                                                                     ApexClasses
+  -e, --excludestartswithfilters=<value>                                            overriding exclude filters  (case
+                                                                                    sensitive) for meta components such
+                                                                                    as lwc starting with text e.g. -w
+                                                                                    xyz
   -f, --ignorefolders                                                               flag to ignore retrieving folders
                                                                                     e.g. email, reports, dashboards and
                                                                                     documents
@@ -118,9 +115,23 @@ FLAGS
                                                                                     (case sensitive and whole type
                                                                                     names) for meta types e.g.
                                                                                     CustomIndex
+  -m, --matchfilters=<value>                                                        filters (case sensitive) for meta
+                                                                                    components matching text e.g. -m
+                                                                                    Account,"Case"
   -n, --ignorenamespaces                                                            flag to ignore retrieving namespace
                                                                                     prefixed package files (excludes all
                                                                                     namespaced metadata)
+  -o, --excludeendswithfilters=<value>                                              overriding exclude filters  (case
+                                                                                    sensitive) for meta components such
+                                                                                    as custom metadata items ending with
+                                                                                    with text e.g. -j __c
+  -p, --excludematchfilters=<value>                                                 overriding exclude filters  (case
+                                                                                    sensitive) for meta components
+                                                                                    matching text e.g. -m Account,"Case"
+  -q, --excludecontainsfilters=<value>                                              overriding exclude filters (case
+                                                                                    sensitive) for meta components
+                                                                                    containing text e.g. -r
+                                                                                    ABC_,Xyz,"One Two"
   -r, --containsfilters=<value>                                                     filters (case sensitive) for meta
                                                                                     components containing text e.g. -r
                                                                                     ABC_,Xyz,"One Two"
@@ -155,16 +166,13 @@ DESCRIPTION
   retrieve and refresh org metadata to local directory (i.e. retrieve all or filtered metadata from org)
 
 EXAMPLES
-      $ sfdx ext:mdapi:retrieve --targetusername user@example.com --apiversion 53.0 --ignorebackup --ignoreinstalled --ignorenamespaces --ignorehidden --ignorefolders --ignorestaticresources --manifestonly --stagemode --split
-    
+  $ sfdx ext:mdapi:retrieve --targetusername user@example.com --apiversion 53.0 --ignorebackup --ignoreinstalled --ignorenamespaces --ignorehidden --ignorefolders --ignorestaticresources --manifestonly --stagemode --split
 
-      $ sfdx ext:mdapi:retrieve -u user@example.com -b -i -n -d -f -s -x -t
-    
+  $ sfdx ext:mdapi:retrieve -u user@example.com -b -i -n -d -f -s -x -t
 
-      $ sfdx ext:mdapi:retrieve -u user@example.com -z
-    
+  $ sfdx ext:mdapi:retrieve -u user@example.com -z
 
-      $ sfdx ext:mdapi:retrieve --targetusername user@example.com
+  $ sfdx ext:mdapi:retrieve --targetusername user@example.com
 ```
 
 _See code: [src/commands/ext/mdapi/retrieve.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.1.0/src/commands/ext/mdapi/retrieve.ts)_
@@ -214,18 +222,16 @@ DESCRIPTION
   version(s) in the source org. This command needs to be run from within project folder (sfdx dependancy).
 
 EXAMPLES
-      $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com
-    
+  $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com
 
-      $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com --compareerror
-    
+  $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com --compareerror
 
-      $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com --compareonly --installonly --uninstallonly --syncpackages
+  $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com --compareonly --installonly --uninstallonly --syncpackages
 ```
 
 _See code: [src/commands/ext/package/sync.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.1.0/src/commands/ext/package/sync.ts)_
 <!-- commandsstop -->
-<!-- debugging-your-plugin -->
+<!-- debugging-your-plugin 
 # Debugging your plugin
 We recommend using the Visual Studio Code (VS Code) IDE for your plugin development. Included in the `.vscode` directory of this plugin is a `launch.json` config file, which allows you to attach a debugger to the node process when running your commands.
 
@@ -249,6 +255,7 @@ $ NODE_OPTIONS=--inspect-brk bin/run hello:org -u myOrg@example.com
 6. Hit the green play button at the top middle of VS Code (this play button will be to the right of the play button that you clicked in step #5).
 <br><img src=".images/vscodeScreenshot.png" width="480" height="278"><br>
 Congrats, you are debugging!
+-->
 
 ### Install npm dependencies and plugin libraries
 ``` 

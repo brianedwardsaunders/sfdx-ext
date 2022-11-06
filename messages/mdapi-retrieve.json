@@ -12,7 +12,18 @@
   "containsFiltersFlagDescription": "filters (case sensitive) for meta components containing text e.g. -r ABC_,Xyz,\"One Two\"",
   "startsWithFiltersFlagDescription": "filters (case sensitive) for meta components such as lwc starting with text e.g. -w xyz",
   "endsWithFiltersFlagDescription": "filters (case sensitive) for meta components such as custom metadata items ending with with text e.g. -j __c",
+  "matchFiltersFlagDescription": "filters (case sensitive) for meta components matching text e.g. -m Account,\"Case\"",
   "includeTypesFiltersFlagDescription": "include type filters (case sensitive and whole type names) for meta types e.g. Settings",
+  "excludecontainsFiltersFlagDescription": "overriding exclude filters (case sensitive) for meta components containing text e.g. -r ABC_,Xyz,\"One Two\"",
+  "excludestartsWithFiltersFlagDescription": "overriding exclude filters  (case sensitive) for meta components such as lwc starting with text e.g. -w xyz",
+  "excludeendsWithFiltersFlagDescription": "overriding exclude filters  (case sensitive) for meta components such as custom metadata items ending with with text e.g. -j __c",
+  "excludematchFiltersFlagDescription": "overriding exclude filters  (case sensitive) for meta components matching text e.g. -m Account,\"Case\"",
   "excludeTypesFiltersFlagDescription": "overriding exclude type filters (case sensitive and whole type names) for meta types e.g. CustomIndex",
-  "createcsvFlagDescription": "flag to create csv file to more easily compare metadata items in excel"
+  "createcsvFlagDescription": "flag to create csv file to more easily compare metadata items in excel",
+  "examples": [
+    "sfdx ext:mdapi:retrieve --targetusername user@example.com --apiversion 53.0 --ignorebackup --ignoreinstalled --ignorenamespaces --ignorehidden --ignorefolders --ignorestaticresources --manifestonly --stagemode --split",
+    "sfdx ext:mdapi:retrieve -u user@example.com -b -i -n -d -f -s -x -t",
+    "sfdx ext:mdapi:retrieve -u user@example.com -z",
+    "sfdx ext:mdapi:retrieve --targetusername user@example.com"
+  ]
 }

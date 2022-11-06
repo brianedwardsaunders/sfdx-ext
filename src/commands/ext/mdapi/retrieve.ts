@@ -3,7 +3,7 @@
  * @author brianewardsaunders
  * @date 2019-07-10
  */
-
+import * as os from 'os';
 import { SfdxCommand, flags } from "@salesforce/command";
 import { Messages } from "@salesforce/core";
 import { MdapiRetrieveUtility } from "../../../scripts/mdapi-retrieve-utility";
@@ -19,20 +19,7 @@ export default class Retrieve extends SfdxCommand {
 
   public static description = messages.getMessage("commandDescription");
 
-  public static examples = [
-    `
-    $ sfdx ext:mdapi:retrieve --targetusername user@example.com --apiversion 53.0 --ignorebackup --ignoreinstalled --ignorenamespaces --ignorehidden --ignorefolders --ignorestaticresources --manifestonly --stagemode --split
-    `,
-    `
-    $ sfdx ext:mdapi:retrieve -u user@example.com -b -i -n -d -f -s -x -t
-    `,
-    `
-    $ sfdx ext:mdapi:retrieve -u user@example.com -z
-    `,
-    `
-    $ sfdx ext:mdapi:retrieve --targetusername user@example.com
-    `
-  ];
+  public static examples = messages.getMessage('examples').split(os.EOL);
 
   protected static flagsConfig = {
     "ignorebackup": flags.boolean({
@@ -87,9 +74,29 @@ export default class Retrieve extends SfdxCommand {
       "char": "j",
       "description": messages.getMessage("endsWithFiltersFlagDescription")
     }),
+    "matchfilters": flags.array({
+      "char": "m",
+      "description": messages.getMessage("matchFiltersFlagDescription")
+    }),
     "includetypes": flags.array({
       "char": "y",
       "description": messages.getMessage("includeTypesFiltersFlagDescription")
+    }),
+    "excludecontainsfilters": flags.array({
+      "char": "q",
+      "description": messages.getMessage("excludecontainsFiltersFlagDescription")
+    }),
+    "excludestartswithfilters": flags.array({
+      "char": "e",
+      "description": messages.getMessage("excludestartsWithFiltersFlagDescription")
+    }),
+    "excludeendswithfilters": flags.array({
+      "char": "o",
+      "description": messages.getMessage("excludeendsWithFiltersFlagDescription")
+    }),
+    "excludematchfilters": flags.array({
+      "char": "p",
+      "description": messages.getMessage("excludematchFiltersFlagDescription")
     }),
     "excludetypes": flags.array({
       "char": "k",
@@ -119,30 +126,40 @@ export default class Retrieve extends SfdxCommand {
       containsFilters: Array<string> = this.flags.containsfilters || null,
       startsWithFilters: Array<string> = this.flags.startswithfilters || null,
       endsWithFilters: Array<string> = this.flags.endswithfilters || null,
+      matchFilters: Array<string> = this.flags.matchfilters || null,
       includeTypes: Array<string> = this.flags.includetypes || null,
+      excludeContainsFilters: Array<string> = this.flags.excludecontainsfilters || null,
+      excludeStartsWithFilters: Array<string> = this.flags.excludestartswithfilters || null,
+      excludeEndsWithFilters: Array<string> = this.flags.excludeendswithfilters || null,
+      excludeMatchFilters: Array<string> = this.flags.excludematchfilters || null,
       excludeTypes: Array<string> = this.flags.excludetypes || null,
       devmode = !stagemode;
 
     this.ux.log("-----------------------------");
     this.ux.log("sfdx ext:mdapi:retrieve");
     this.ux.log("-----------------------------");
-    this.ux.log(`targetusername        : ${username}`);
-    this.ux.log(`apiversion            : ${apiversion}`);
-    this.ux.log(`ignorebackup          : ${ignorebackup}`);
-    this.ux.log(`ignoreinstalled       : ${ignoreinstalled}`);
-    this.ux.log(`ignorenamespaces      : ${ignorenamespaces}`);
-    this.ux.log(`ignorehidden          : ${ignorehidden}`);
-    this.ux.log(`ignorefolders         : ${ignorefolders}`);
-    this.ux.log(`ignorestaticresources : ${ignorestaticresources}`);
-    this.ux.log(`manifestonly          : ${manifestonly}`);
-    this.ux.log(`retrievemode          : ${devmode ? "dev" : "stage"}`);
-    this.ux.log(`split                 : ${splitmode}`);
-    this.ux.log(`startswithfilters     : ${startsWithFilters}`);
-    this.ux.log(`containsfilters       : ${containsFilters}`);
-    this.ux.log(`endswithfilters       : ${endsWithFilters}`);
-    this.ux.log(`includetypes          : ${includeTypes}`);
-    this.ux.log(`excludetypes          : ${excludeTypes}`);
-    this.ux.log(`createcsv             : ${createcsv}`);
+    this.ux.log(`targetusername           : ${username}`);
+    this.ux.log(`apiversion               : ${apiversion}`);
+    this.ux.log(`ignorebackup             : ${ignorebackup}`);
+    this.ux.log(`ignoreinstalled          : ${ignoreinstalled}`);
+    this.ux.log(`ignorenamespaces         : ${ignorenamespaces}`);
+    this.ux.log(`ignorehidden             : ${ignorehidden}`);
+    this.ux.log(`ignorefolders            : ${ignorefolders}`);
+    this.ux.log(`ignorestaticresources    : ${ignorestaticresources}`);
+    this.ux.log(`manifestonly             : ${manifestonly}`);
+    this.ux.log(`retrievemode             : ${devmode ? "dev" : "stage"}`);
+    this.ux.log(`split                    : ${splitmode}`);
+    this.ux.log(`createcsv                : ${createcsv}`);
+    this.ux.log(`startswithfilters        : ${startsWithFilters}`);
+    this.ux.log(`containsfilters          : ${containsFilters}`);
+    this.ux.log(`endswithfilters          : ${endsWithFilters}`);
+    this.ux.log(`matchfilters             : ${matchFilters}`);
+    this.ux.log(`includetypes             : ${includeTypes}`);
+    this.ux.log(`excludestartswithfilters : ${excludeStartsWithFilters}`);
+    this.ux.log(`excludecontainsfilters   : ${excludeContainsFilters}`);
+    this.ux.log(`excludeendswithfilters   : ${excludeEndsWithFilters}`);
+    this.ux.log(`excludematchfilters      : ${excludeMatchFilters}`);
+    this.ux.log(`excludetypes             : ${excludeTypes}`);
     this.ux.log("-----------------------------");
 
     let util = new MdapiRetrieveUtility(
@@ -159,12 +176,17 @@ export default class Retrieve extends SfdxCommand {
       manifestonly,
       devmode,
       splitmode,
+      createcsv,
       startsWithFilters,
       containsFilters,
       endsWithFilters,
+      matchFilters,
       includeTypes,
-      excludeTypes,
-      createcsv
+      excludeStartsWithFilters,
+      excludeContainsFilters,
+      excludeEndsWithFilters,
+      excludeMatchFilters,
+      excludeTypes
     );
 
     util.process().then(() => {

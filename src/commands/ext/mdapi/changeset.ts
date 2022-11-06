@@ -3,11 +3,11 @@
  * @author brianewardsaunders
  * @date 2019-07-10
  */
-
+import * as os from 'os';
 import { SfdxCommand, flags } from "@salesforce/command";
 import { Messages, SfError } from "@salesforce/core";
 import { MdapiChangesetUtility } from "../../../scripts/mdapi-changeset-utility";
-
+import { AnyJson } from '@salesforce/ts-types';
 
 Messages.importMessagesDirectory(__dirname);
 
@@ -20,22 +20,7 @@ export default class Changeset extends SfdxCommand {
 
   public static description = messages.getMessage("commandDescription");
 
-  public static examples = [
-    `
-    $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --apiversion 46.0 --ignorecomments
-    `,
-    `
-    $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com
-    `,
-    `
-    $ sfdx ext:mdapi:changeset --sourceusername user@source.com --targetusername user@target.com --revisionfrom 9b834dbeec28b21f39756ad4b0183e8568ef7a7c --revisionto feature/SprintX
-    `,
-    `
-    $ sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6
-    `,
-    `
-    `
-  ];
+  public static examples = messages.getMessage('examples').split(os.EOL);
 
   protected static flagsConfig = {
     "sourceusername": flags.string({
@@ -66,7 +51,7 @@ export default class Changeset extends SfdxCommand {
 
   protected static requiresProject = false;
 
-  public async run(): Promise<any> {
+  public async run(): Promise<AnyJson> {
 
     let defaultApiVersion: string = await this.org.retrieveMaxApiVersion(),
       ignorecomments: boolean = this.flags.ignorecomments || false,

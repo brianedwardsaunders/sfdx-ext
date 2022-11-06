@@ -5,7 +5,6 @@
  */
 
 import type { DescribeMetadataResult, DescribeMetadataObject, FileProperties, ListMetadataQuery } from "jsforce/api/metadata";
-import { QueryResult } from "jsforce";
 import { Stats, createWriteStream, existsSync, mkdirSync, mkdirp, readFileSync, statSync, unlinkSync, writeFileSync } from "fs-extra";
 import { Org } from "@salesforce/core";
 import { MdapiCommon } from "./mdapi-common";
@@ -1358,103 +1357,6 @@ export class MdapiConfig {
     }// End method
 
     /**
-     * Set StandardValueSets names list not queryable
-     * https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/standardvalueset_names.htm
-     * @param config
-     */
-    public static setStandardValueSets(config: IConfig): void {
-
-        for (let x = 0; x < MdapiConfig.standardValueSets.length; x++) {
-
-            config.metadataObjectMembersLookup[MdapiConfig.StandardValueSet].push(<FileProperties>
-                {
-                    "type": MdapiConfig.StandardValueSet,
-                    "createdById": null,
-                    "createdByName": null,
-                    "createdDate": null,
-                    "fileName": null,
-                    "fullName": MdapiConfig.standardValueSets[x],
-                    "id": null,
-                    "lastModifiedById": null,
-                    "lastModifiedByName": null,
-                    "lastModifiedDate": null,
-                    "manageableState": null,
-                    "namespacePrefix": null
-                });
-
-        }// End for
-
-    }// End method
-
-    /**
-     * Queries and includes ommitted RecordTypes into config
-     * @param org
-     * @param config
-     */
-    public static async resolvePersonAccountRecordTypes(org: Org, config: IConfig): Promise<void> {
-
-        return new Promise((resolve, reject) => {
-
-            org.getConnection().query("SELECT DeveloperName, SobjectType, IsPersonType FROM RecordType " +
-                " WHERE SobjectType = 'Account' AND IsPersonType = true").
-                then(
-                    (result: QueryResult<any>) => {
-
-                        if (result.records) {
-
-                            for (let x = 0; x < result.records.length; x++) {
-
-                                let record: object = result.records[x],
-                                    personRecordType: string = MdapiConfig.PersonAccount + MdapiCommon.DOT + record[MdapiConfig.DeveloperName];
-
-                                config.metadataObjectMembersLookup[MdapiConfig.RecordType].push(<FileProperties>{
-                                    "type": MdapiConfig.RecordType,
-                                    "createdById": null,
-                                    "createdByName": null,
-                                    "createdDate": null,
-                                    "fileName": null,
-                                    "fullName": personRecordType,
-                                    "id": null,
-                                    "lastModifiedById": null,
-                                    "lastModifiedByName": null,
-                                    "lastModifiedDate": null,
-                                    "manageableState": null,
-                                    "namespacePrefix": null
-                                }// End push
-                                );
-
-                            }// End for
-
-                        }// End if
-                        resolve();
-
-                    },
-                    (error: any) => {
-
-                        if (error && error instanceof Object) {
-
-                            let errorString: string = JSON.stringify(error);
-
-                            if (errorString.includes(MdapiConfig.INVALID_FIELD)) {
-
-                                console.log("ignoring person accounts not activated in org");
-                                resolve();
-
-                                return;
-
-                            }// End if
-
-                        }// End if
-                        reject(error);
-
-                    }
-                );
-
-        });// End promise
-
-    }// End method
-
-    /**
      * RepositionSettings at end in prep for package.xml creation
      * @param config
      */
@@ -1564,10 +1466,8 @@ export class MdapiConfig {
 
     }// End function
 
-    public static patchMetaItemNameCsv (metaType:string, name: string) 
-    {
-        if (metaType === MdapiConfig.CustomIndex) 
-        {
+    public static patchMetaItemNameCsv(metaType: string, name: string) {
+        if (metaType === MdapiConfig.CustomIndex) {
             return name.replace(/,/g, ";");
         }
         return name;

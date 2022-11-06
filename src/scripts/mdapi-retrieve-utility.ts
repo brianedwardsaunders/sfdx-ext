@@ -11,7 +11,7 @@ import {
 import type {
   FileProperties, ListMetadataQuery
 } from "jsforce/api/metadata";
-
+import { QueryResult } from "jsforce";
 import path = require("path");
 import yauzl = require("yauzl");
 import { Org } from "@salesforce/core";
@@ -46,12 +46,17 @@ export class MdapiRetrieveUtility {
     protected manifestOnly: boolean,
     protected devMode: boolean,
     protected splitMode: boolean,
+    protected createcsv: boolean,
     protected startsWithFilters: Array<string>,
     protected containsFilters: Array<string>,
     protected endsWithFilters: Array<string>,
+    protected matchFilters: Array<string>,
     protected includeTypes: Array<string>,
-    protected excludedTypes: Array<string>,
-    protected createcsv: boolean
+    protected excludeStartsWithFilters: Array<string>,
+    protected excludeContainsFilters: Array<string>,
+    protected excludeEndsWithFilters: Array<string>,
+    protected excludeMatchFilters: Array<string>,
+    protected excludedTypes: Array<string>
   ) {
     // Noop
   }// End constructor
@@ -301,12 +306,14 @@ export class MdapiRetrieveUtility {
     await this.setupRetrieveDirectory();
 
     if (this.splitMode === false) {
-      return this.retrieveMetadataCompletePackage();
+      // return this.retrieveMetadataCompletePackage();
+      await this.retrieveMetadataCompletePackage();
     }
     else {
       await this.retrieveMetadataPackage1();
 
-      return this.retrieveMetadataPackage2();
+      // return this.retrieveMetadataPackage2();
+      await this.retrieveMetadataPackage2();
     }
 
   }// End method
@@ -358,8 +365,6 @@ export class MdapiRetrieveUtility {
 
       let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackage2XmlPath
         } -r ${this.retrievedPath2} -w -1 -u ${this.orgAlias}`;
-
-      this.ux.log('retrieveCommand ' + retrieveCommand);
 
       MdapiCommon.command(retrieveCommand).then(
         (result: any) => {
@@ -504,13 +509,13 @@ export class MdapiRetrieveUtility {
 
   }// End method
 
-  protected doesMetaItemStartWithFilter(metaItem: FileProperties, foundFlag: boolean): boolean {
+  protected doesMetaItemStartWithFilter(metaItem: FileProperties): boolean {
     //starts with check
-    if (this.startsWithFilters !== null && !foundFlag) {
+    let foundFlag: boolean = false;
+    if (this.startsWithFilters !== null) {
       try {
         this.startsWithFilters.forEach(filter => {
           if (metaItem.fullName.startsWith(filter)) {
-            this.config.metadataObjectMembersLookup[metaItem.type].push(metaItem);
             foundFlag = true;
             throw 'Break';
           }
@@ -522,13 +527,13 @@ export class MdapiRetrieveUtility {
     return foundFlag;
   }// End method
 
-  protected doesMetaItemContainFilter(metaItem: FileProperties, foundFlag: boolean): boolean {
+  protected doesMetaItemContainFilter(metaItem: FileProperties): boolean {
     //contains check
-    if (this.containsFilters !== null && !foundFlag) {
+    let foundFlag: boolean = false;
+    if (this.containsFilters !== null) {
       try {
         this.containsFilters.forEach(filter => {
           if (metaItem.fullName.includes(filter)) {
-            this.config.metadataObjectMembersLookup[metaItem.type].push(metaItem);
             foundFlag = true;
             throw 'Break';
           }
@@ -540,13 +545,13 @@ export class MdapiRetrieveUtility {
     }// End if
   }// End method
 
-  protected doesMetaItemEndWithFilter(metaItem: FileProperties, foundFlag: boolean): boolean {
+  protected doesMetaItemEndWithFilter(metaItem: FileProperties): boolean {
     //ends with check
-    if (this.endsWithFilters !== null && !foundFlag) {
+    let foundFlag: boolean = false;
+    if (this.endsWithFilters !== null) {
       try {
         this.endsWithFilters.forEach(filter => {
           if (metaItem.fullName.endsWith(filter)) {
-            this.config.metadataObjectMembersLookup[metaItem.type].push(metaItem);
             foundFlag = true;
             throw 'Break';
           }
@@ -558,13 +563,13 @@ export class MdapiRetrieveUtility {
     return foundFlag;
   }// End method
 
-  protected doesMetaItemIncludeType(metaItem: FileProperties, foundFlag: boolean): boolean {
-    //contains type not already previously found
-    if (this.includeTypes !== null && !foundFlag) {
+  protected doesMetaItemMatchFilter(metaItem: FileProperties): boolean {
+    //extact match check 
+    let foundFlag: boolean = false;
+    if (this.matchFilters !== null) {
       try {
-        this.includeTypes.forEach(filter => {
-          if (metaItem.type === filter) {
-            this.config.metadataObjectMembersLookup[metaItem.type].push(metaItem);
+        this.matchFilters.forEach(filter => {
+          if (metaItem.fullName === filter) {
             foundFlag = true;
             throw 'Break';
           }
@@ -574,6 +579,127 @@ export class MdapiRetrieveUtility {
       }
     }// End if
     return foundFlag;
+  }// End method
+
+  protected doesMetaItemIncludeType(metaItem: FileProperties): boolean {
+    //contains type not already previously found
+    let foundFlag: boolean = false;
+    if (this.includeTypes !== null && !foundFlag) {
+      try {
+        this.includeTypes.forEach(filter => {
+          if (metaItem.type === filter) {
+            foundFlag = true;
+            throw 'Break';
+          }
+        });
+      } catch (e) {
+        if (e !== 'Break') throw e;
+      }
+    }// End if
+    return foundFlag;
+  }
+
+  protected excludeMetaItemStartWithFilter(metaItem: FileProperties): boolean {
+    //exclude starts with check
+    let foundFlag: boolean = false;
+    if (this.excludeStartsWithFilters !== null) {
+      try {
+        this.excludeStartsWithFilters.forEach(filter => {
+          if (metaItem.fullName.startsWith(filter)) {
+            foundFlag = true;
+            throw 'Break';
+          }
+        });
+      } catch (e) {
+        if (e !== 'Break') throw e;
+      }
+    }// End if
+    return foundFlag;
+  }// End method
+
+  protected excludeMetaItemContainFilter(metaItem: FileProperties): boolean {
+    //exclude contains check
+    let foundFlag: boolean = false;
+    if (this.excludeContainsFilters !== null) {
+      try {
+        this.excludeContainsFilters.forEach(filter => {
+          if (metaItem.fullName.includes(filter)) {
+            foundFlag = true;
+            throw 'Break';
+          }
+        });
+      } catch (e) {
+        if (e !== 'Break') throw e;
+      }
+      return foundFlag;
+    }// End if
+  }// End method
+
+  protected excludeMetaItemEndWithFilter(metaItem: FileProperties): boolean {
+    //exclude ends with check
+    let foundFlag: boolean = false;
+    if (this.excludeEndsWithFilters !== null) {
+      try {
+        this.excludeEndsWithFilters.forEach(filter => {
+          if (metaItem.fullName.endsWith(filter)) {
+            foundFlag = true;
+            throw 'Break';
+          }
+        });
+      } catch (e) {
+        if (e !== 'Break') throw e;
+      }
+    }// End if
+    return foundFlag;
+  }// End method
+
+  protected excludeMetaItemMatchFilter(metaItem: FileProperties): boolean {
+    //exclude extact match check 
+    let foundFlag: boolean = false;
+    if (this.excludeMatchFilters !== null) {
+      try {
+        this.excludeMatchFilters.forEach(filter => {
+          if (metaItem.fullName === filter) {
+            foundFlag = true;
+            throw 'Break';
+          }
+        });
+      } catch (e) {
+        if (e !== 'Break') throw e;
+      }
+    }// End if
+    return foundFlag;
+  }// End method
+
+  protected isMetaItemInIncludeFilters(metaItem: FileProperties): boolean {
+    return this.isMetaItemFiltersEmpty() ||
+      this.doesMetaItemIncludeType(metaItem) ||
+      this.doesMetaItemStartWithFilter(metaItem) ||
+      this.doesMetaItemContainFilter(metaItem) ||
+      this.doesMetaItemEndWithFilter(metaItem) ||
+      this.doesMetaItemMatchFilter(metaItem);
+  }
+
+  protected isMetaItemFiltersEmpty(): boolean {
+    return (this.containsFilters === null) &&
+      (this.startsWithFilters === null) &&
+      (this.endsWithFilters === null) &&
+      (this.matchFilters === null);
+  }
+
+  protected isMetaItemInExcludeFilters(metaItem: FileProperties): boolean {
+    return !this.isMetaItemExcludeFiltersEmpty() &&
+      (this.excludeMetaItemStartWithFilter(metaItem) ||
+        this.excludeMetaItemContainFilter(metaItem) ||
+        this.excludeMetaItemEndWithFilter(metaItem) ||
+        this.excludeMetaItemMatchFilter(metaItem));
+  }
+
+  protected isMetaItemExcludeFiltersEmpty(): boolean {
+    return (this.excludeContainsFilters === null) &&
+      (this.excludeStartsWithFilters === null) &&
+      (this.excludeEndsWithFilters === null) &&
+      (this.excludeMatchFilters === null);
   }
 
   protected async queryListMetadata(params: Array<Params>): Promise<void> {
@@ -595,8 +721,6 @@ export class MdapiRetrieveUtility {
         }// End else
       }// End for
 
-      let foundFlag: boolean = false;
-
       this.org.getConnection().metadata.list(metaQueries, this.apiVersion)
         .then((result: Array<FileProperties>) => {
 
@@ -607,8 +731,6 @@ export class MdapiRetrieveUtility {
             let metaItem: FileProperties = result[x];
 
             this.patchMetaItem(metaItem);
-
-            foundFlag = false;
 
             if (metaItem.manageableState === MdapiConfig.deleted ||
               metaItem.manageableState === MdapiConfig.deprecated) {
@@ -623,17 +745,7 @@ export class MdapiRetrieveUtility {
               !MdapiConfig.ignoreHiddenOrNonEditable(this.settings, metaItem)) {
 
               //meta item name filters check
-              foundFlag = this.doesMetaItemStartWithFilter(metaItem, foundFlag);
-              foundFlag = this.doesMetaItemContainFilter(metaItem, foundFlag);
-              foundFlag = this.doesMetaItemEndWithFilter(metaItem, foundFlag);
-              //meta type match check
-              foundFlag = this.doesMetaItemIncludeType(metaItem, foundFlag);
-
-              //default no filter applied
-              if ((this.containsFilters === null) &&
-                (this.startsWithFilters === null) &&
-                (this.endsWithFilters === null) && !foundFlag) {
-
+              if (!this.isMetaItemInExcludeFilters(metaItem) && this.isMetaItemInIncludeFilters(metaItem)) {
                 this.config.metadataObjectMembersLookup[metaItem.type].push(metaItem);
               }
 
@@ -721,19 +833,28 @@ export class MdapiRetrieveUtility {
     let folderType: string = MdapiConfig.metadataTypeFolderLookup[metaType],
       folderArray: Array<FileProperties> = config.metadataObjectMembersLookup[folderType];
 
-    if (folderArray && folderArray.length > 0) {
+    if (this.isExcludedType(metaType)) {
+      this.ux.warn(`excluding type ${metaType}`);
+    }
+    else if (folderArray && folderArray.length > 0) {
 
       for (let x = 0; x < folderArray.length; x++) {
 
-        let folderName: string = folderArray[x].fullName,
+        let metaItem: FileProperties = folderArray[x];
+
+        let folderName: string = metaItem.fullName,
           param = <Params>{
             metaType,
             "folder": folderName
           };
 
-        // Inject the folder before
-        config.metadataObjectMembersLookup[metaType].push(folderArray[x]);
+        // need to ensure both the folder and the report are include in the filter criteria
+        if (!this.isMetaItemInExcludeFilters(metaItem) && this.isMetaItemInIncludeFilters(metaItem)) {
+          // Inject the folder before
+          this.config.metadataObjectMembersLookup[metaType].push(metaItem);
+        }
 
+        //config.metadataObjectMembersLookup[metaType].push(folderArray[x]);
         await this.queryListMetadata([param]);
 
       }// End for
@@ -745,22 +866,22 @@ export class MdapiRetrieveUtility {
 
     if (!this.ignoreFolders) {
 
-      this.ux.setSpinnerStatus(`retrieving Dashboard folders`);
+      this.ux.setSpinnerStatus(`retrieving dashboard folders`);
       await this.listMetadataFolderBatch(
         this.config,
         MdapiConfig.Dashboard
       );
-      this.ux.setSpinnerStatus(`retrieving Document folders`);
+      this.ux.setSpinnerStatus(`retrieving document folders`);
       await this.listMetadataFolderBatch(
         this.config,
         MdapiConfig.Document
       );
-      this.ux.setSpinnerStatus(`retrieving EmailTemplate folders`);
+      this.ux.setSpinnerStatus(`retrieving email template folders`);
       await this.listMetadataFolderBatch(
         this.config,
         MdapiConfig.EmailTemplate
       );
-      this.ux.setSpinnerStatus(`retrieving Report folders`);
+      this.ux.setSpinnerStatus(`retrieving report folders`);
       await this.listMetadataFolderBatch(
         this.config,
         MdapiConfig.Report
@@ -822,6 +943,129 @@ export class MdapiRetrieveUtility {
 
   }// End method
 
+  protected async describeMetadata(): Promise<void> {
+    await MdapiConfig.describeMetadata(
+      this.org,
+      this.config,
+      this.settings
+    );
+  }
+
+  /**
+   * Queries and includes ommitted RecordTypes into config
+   * @param org
+   * @param config
+   */
+  protected async resolvePersonAccountRecordTypesQuery(org: Org, config: IConfig): Promise<void> {
+
+    return new Promise((resolve, reject) => {
+
+      org.getConnection().query("SELECT DeveloperName, SobjectType, IsPersonType FROM RecordType " +
+        " WHERE SobjectType = 'Account' AND IsPersonType = true").
+        then(
+          (result: QueryResult<any>) => {
+
+            if (result.records) {
+
+              for (let x = 0; x < result.records.length; x++) {
+
+                let record: object = result.records[x],
+                  personRecordType: string = MdapiConfig.PersonAccount + MdapiCommon.DOT + record[MdapiConfig.DeveloperName];
+
+                const metaItem: FileProperties = <FileProperties>{
+                  "type": MdapiConfig.RecordType,
+                  "createdById": null,
+                  "createdByName": null,
+                  "createdDate": null,
+                  "fileName": null,
+                  "fullName": personRecordType,
+                  "id": null,
+                  "lastModifiedById": null,
+                  "lastModifiedByName": null,
+                  "lastModifiedDate": null,
+                  "manageableState": null,
+                  "namespacePrefix": null
+                }// End push
+
+                //meta item name filters check
+                if (!this.isMetaItemInExcludeFilters(metaItem) && this.isMetaItemInIncludeFilters(metaItem)) {
+                  config.metadataObjectMembersLookup[MdapiConfig.RecordType].push(metaItem);
+                }
+              }// End for
+
+            }// End if
+            resolve();
+          },
+          (error: any) => {
+            if (error && error instanceof Object) {
+              let errorString: string = JSON.stringify(error);
+              if (errorString.includes(MdapiConfig.INVALID_FIELD)) {
+                console.log("ignoring person accounts not activated in org");
+                resolve();
+                return;
+              }// End if
+            }// End if
+            reject(error);
+          }
+        );
+    });// End promise
+
+  }// End method
+
+  /**
+    * Set StandardValueSets names list not queryable
+    * https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/standardvalueset_names.htm
+    * @param config
+    */
+  protected setStandardValueSetsMetaItems(config: IConfig): void {
+
+    for (let x = 0; x < MdapiConfig.standardValueSets.length; x++) {
+
+      let metaItem: FileProperties = <FileProperties>
+        {
+          "type": MdapiConfig.StandardValueSet,
+          "createdById": null,
+          "createdByName": null,
+          "createdDate": null,
+          "fileName": null,
+          "fullName": MdapiConfig.standardValueSets[x],
+          "id": null,
+          "lastModifiedById": null,
+          "lastModifiedByName": null,
+          "lastModifiedDate": null,
+          "manageableState": null,
+          "namespacePrefix": null
+        }
+
+      if (!this.isMetaItemInExcludeFilters(metaItem) && this.isMetaItemInIncludeFilters(metaItem)) {
+        config.metadataObjectMembersLookup[MdapiConfig.StandardValueSet].push(metaItem);
+      }
+
+    }// End for
+
+  }// End method
+
+  protected async resolvePersonAccountRecordTypes(): Promise<void> {
+    if (!this.isExcludedType(MdapiConfig.RecordType)) {
+      await this.resolvePersonAccountRecordTypesQuery(
+        this.org,
+        this.config
+      );
+    }
+    else {
+      this.ux.warn(`excluding type PersonAccount RecordTypes`);
+    }
+  }
+
+  protected async setStandardValueSets(): Promise<void> {
+    if (!this.isExcludedType(MdapiConfig.StandardValueSet)) {
+      this.setStandardValueSetsMetaItems(this.config);
+    }
+    else {
+      this.ux.warn(`excluding type StandardValueSet`);
+    }
+  }
+
   public async process(): Promise<void> {
 
     try {
@@ -833,11 +1077,7 @@ export class MdapiRetrieveUtility {
 
       // Async calls
       this.ux.startSpinner("describe metadata");
-      await MdapiConfig.describeMetadata(
-        this.org,
-        this.config,
-        this.settings
-      );
+      await this.describeMetadata();
       this.ux.stopSpinner();
 
       this.ux.startSpinner("list metadata");
@@ -849,15 +1089,11 @@ export class MdapiRetrieveUtility {
       this.ux.stopSpinner();
 
       this.ux.startSpinner("resolve personaccount recordtypes");
-      await MdapiConfig.resolvePersonAccountRecordTypes(
-        this.org,
-        this.config
-      );
+      await this.resolvePersonAccountRecordTypes();
       this.ux.stopSpinner();
 
       // Sync calls
-      MdapiConfig.setStandardValueSets(this.config);
-      // MdapiConfig.repositionSettings(this.config);
+      this.setStandardValueSets();
 
       // Create package.xml
       this.ux.startSpinner("create manifest file(s)");
