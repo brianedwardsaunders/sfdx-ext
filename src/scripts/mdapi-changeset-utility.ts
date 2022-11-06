@@ -1518,7 +1518,6 @@ export class MdapiChangesetUtility {
     );
 
     if (this.createcsv) {
-
       this.createCsvFile(
         this.deploymentFilePackageCsv,
         this.packageDiffRecords,

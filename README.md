@@ -20,7 +20,7 @@ $ npm install -g sfdx-ext
 $ sfdx COMMAND
 running command...
 $ sfdx (--version)
-sfdx-ext/0.1.0 win32-x64 node-v16.13.0
+sfdx-ext/0.1.1 win32-x64 node-v16.13.0
 $ sfdx --help [COMMAND]
 USAGE
   $ sfdx COMMAND
@@ -75,7 +75,7 @@ EXAMPLES
   $ sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6
 ```
 
-_See code: [src/commands/ext/mdapi/changeset.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.1.0/src/commands/ext/mdapi/changeset.ts)_
+_See code: [src/commands/ext/mdapi/changeset.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.1.1/src/commands/ext/mdapi/changeset.ts)_
 
 ## `sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-j <array>] [-m <array>] [-y <array>] [-q <array>] [-e <array>] [-o <array>] [-p <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
 
@@ -175,7 +175,7 @@ EXAMPLES
   $ sfdx ext:mdapi:retrieve --targetusername user@example.com
 ```
 
-_See code: [src/commands/ext/mdapi/retrieve.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.1.0/src/commands/ext/mdapi/retrieve.ts)_
+_See code: [src/commands/ext/mdapi/retrieve.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.1.1/src/commands/ext/mdapi/retrieve.ts)_
 
 ## `sfdx ext:package:sync [-s <string>] [-c] [-e] [-i] [-x] [-z] [-v] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
 
@@ -229,7 +229,7 @@ EXAMPLES
   $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com --compareonly --installonly --uninstallonly --syncpackages
 ```
 
-_See code: [src/commands/ext/package/sync.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.1.0/src/commands/ext/package/sync.ts)_
+_See code: [src/commands/ext/package/sync.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.1.1/src/commands/ext/package/sync.ts)_
 <!-- commandsstop -->
 <!-- debugging-your-plugin 
 # Debugging your plugin
