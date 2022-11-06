@@ -1,7 +1,7 @@
 {
   "name": "sfdx-ext",
   "description": "sfdx extensions to retrieve and compare salesforce metadata from multiple orgs",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "brian.edward.saunders@gmail.com",
   "bugs": "https://github.com/brian.edward.saunders/sfdx-ext/issues",
   "dependencies": {
