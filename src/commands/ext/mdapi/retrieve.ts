@@ -83,9 +83,17 @@ export default class Retrieve extends SfdxCommand {
       "char": "w",
       "description": messages.getMessage("startsWithFiltersFlagDescription")
     }),
+    "endswithfilters": flags.array({
+      "char": "j",
+      "description": messages.getMessage("endsWithFiltersFlagDescription")
+    }),
     "includetypes": flags.array({
       "char": "y",
       "description": messages.getMessage("includeTypesFiltersFlagDescription")
+    }),
+    "excludetypes": flags.array({
+      "char": "k",
+      "description": messages.getMessage("excludeTypesFiltersFlagDescription")
     })
   };
 
@@ -105,14 +113,15 @@ export default class Retrieve extends SfdxCommand {
       ignorefolders: boolean = this.flags.ignorefolders || false,
       ignorestaticresources: boolean = this.flags.ignorestaticresources || false,
       manifestonly: boolean = this.flags.manifestonly || false,
-      stagemode: boolean = this.flags.stagemode || false, // Default,
+      stagemode: boolean = this.flags.stagemode || false, // default,
       splitmode: boolean = this.flags.split || false,
       createcsv: boolean = this.flags.createcsv || false,
       containsFilters: Array<string> = this.flags.containsfilters || null,
       startsWithFilters: Array<string> = this.flags.startswithfilters || null,
+      endsWithFilters: Array<string> = this.flags.endswithfilters || null,
       includeTypes: Array<string> = this.flags.includetypes || null,
+      excludeTypes: Array<string> = this.flags.excludetypes || null,
       devmode = !stagemode;
-
 
     this.ux.log("-----------------------------");
     this.ux.log("sfdx ext:mdapi:retrieve");
@@ -130,7 +139,9 @@ export default class Retrieve extends SfdxCommand {
     this.ux.log(`split                 : ${splitmode}`);
     this.ux.log(`startswithfilters     : ${startsWithFilters}`);
     this.ux.log(`containsfilters       : ${containsFilters}`);
+    this.ux.log(`endswithfilters       : ${endsWithFilters}`);
     this.ux.log(`includetypes          : ${includeTypes}`);
+    this.ux.log(`excludetypes          : ${excludeTypes}`);
     this.ux.log(`createcsv             : ${createcsv}`);
     this.ux.log("-----------------------------");
 
@@ -148,29 +159,24 @@ export default class Retrieve extends SfdxCommand {
       manifestonly,
       devmode,
       splitmode,
-      containsFilters,
       startsWithFilters,
+      containsFilters,
+      endsWithFilters,
       includeTypes,
+      excludeTypes,
       createcsv
     );
 
-    util.process().then(
-      () => {
-
+    util.process().then(() => {
         this.ux.log("success.");
-
         return { "status": "success" };
-
       },
       (error: any) => {
-
         this.ux.error(error);
-
         return {
           "status": "error",
           error
         };
-
       }
     );
 

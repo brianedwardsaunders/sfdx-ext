@@ -2,7 +2,7 @@
 sfdx-ext
 ==========
 
-sfdx extensions
+sfdx extensions to retrieve and compare salesforce orgs metadata
 
 [![Version](https://img.shields.io/npm/v/sfdx-ext.svg)](https://npmjs.org/package/sfdx-ext)
 [![CircleCI](https://circleci.com/gh/brian.edward.saunders/sfdx-ext/tree/master.svg?style=shield)](https://circleci.com/gh/brian.edward.saunders/sfdx-ext/tree/master)
@@ -14,6 +14,8 @@ sfdx extensions
 
 <!-- toc -->
 * [Debugging your plugin](#debugging-your-plugin)
+* [More information](#more-information)
+* [Published steps](#published-steps)
 <!-- tocstop -->
 <!-- install -->
 <!-- usage -->
@@ -22,7 +24,7 @@ $ npm install -g sfdx-ext
 $ sfdx COMMAND
 running command...
 $ sfdx (--version)
-sfdx-ext/0.0.1 win32-x64 node-v16.13.0
+sfdx-ext/0.1.0 win32-x64 node-v16.13.0
 $ sfdx --help [COMMAND]
 USAGE
   $ sfdx COMMAND
@@ -30,51 +32,17 @@ USAGE
 ```
 <!-- usagestop -->
 <!-- commands -->
-* [`sfdx hello:org [-n <string>] [-f] [-v <string>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-helloorg--n-string--f--v-string--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
-* [`sfdx mdapi:changeset [-s <string>] [-x] [-r <string>] [-t <string>] [-c] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-mdapichangeset--s-string--x--r-string--t-string--c--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
-* [`sfdx mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-y <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-mdapiretrieve--b--i--n--d--f--s--x--z--t--c--r-array--w-array--y-array--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
-* [`sfdx package:sync [-s <string>] [-c] [-e] [-i] [-x] [-z] [-v] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-packagesync--s-string--c--e--i--x--z--v--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
+* [`sfdx ext:mdapi:changeset [-s <string>] [-x] [-r <string>] [-t <string>] [-c] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-extmdapichangeset--s-string--x--r-string--t-string--c--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
+* [`sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-j <array>] [-y <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-extmdapiretrieve--b--i--n--d--f--s--x--z--t--c--r-array--w-array--j-array--y-array--k-array--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
+* [`sfdx ext:package:sync [-s <string>] [-c] [-e] [-i] [-x] [-z] [-v] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-extpackagesync--s-string--c--e--i--x--z--v--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
 
-## `sfdx hello:org [-n <string>] [-f] [-v <string>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
-
-print a greeting and your org IDs
-
-```
-USAGE
-  $ sfdx hello:org [-n <string>] [-f] [-v <string>] [-u <string>] [--apiversion <string>] [--json] [--loglevel
-    trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]
-
-FLAGS
-  -f, --force                                                                       example boolean flag
-  -n, --name=<value>                                                                name to print
-  -u, --targetusername=<value>                                                      username or alias for the target
-                                                                                    org; overrides default target org
-  -v, --targetdevhubusername=<value>                                                username or alias for the dev hub
-                                                                                    org; overrides default dev hub org
-  --apiversion=<value>                                                              override the api version used for
-                                                                                    api requests made by this command
-  --json                                                                            format output as json
-  --loglevel=(trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL)  [default: warn] logging level for
-                                                                                    this command invocation
-
-DESCRIPTION
-  print a greeting and your org IDs
-
-EXAMPLES
-  $ sfdx hello:org --targetusername myOrg@example.com --targetdevhubusername devhub@org.com
-
-  $ sfdx hello:org --name myname --targetusername myOrg@example.com
-```
-
-_See code: [src/commands/hello/org.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.0.1/src/commands/hello/org.ts)_
-
-## `sfdx mdapi:changeset [-s <string>] [-x] [-r <string>] [-t <string>] [-c] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
+## `sfdx ext:mdapi:changeset [-s <string>] [-x] [-r <string>] [-t <string>] [-c] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
 
 Generates a detailed changeset by comparing differences between two mdapi staged source directory files or source control commit versions.
 
 ```
 USAGE
-  $ sfdx mdapi:changeset [-s <string>] [-x] [-r <string>] [-t <string>] [-c] [-u <string>] [--apiversion <string>]
+  $ sfdx ext:mdapi:changeset [-s <string>] [-x] [-r <string>] [-t <string>] [-c] [-u <string>] [--apiversion <string>]
     [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]
 
 FLAGS
@@ -114,60 +82,69 @@ EXAMPLES
       $ sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6
 ```
 
-_See code: [src/commands/mdapi/changeset.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.0.1/src/commands/mdapi/changeset.ts)_
+_See code: [src/commands/ext/mdapi/changeset.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.1.0/src/commands/ext/mdapi/changeset.ts)_
 
-## `sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-y <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
+## `sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-j <array>] [-y <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
 
-Retrieve and refresh org metadata to local directory (i.e. retrieve all metadata from org).
+retrieve and refresh org metadata to local directory (i.e. retrieve all or filtered metadata from org)
 
 ```
 USAGE
-  $ sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-y <array>] [-u
-    <string>] [--apiversion <string>] [--json] [--loglevel
+  $ sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-j <array>] [-y
+    <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel
     trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]
 
 FLAGS
   -b, --ignorebackup                                                                flag to ignore creating a local
                                                                                     backup of retrieved files
-  -c, --createcsv                                                                   create csv flag to create csv file
-                                                                                    to easily compare metadata items in
+  -c, --createcsv                                                                   flag to create csv file to more
+                                                                                    easily compare metadata items in
                                                                                     excel
   -d, --ignorehidden                                                                (Recommended) flag to ignore
                                                                                     retrieving hidden or non-editable
                                                                                     managed files such as managed
                                                                                     ApexClasses
-  -f, --ignorefolders                                                               flag to ignore retrieving folder
+  -f, --ignorefolders                                                               flag to ignore retrieving folders
                                                                                     e.g. email, reports, dashboards and
                                                                                     documents
   -i, --ignoreinstalled                                                             flag to ignore retrieving installed
                                                                                     (or managed) package files (excludes
-                                                                                    all installed metadata)
+                                                                                    all installed package metadata)
+  -j, --endswithfilters=<value>                                                     filters (case sensitive) for meta
+                                                                                    components such as custom metadata
+                                                                                    items ending with with text e.g. -j
+                                                                                    __c
+  -k, --excludetypes=<value>                                                        overriding exclude type filters
+                                                                                    (case sensitive and whole type
+                                                                                    names) for meta types e.g.
+                                                                                    CustomIndex
   -n, --ignorenamespaces                                                            flag to ignore retrieving namespace
                                                                                     prefixed package files (excludes all
                                                                                     namespaced metadata)
-  -r, --containsfilters=<value>                                                     filters (case sensitive) for only
-                                                                                    meta components containing text e.g.
-                                                                                    -r ABC_,Xyz
+  -r, --containsfilters=<value>                                                     filters (case sensitive) for meta
+                                                                                    components containing text e.g. -r
+                                                                                    ABC_,Xyz,"One Two"
   -s, --ignorestaticresources                                                       flag to ignore retrieving all static
                                                                                     resources
   -t, --split                                                                       flag to split package.xml into
-                                                                                    package1.xml and package2.xml to
-                                                                                    address 10000 file download limit
-                                                                                    per request
+                                                                                    package1.xml and package2.xml in
+                                                                                    attempt to address 10000 file
+                                                                                    download limit per request
   -u, --targetusername=<value>                                                      username or alias for the target
                                                                                     org; overrides default target org
-  -w, --startswithfilters=<value>                                                   filters (case sensitive) for only
-                                                                                    meta components such as lwc starting
-                                                                                    with text e.g. -w xyz
+  -w, --startswithfilters=<value>                                                   filters (case sensitive) for meta
+                                                                                    components such as lwc starting with
+                                                                                    text e.g. -w xyz
   -x, --manifestonly                                                                flag to only create
-                                                                                    manifest/package.xml and don't
-                                                                                    download meta data files
-  -y, --includetypes=<value>                                                        filters (case sensitive and whole
-                                                                                    words) for only meta types such as
-                                                                                    Settings
-  -z, --stagemode                                                                   stage mode (default is false)
-                                                                                    otherwise dev mode (default is true)
-                                                                                    e.g. src
+                                                                                    manifest/package.xml and doesn't
+                                                                                    download metadata files
+  -y, --includetypes=<value>                                                        include type filters (case sensitive
+                                                                                    and whole type names) for meta types
+                                                                                    e.g. Settings
+  -z, --stagemode                                                                   stage mode e.g.
+                                                                                    stage/<alias>/retrieved/src (default
+                                                                                    is false), otherwise dev mode
+                                                                                    (default is true) e.g. src
   --apiversion=<value>                                                              override the api version used for
                                                                                     api requests made by this command
   --json                                                                            format output as json
@@ -175,7 +152,7 @@ FLAGS
                                                                                     this command invocation
 
 DESCRIPTION
-  Retrieve and refresh org metadata to local directory (i.e. retrieve all metadata from org).
+  retrieve and refresh org metadata to local directory (i.e. retrieve all or filtered metadata from org)
 
 EXAMPLES
       $ sfdx ext:mdapi:retrieve --targetusername user@example.com --apiversion 53.0 --ignorebackup --ignoreinstalled --ignorenamespaces --ignorehidden --ignorefolders --ignorestaticresources --manifestonly --stagemode --split
@@ -190,7 +167,7 @@ EXAMPLES
       $ sfdx ext:mdapi:retrieve --targetusername user@example.com
 ```
 
-_See code: [src/commands/mdapi/retrieve.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.0.1/src/commands/mdapi/retrieve.ts)_
+_See code: [src/commands/ext/mdapi/retrieve.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.1.0/src/commands/ext/mdapi/retrieve.ts)_
 
 ## `sfdx ext:package:sync [-s <string>] [-c] [-e] [-i] [-x] [-z] [-v] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
 
@@ -246,7 +223,7 @@ EXAMPLES
       $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com --compareonly --installonly --uninstallonly --syncpackages
 ```
 
-_See code: [src/commands/package/sync.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.0.1/src/commands/package/sync.ts)_
+_See code: [src/commands/ext/package/sync.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.1.0/src/commands/ext/package/sync.ts)_
 <!-- commandsstop -->
 <!-- debugging-your-plugin -->
 # Debugging your plugin
@@ -272,3 +249,35 @@ $ NODE_OPTIONS=--inspect-brk bin/run hello:org -u myOrg@example.com
 6. Hit the green play button at the top middle of VS Code (this play button will be to the right of the play button that you clicked in step #5).
 <br><img src=".images/vscodeScreenshot.png" width="480" height="278"><br>
 Congrats, you are debugging!
+
+### Install npm dependencies and plugin libraries
+``` 
+  npm install --global sfdx-cli 
+  npm install --global sfdx-ext 
+```
+
+### Install the sfdx-ext plugin
+``` 
+  sfdx plugins:install sfdx-ext  
+```
+
+### Confirm the installation
+``` 
+    sfdx plugins
+    > sfdx-ext
+```
+
+# More information
+``` 
+    brian.saunders
+    Accenture 
+```
+
+# Published steps
+``` 
+    npm login
+    npm publish 
+    
+    publisher email brian.edward.saunders@gmail.com 
+    github brianedwardsaunders 
+```

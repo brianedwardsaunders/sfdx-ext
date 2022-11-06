@@ -450,6 +450,15 @@ export class MdapiConfig {
 
     public static SharingTerritoryRule = "SharingTerritoryRule";
 
+    // patch for meta item with no type
+    public static GlobalValueSetTranslation = "GlobalValueSetTranslation";
+
+    public static globalValueSetTranslations = "globalValueSetTranslations";
+
+    public static StandardValueSetTranslation = "StandardValueSetTranslation";
+
+    public static standardValueSetTranslations = "standardValueSetTranslations";
+
     // The double barrel name exceptions
     public static keywords = "keywords";
 
@@ -570,7 +579,6 @@ export class MdapiConfig {
         MdapiConfig.CustomPermission,
         MdapiConfig.PlatformCachePartition,
         MdapiConfig.SharingReason,
-
         /*
          * According to sfdc reference include as well
          * custom application (although classic elements can be modified)
@@ -766,7 +774,6 @@ export class MdapiConfig {
         "bots",
         "managedContentTypes",
         "managedTopics"
-        // 'navigationMenus'
     ];
 
     // This must match above directory
@@ -776,7 +783,6 @@ export class MdapiConfig {
         "Bot",
         "ManagedContentType",
         "ManagedTopic"
-        // 'NavigationMenu'
     ];
 
     // Exclude from diff compare
@@ -1543,7 +1549,7 @@ export class MdapiConfig {
 
             for (let y = 0; y < sortedMembers.length; y++) {
 
-                let item: string = sortedMembers[y];
+                let item: string = MdapiConfig.patchMetaItemNameCsv(metaType, sortedMembers[y]);
 
                 csvContent += `${metaType}-${item},${metaType},${item},${orgAlias}\n`;
 
@@ -1558,11 +1564,20 @@ export class MdapiConfig {
 
     }// End function
 
+    public static patchMetaItemNameCsv (metaType:string, name: string) 
+    {
+        if (metaType === MdapiConfig.CustomIndex) 
+        {
+            return name.replace(/,/g, ";");
+        }
+        return name;
+    }
+
     public static createPackageFile(config: IConfig, settings: ISettings, packageXmlPath: string): void {
 
         let xmlContent: string = this.packageXmlHeader();
 
-        MdapiConfig.repositionSettings(config);
+        // MdapiConfig.repositionSettings(config);
 
         for (let x = 0; x < config.metadataTypes.length; x++) {
 
@@ -2125,9 +2140,7 @@ export class MdapiConfig {
             let childMetaName: string = childXmlNames[x];
 
             if (MdapiConfig.isUnsupportedMetaType(childMetaName)) {
-
                 continue;
-
             }
 
             let childMetadataObject: DescribeMetadataObject = config.metadataObjectLookup[childMetaName],

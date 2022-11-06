@@ -7,24 +7,21 @@ import {
   copyFileSync, copySync, existsSync, mkdirSync, readdirSync, removeSync,
   statSync, unlinkSync, writeFileSync
 } from "fs-extra";
-import type { DescribeMetadataObject} from "jsforce/api/metadata";
+import type { DescribeMetadataObject } from "jsforce/api/metadata";
 
 import { Org } from "@salesforce/core";
 import { MdapiCommon } from "./mdapi-common";
 //import { ChangesetExcludeDefault } from "../config/changeset-exclude-default";
 import {
-  ApplicationVisibility, ChangeType, ClassAccess, CustomObject, CustomObjectChild, CustomPermission,
-  DiffRecord, DiffType, FieldPermission, IConfig, ISettings, LayoutAssignment, ListView,
+  ApplicationVisibility, ChangeType, ClassAccess, CustomObjectChild, CustomPermission,
+  DiffRecord, DiffType, FieldPermission, IConfig, ISettings,
   MdapiConfig,
   ObjectPermission,
-  OrgPreferenceSettings,
   PageAccess,
-  Preference,
   Profile,
   RecordTypeVisibility,
   RelativePosition,
   TabVisibility,
-  Textable,
   UserPermission
 } from "./mdapi-config";
 import { UX } from "@salesforce/command";
@@ -561,9 +558,7 @@ export class MdapiChangesetUtility {
         childMetaName: string = childXmlNames[x];
 
       if (MdapiConfig.isUnsupportedMetaType(childMetaName)) {
-
         continue;
-
       }
 
       let childMetadataObject: DescribeMetadataObject = this.config.metadataObjectLookup[childMetaName],
@@ -654,9 +649,7 @@ export class MdapiChangesetUtility {
          * cannot set sharingModel to ControlledByParent on a CustomObject without a MasterDetail relationship field
          */
         if (leftType === "MasterDetail" && found) {
-
           leftCheckSum = rightCheckSum > 0 ? -rightCheckSum : -1;
-
         }
 
         if (found && leftCheckSum === rightCheckSum) {
@@ -665,12 +658,10 @@ export class MdapiChangesetUtility {
           diffRecord.diffType = DiffType.Match;
           diffRecord.diffSize = leftChildString.length - rightChildString.length;
           leftChildren.splice(
-            left,
-            1
+            left, 1
           );
           rightChildren.splice(
-            rightIndex,
-            1
+            rightIndex, 1
           );
           this.packageMatchResults[diffRecord.metadataName].push(diffRecord);
           this.diffStats.packageMatchCount++;
@@ -1321,7 +1312,7 @@ export class MdapiChangesetUtility {
 
         comments += `${diffRecord.diffType}: ${diffRecord.directory
           }${MdapiCommon.PATH_SEP}${MdapiCommon.isolateLeafNode(diffRecord.filePath)}, ${title
-          }delta-size ${diffRecord.diffSize} (bytes)` + `, file-size ${diffRecord.fileSize} (bytes), file-hash (${diffRecord.fileHash}) \n`;
+          } delta-size ${diffRecord.diffSize} (bytes)` + `, file-size ${diffRecord.fileSize} (bytes), file-hash (${diffRecord.fileHash}) \n`;
 
         if (changeType === ChangeType.DestructiveChanges && diffRecord.folderXml) {
 
@@ -1676,322 +1667,6 @@ export class MdapiChangesetUtility {
 
   }// End method
 
-  protected postInspectFile(instance: MdapiChangesetUtility, filePath: string, parentDir: string): void {
-
-    let typeFolder = MdapiCommon.isolateLeafNode(parentDir);
-    // Let grandParentFolder = MdapiConfig.getMetadataNameFromParentDirectory(parentDir);
-
-    if (typeFolder === MdapiConfig.objects) {
-
-      if (filePath.endsWith("Lead.object")) {
-
-        let jsonObject: object = MdapiCommon.xmlFileToJson(filePath),
-          customObject: CustomObject = jsonObject[MdapiConfig.CustomObject],
-          listViews: Array<ListView> = MdapiCommon.objectToArray(customObject.listViews);
-
-        for (let x = 0; x < listViews.length; x++) {
-
-          let listView = listViews[x],
-            columns: Array<Textable> = MdapiCommon.objectToArray(listView.columns);
-
-          for (let y = 0; y < columns.length; y++) {
-
-            let column = columns[y];
-
-            if (column._text === "LEAD_SCORE") {
-
-              columns.splice(
-                y,
-                1
-              ); // Pop
-              break;
-
-            }// End if
-
-          }// End if
-
-        }// End for
-
-        MdapiCommon.jsonToXmlFile(
-          jsonObject,
-          filePath
-        );
-
-      }// End if
-      else if (filePath.endsWith("Opportunity.object")) {
-
-        let jsonObject: object = MdapiCommon.xmlFileToJson(filePath),
-          customObject: CustomObject = jsonObject[MdapiConfig.CustomObject],
-          listViews: Array<ListView> = MdapiCommon.objectToArray(customObject.listViews);
-
-        for (let x = 0; x < listViews.length; x++) {
-
-          let listView = listViews[x],
-            columns: Array<Textable> = MdapiCommon.objectToArray(listView.columns);
-
-          for (let y = 0; y < columns.length; y++) {
-
-            let column = columns[y];
-
-            if (column._text === "OPPORTUNITY_SCORE") {
-
-              columns.splice(
-                y,
-                1
-              ); // Pop
-              break;
-
-            }// End if
-
-          }// End if
-
-        }// End for
-
-        MdapiCommon.jsonToXmlFile(
-          jsonObject,
-          filePath
-        );
-
-      }// End else if
-      else if (filePath.endsWith("Task.object")) {
-
-        let jsonObject: object = MdapiCommon.xmlFileToJson(filePath),
-          customObject: CustomObject = jsonObject[MdapiConfig.CustomObject],
-          listViews: Array<ListView> = MdapiCommon.objectToArray(customObject.listViews);
-
-        // Looking for duplicates and removing on list views....
-        for (let x = 0; x < listViews.length; x++) {
-
-          let count = 0,
-            listView: ListView = listViews[x],
-            listViewLabel: string = listView.fullName._text;
-
-          for (let y = 0; y < listViews.length; y++) {
-
-            let listViewCompare = listViews[y],
-              listViewCompareLabel: string = listViewCompare.fullName._text;
-
-            if (listViewLabel === listViewCompareLabel) {
-
-              count++;
-              if (count > 1) {
-
-                listViews.splice(
-                  y,
-                  1
-                ); // Remove duplicates
-
-              }// End if
-
-            }// End if
-
-          }// End if
-
-        }// End if
-
-        // Too long ENCODED:{!FilterNames.Task_DelegatedTasks} 40 charater limit
-        for (let x = 0; x < listViews.length; x++) {
-
-          let listView: ListView = listViews[x];
-          // Value too long for field: Name maximum length is:40
-
-          if (listView.fullName._text === "UnscheduledTasks" &&
-            listView.label._text === "ENCODED:{!FilterNames.Task_UnscheduledTasks}") {
-
-            listView.label._text = "Unscheduled Tasks";
-
-          }// End if
-          else if (listView.fullName._text === "CompletedTasks" &&
-            listView.label._text === "ENCODED:{!FilterNames.Task_CompletedTasks}") {
-
-            listView.label._text = "Completed Tasks";
-
-          }// End if
-          else if (listView.fullName._text === "DelegatedTasks" &&
-            listView.label._text === "ENCODED:{!FilterNames.Task_DelegatedTasks}") {
-
-            listView.label._text = "Delegated Tasks";
-
-          }// End if
-          else if (listView.fullName._text === "RecurringTasks" &&
-            listView.label._text === "ENCODED:{!FilterNames.Task_RecurringTasks}") {
-
-            listView.label._text = "Recurring Tasks";
-
-          }// End if
-
-        }// End for
-
-        MdapiCommon.jsonToXmlFile(
-          jsonObject,
-          filePath
-        );
-
-      }// End if
-
-    }// End else if
-    // Check profile issues
-    else if (typeFolder === MdapiConfig.profiles) {
-
-      let jsonObject: object = MdapiCommon.xmlFileToJson(filePath),
-        profile: Profile = <Profile>jsonObject[MdapiConfig.Profile];
-
-      //  Set standard profile user permssions to blank as should not be able to change.
-      if (profile.custom._text === "false") {
-
-        profile.userPermissions = [];
-
-      }// End if
-
-      // Handle this wierd situation of duplicates Duplicate layoutAssignment:PersonAccount
-      let layoutAssignments: Array<LayoutAssignment> = MdapiCommon.objectToArray(profile.layoutAssignments);
-
-      // Only one record type to page layout assignment per profile
-      for (let x = 0; x < layoutAssignments.length; x++) {
-
-        let layoutAssignment: LayoutAssignment = layoutAssignments[x],
-          count = 0;
-
-        for (let y = 0; y < layoutAssignments.length; y++) {
-
-          let layoutAssignmentCompare: LayoutAssignment = layoutAssignments[y];
-
-          if (!(layoutAssignment.recordType && layoutAssignmentCompare.recordType)) {
-
-            continue;
-
-          }// End if
-          else if (layoutAssignment.recordType._text === layoutAssignmentCompare.recordType._text) {
-
-            count++;
-
-          }// End else if
-          // Check if more than one
-          if (count > 1) {
-
-            instance.ux.warn(`removing duplicate ${layoutAssignmentCompare.layout._text
-              } layoutAssignment record type ${layoutAssignmentCompare.recordType._text} in profile ${filePath}`);
-            layoutAssignments.splice(
-              y,
-              1
-            );
-            break;
-
-          }// End if
-
-        }// End for
-
-      }// End for
-
-      // Cannot modify ManageSandboxes especially in non-production orgs
-
-      let userPermissions = MdapiCommon.objectToArray(profile.userPermissions);
-
-      for (let x = 0; x < userPermissions.length; x++) {
-
-        let userPermission = userPermissions[x];
-
-        if (userPermission.name._text === "ManageSandboxes") {
-
-          userPermissions.splice(
-            x,
-            1
-          ); // Pop
-          break;
-
-        }// End if
-
-      }// End for
-
-      /*
-       * Error You can't edit tab settings for SocialPersona, as it's not a valid tab.
-       * So if its there lets strip it out
-       */
-      /*
-       * Let tabVisibilities = MdapiCommon.objectToArray(profile.tabVisibilities);
-       * for (let x: number = 0; x < tabVisibilities.length; x++) {
-       *  let tabVisibility = tabVisibilities[x];
-       *  if (tabVisibility.tab._text === 'standard-SocialPersona') {
-       *      tabVisibilities.splice(x, 1); // pop
-       *      break;
-       *  }// end if
-       * }// end for
-       */
-
-      MdapiCommon.jsonToXmlFile(
-        jsonObject,
-        filePath
-      );
-
-    }// End else if (profile)
-    /*
-     * Removed assumed that user will be created as needed.
-     * check dashboard run as issues
-     */
-    /*
-     * Else if (grandParentFolder === MdapiConfig.dashboards) {
-     *
-     *  let jsonObject: object = MdapiCommon.xmlFileToJson(filePath);
-     *  let dashboard: Dashboard = jsonObject[MdapiConfig.Dashboard];
-     *
-     *  if (dashboard.dashboardType &&
-     *      (dashboard.dashboardType._text === 'SpecifiedUser')) {
-     *      // noop
-     *  }// end if
-     *  else if (dashboard.runningUser) {
-     *      delete dashboard.runningUser;
-     *  }// end if
-     *
-     *  MdapiCommon.jsonToXmlFile(jsonObject, filePath);
-     *
-     * }// end else if (dashboards)
-     */
-    else if (typeFolder === MdapiConfig.settings) {
-
-      // Check for production org preference settings
-
-      if (filePath.endsWith("OrgPreference.settings")) {
-
-        let jsonObject: object = MdapiCommon.xmlFileToJson(filePath),
-          orgPreferenceSettings: OrgPreferenceSettings = jsonObject[MdapiConfig.OrgPreferenceSettings],
-          preferences: Array<Preference> = MdapiCommon.objectToArray(orgPreferenceSettings.preferences);
-
-        for (let x = 0; x < preferences.length; x++) {
-
-          let preference: Preference = preferences[x];
-          // You do not have sufficient rights to access the organization setting: CompileOnDeploy
-
-          if (preference.settingName._text === "CompileOnDeploy") {
-
-            preferences.splice(
-              x,
-              1
-            );
-
-          }// End if
-
-        }// End for
-
-        MdapiCommon.jsonToXmlFile(
-          jsonObject,
-          filePath
-        );
-
-      }// End if
-
-    }// End else if
-
-  }// End method
-
-  protected postScreenDeploymentFiles(): void {
-
-    this.postWalkDir(
-      this.sourceDeployDirTargetSource,
-      this.postInspectFile
-    );
-
-  }// End process
-
   protected init(): void {
 
     this.config = MdapiConfig.createConfig();
@@ -2094,8 +1769,7 @@ export class MdapiChangesetUtility {
       this.ux.stopSpinner();
 
       this.ux.log("checking revisions (please standby)...");
-      this.checkoutRevisions().then(
-        () => {
+      this.checkoutRevisions().then(() => {
 
           this.ux.log("check local backup and restore...");
           this.checkLocalBackupAndRestore();
@@ -2106,55 +1780,46 @@ export class MdapiChangesetUtility {
             this.org,
             this.config,
             this.settings
-          ).then(
-            () => {
+          ).then(() => {
 
-              this.ux.stopSpinner();
+            this.ux.stopSpinner();
 
-              this.ux.log("setup diff records...");
-              this.setupDiffRecords();
+            this.ux.log("setup diff records...");
+            this.setupDiffRecords();
 
-              this.ux.log("walk directories...");
-              this.walkDirectories();
+            this.ux.log("walk directories...");
+            this.walkDirectories();
 
-              this.ux.log("recon walk directories...");
-              this.reconWalkDirectories();
+            this.ux.log("recon walk directories...");
+            this.reconWalkDirectories();
 
-              this.ux.log("compare source and target...");
-              this.compareSourceAndTarget();
+            this.ux.log("compare source and target...");
+            this.compareSourceAndTarget();
 
-              this.ux.log("recon source and target...");
-              this.reconSourceAndTarget();
+            this.ux.log("recon source and target...");
+            this.reconSourceAndTarget();
 
-              this.ux.log("prepare package directory...");
-              this.preparePackageDirectory();
+            this.ux.log("prepare package directory...");
+            this.preparePackageDirectory();
 
-              this.ux.log("prepare destructiveChanges.xml, package.xml and csv file(s)...");
-              this.createPackageXmls();
+            this.ux.log("prepare manifest file(s)...");
+            this.createPackageXmls();
 
-              this.ux.log("copy deployment files...");
-              this.copyDeploymentFiles();
+            this.ux.log("copy deployment files...");
+            this.copyDeploymentFiles();
 
-              this.ux.log("post file screening...");
-              this.postScreenDeploymentFiles();
+            this.ux.log("finishing up...");
+            resolve();
 
-              this.ux.log("finishing up...");
-              resolve();
-
-            },
+          },
             (error) => {
-
               this.ux.stopSpinner();
               reject(error);
-
             }
           );
-
         },
         (error) => {
-
           reject(error);
-
         }
       );
 

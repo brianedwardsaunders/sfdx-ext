@@ -46,9 +46,11 @@ export class MdapiRetrieveUtility {
     protected manifestOnly: boolean,
     protected devMode: boolean,
     protected splitMode: boolean,
-    protected containsFilters: Array<string>,
     protected startsWithFilters: Array<string>,
+    protected containsFilters: Array<string>,
+    protected endsWithFilters: Array<string>,
     protected includeTypes: Array<string>,
+    protected excludedTypes: Array<string>,
     protected createcsv: boolean
   ) {
     // Noop
@@ -97,61 +99,9 @@ export class MdapiRetrieveUtility {
 
   protected settings: ISettings;
 
-  protected BATCH_SIZE = 20;
+  protected METADATA_LIST_CHUNK_SIZE = 3; // hard sf query limit 
 
   protected transientMetadataTypes: Array<string> = [];
-
-  protected listMetadataFolderBatch(config: IConfig, metaType: string): Promise<void> {
-
-    return new Promise((resolve, reject) => {
-
-      try {
-
-        let folderType: string = MdapiConfig.metadataTypeFolderLookup[metaType],
-          folderArray: Array<FileProperties> = config.metadataObjectMembersLookup[folderType],
-          counter = 0,
-          batchCtrl = <BatchCtrl>{
-            counter, resolve, reject
-          };
-
-        if (folderArray && folderArray.length > 0) {
-
-          for (let x = 0; x < folderArray.length; x++) {
-
-            let folderName: string = folderArray[x].fullName,
-
-              params = <Params>{
-                metaType,
-                "folder": folderName
-              };
-
-            batchCtrl.counter = ++counter;
-
-            // Inject the folder before
-            config.metadataObjectMembersLookup[metaType].push(folderArray[x]);
-
-            this.queryListMetadata(
-              params,
-              batchCtrl
-            );
-
-          }// End for
-
-        }// End if
-        else {
-
-          batchCtrl.resolve();
-
-        }// End else
-
-      } catch (exception) {
-        this.ux.log(exception);
-        reject(exception);
-      }
-
-    });// End promse
-
-  }// End method
 
   // Create backup of retrieve meta in-case needed later
   protected backup(): void {
@@ -361,17 +311,11 @@ export class MdapiRetrieveUtility {
 
   }// End method
 
-
   protected async retrieveMetadataCompletePackage(): Promise<void> {
     return new Promise((resolve, reject) => {
 
       let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackageXmlPath
         } -r ${this.retrievedPath} -w -1 -u ${this.orgAlias}`;
-
-      /*
-       * Let retrieveCommand: string = ('sfdx force:mdapi:retrieve -k ' + this.filePackageXmlPath
-       *     + ' -r ' + this.retrievePath + ' -w -1 -u ' + this.orgAlias);
-       */
 
       MdapiCommon.command(retrieveCommand).then(
         (result: any) => {
@@ -414,6 +358,8 @@ export class MdapiRetrieveUtility {
 
       let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackage2XmlPath
         } -r ${this.retrievedPath2} -w -1 -u ${this.orgAlias}`;
+
+      this.ux.log('retrieveCommand ' + retrieveCommand);
 
       MdapiCommon.command(retrieveCommand).then(
         (result: any) => {
@@ -473,7 +419,7 @@ export class MdapiRetrieveUtility {
 
   }// End method
 
-  protected init(): void {
+  protected async init(): Promise<void> {
 
     // Setup config and setting properties
     this.config = MdapiConfig.createConfig();
@@ -558,32 +504,101 @@ export class MdapiRetrieveUtility {
 
   }// End method
 
-  protected queryListMetadata(params: Params, batchCtrl: BatchCtrl): void {
+  protected doesMetaItemStartWithFilter(metaItem: FileProperties, foundFlag: boolean): boolean {
+    //starts with check
+    if (this.startsWithFilters !== null && !foundFlag) {
+      try {
+        this.startsWithFilters.forEach(filter => {
+          if (metaItem.fullName.startsWith(filter)) {
+            this.config.metadataObjectMembersLookup[metaItem.type].push(metaItem);
+            foundFlag = true;
+            throw 'Break';
+          }
+        });
+      } catch (e) {
+        if (e !== 'Break') throw e;
+      }
+    }// End if
+    return foundFlag;
+  }// End method
 
-    let metaQueries: Array<ListMetadataQuery>;
+  protected doesMetaItemContainFilter(metaItem: FileProperties, foundFlag: boolean): boolean {
+    //contains check
+    if (this.containsFilters !== null && !foundFlag) {
+      try {
+        this.containsFilters.forEach(filter => {
+          if (metaItem.fullName.includes(filter)) {
+            this.config.metadataObjectMembersLookup[metaItem.type].push(metaItem);
+            foundFlag = true;
+            throw 'Break';
+          }
+        });
+      } catch (e) {
+        if (e !== 'Break') throw e;
+      }
+      return foundFlag;
+    }// End if
+  }// End method
 
-    let { metaType } = params,
-      folderName: string = params.folder;
+  protected doesMetaItemEndWithFilter(metaItem: FileProperties, foundFlag: boolean): boolean {
+    //ends with check
+    if (this.endsWithFilters !== null && !foundFlag) {
+      try {
+        this.endsWithFilters.forEach(filter => {
+          if (metaItem.fullName.endsWith(filter)) {
+            this.config.metadataObjectMembersLookup[metaItem.type].push(metaItem);
+            foundFlag = true;
+            throw 'Break';
+          }
+        });
+      } catch (e) {
+        if (e !== 'Break') throw e;
+      }
+    }// End if
+    return foundFlag;
+  }// End method
 
-    if (folderName) {
-      metaQueries = [
-        {
-          "type": metaType,
-          "folder": folderName
-        }
-      ];
-    } else {
-      metaQueries = [{ "type": metaType }];
-    }// End else
+  protected doesMetaItemIncludeType(metaItem: FileProperties, foundFlag: boolean): boolean {
+    //contains type not already previously found
+    if (this.includeTypes !== null && !foundFlag) {
+      try {
+        this.includeTypes.forEach(filter => {
+          if (metaItem.type === filter) {
+            this.config.metadataObjectMembersLookup[metaItem.type].push(metaItem);
+            foundFlag = true;
+            throw 'Break';
+          }
+        });
+      } catch (e) {
+        if (e !== 'Break') throw e;
+      }
+    }// End if
+    return foundFlag;
+  }
 
-    let foundFlag: boolean;
+  protected async queryListMetadata(params: Array<Params>): Promise<void> {
 
-    try {
-      this.org.getConnection().metadata.list(
-        metaQueries,
-        this.apiVersion
-      ).then(
-        (result: Array<FileProperties>) => {
+    return new Promise((resolve, reject) => {
+
+      let metaQueries: Array<ListMetadataQuery> = [];
+
+      for (let x = 0; x < params.length; x++) {
+        let param: Params = params[x];
+        if (param.folder) {
+          metaQueries.push(
+            {
+              "type": param.metaType,
+              "folder": param.folder
+            });
+        } else {
+          metaQueries.push({ "type": param.metaType });
+        }// End else
+      }// End for
+
+      let foundFlag: boolean = false;
+
+      this.org.getConnection().metadata.list(metaQueries, this.apiVersion)
+        .then((result: Array<FileProperties>) => {
 
           result = MdapiCommon.objectToArray(result);
 
@@ -591,155 +606,138 @@ export class MdapiRetrieveUtility {
 
             let metaItem: FileProperties = result[x];
 
+            this.patchMetaItem(metaItem);
+
             foundFlag = false;
 
             if (metaItem.manageableState === MdapiConfig.deleted ||
               metaItem.manageableState === MdapiConfig.deprecated) {
 
-              this.ux.log(`ignoring ${metaType} ${metaItem.manageableState} item ${metaItem.fullName}`);
+              this.ux.log(`ignoring ${JSON.stringify(metaItem)}`);
               continue;
 
             }// End if
 
-            if (!MdapiConfig.ignoreInstalled(
-              this.settings, metaItem
-            ) &&
-              !MdapiConfig.ignoreNamespaces(
-                this.settings, metaItem
-              ) &&
-              !MdapiConfig.ignoreHiddenOrNonEditable(
-                this.settings, metaItem
-              )) {
+            if (!MdapiConfig.ignoreInstalled(this.settings, metaItem) &&
+              !MdapiConfig.ignoreNamespaces(this.settings, metaItem) &&
+              !MdapiConfig.ignoreHiddenOrNonEditable(this.settings, metaItem)) {
 
-              //starts with check
-              if (this.startsWithFilters !== null) {
-                try {
-                  this.startsWithFilters.forEach(filter => {
-                    if (metaItem.fullName.startsWith(filter)) {
-                      this.config.metadataObjectMembersLookup[metaType].push(metaItem);
-                      throw 'Break';
-                    }
-                  });
-                } catch (e) {
-                  if (e !== 'Break') throw e;
-                }
-              }// End if
-
-              //contains check
-              if (this.containsFilters !== null && !foundFlag) {
-                try {
-                  this.containsFilters.forEach(filter => {
-                    if (metaItem.fullName.includes(filter)) {
-                      this.config.metadataObjectMembersLookup[metaType].push(metaItem);
-                      foundFlag = true;
-                      throw 'Break';
-                    }
-                  });
-                } catch (e) {
-                  if (e !== 'Break') throw e;
-                }
-              }// End if
-
-              //contains type not already previously found
-              if (this.includeTypes !== null && !foundFlag) {
-                try {
-                  this.includeTypes.forEach(filter => {
-                    if (metaType === filter) {
-                      this.config.metadataObjectMembersLookup[metaType].push(metaItem);
-                      foundFlag = true;
-                      throw 'Break';
-                    }
-                  });
-                } catch (e) {
-                  if (e !== 'Break') throw e;
-                }
-              }// End if
+              //meta item name filters check
+              foundFlag = this.doesMetaItemStartWithFilter(metaItem, foundFlag);
+              foundFlag = this.doesMetaItemContainFilter(metaItem, foundFlag);
+              foundFlag = this.doesMetaItemEndWithFilter(metaItem, foundFlag);
+              //meta type match check
+              foundFlag = this.doesMetaItemIncludeType(metaItem, foundFlag);
 
               //default no filter applied
-              if ((this.containsFilters === null) && (this.startsWithFilters === null) && !foundFlag) {
-                this.config.metadataObjectMembersLookup[metaType].push(metaItem);
+              if ((this.containsFilters === null) &&
+                (this.startsWithFilters === null) &&
+                (this.endsWithFilters === null) && !foundFlag) {
+
+                this.config.metadataObjectMembersLookup[metaItem.type].push(metaItem);
               }
 
             }// End if
 
           }// End for
 
-          if (--batchCtrl.counter <= 0) {
-            batchCtrl.resolve();
-          }// End if
+          resolve();
 
-        },
-        (error: any) => {
-          this.ux.warn('unexpected queryListMetadata error ' + error);
-          batchCtrl.reject();
+        }, (error: any) => {
+          this.ux.error(error);
+          reject();
+        });// End promise
+    });
+  }// End method
+
+  protected patchMetaItem(metaItem: FileProperties): void {
+    if (!metaItem.type) {
+      if (metaItem.fileName.startsWith(MdapiConfig.globalValueSetTranslations)) {
+        metaItem.type = MdapiConfig.GlobalValueSetTranslation;
+      }
+      else if (metaItem.fileName.startsWith(MdapiConfig.standardValueSetTranslations)) {
+        metaItem.type = MdapiConfig.StandardValueSetTranslation;
+      }
+      else {
+        throw "Unexpected no type value for metadata item: " + JSON.stringify(metaItem);
+      }
+    }// End if
+  }
+
+  protected async listMetadataBatch(metaTypes: Array<string>): Promise<void> {
+
+    let params: Array<Params> = [];
+
+    for (let x = 0; x < metaTypes.length; x++) {
+      params.push({ "metaType": metaTypes[x] });
+    }
+
+    await this.queryListMetadata(params);
+
+  }// End method
+
+  protected isExcludedType(metaType: string) {
+    if (this.excludedTypes) {
+      for (let x = 0; x < this.excludedTypes.length; x++) {
+        if (this.excludedTypes[x] === metaType) {
+          return true;
         }
+      }
+    }
+    return false;
+  }
 
-      );// End promise
+  protected async listMetadata(): Promise<void> {
 
-    } catch (e) {
-      this.ux.warn('unexpected queryListMetadata catch error ' + e);
-      batchCtrl.reject();
+    // this.transientMetadataTypes = [...this.config.metadataTypes];
+    this.transientMetadataTypes = [];
+
+    for (let z = 0; z < this.config.metadataTypes.length; z++) {
+      const metaType = this.config.metadataTypes[z];
+      if (!this.isExcludedType(metaType)) {
+        this.transientMetadataTypes.push(metaType);
+      }
+      else {
+        this.ux.warn(`excluding type ${metaType}`);
+      }
+    }
+
+    let chunks: Array<Array<string>> = [];
+
+    for (let i = 0; i < this.transientMetadataTypes.length; i += this.METADATA_LIST_CHUNK_SIZE) {
+      const chunk: Array<string> = this.transientMetadataTypes.slice(i, i + this.METADATA_LIST_CHUNK_SIZE);
+      chunks.push(chunk);
+    }
+
+    for (let x = 0; x < chunks.length; x++) {
+      this.ux.setSpinnerStatus(`chunk ${x + 1} of ${chunks.length}`);
+      await this.listMetadataBatch(chunks[x]);
     }
 
   }// End method
 
-  protected async listMetadataBatch(): Promise<void> {
+  protected async listMetadataFolderBatch(config: IConfig, metaType: string): Promise<void> {
 
-    return new Promise((resolve, reject) => {
+    let folderType: string = MdapiConfig.metadataTypeFolderLookup[metaType],
+      folderArray: Array<FileProperties> = config.metadataObjectMembersLookup[folderType];
 
-      let counter = 0,
+    if (folderArray && folderArray.length > 0) {
 
-        batchCtrl = <BatchCtrl>{
-          counter,
-          resolve,
-          reject
-        };
+      for (let x = 0; x < folderArray.length; x++) {
 
-      try {
+        let folderName: string = folderArray[x].fullName,
+          param = <Params>{
+            metaType,
+            "folder": folderName
+          };
 
-        for (let x = 0; x < this.BATCH_SIZE; x++) {
+        // Inject the folder before
+        config.metadataObjectMembersLookup[metaType].push(folderArray[x]);
 
-          let metaType: string = this.transientMetadataTypes.pop();
+        await this.queryListMetadata([param]);
 
-          if (metaType) {
-
-            batchCtrl.counter = ++counter;
-
-            let params = <Params>{
-              metaType
-            };
-
-            this.queryListMetadata(
-              params,
-              batchCtrl
-            );
-          }
-          else {
-            if (counter === 0) {
-              batchCtrl.resolve();
-            }
-            break;
-          }
-
-        }// End for
-
-      } catch (error) {
-        batchCtrl.reject();
-      }
-
-    });// End promse
-
-  }// End method
-
-  protected async listMetadata(): Promise<void> {
-
-    this.transientMetadataTypes = [...this.config.metadataTypes]; // create queue
-
-    while (this.transientMetadataTypes.length > 0) {
-
-      await this.listMetadataBatch();
-
-    }// End while
+      }// End for
+    }
 
   }// End method
 
@@ -747,18 +745,22 @@ export class MdapiRetrieveUtility {
 
     if (!this.ignoreFolders) {
 
+      this.ux.setSpinnerStatus(`retrieving Dashboard folders`);
       await this.listMetadataFolderBatch(
         this.config,
         MdapiConfig.Dashboard
       );
+      this.ux.setSpinnerStatus(`retrieving Document folders`);
       await this.listMetadataFolderBatch(
         this.config,
         MdapiConfig.Document
       );
+      this.ux.setSpinnerStatus(`retrieving EmailTemplate folders`);
       await this.listMetadataFolderBatch(
         this.config,
         MdapiConfig.EmailTemplate
       );
+      this.ux.setSpinnerStatus(`retrieving Report folders`);
       await this.listMetadataFolderBatch(
         this.config,
         MdapiConfig.Report
@@ -826,7 +828,7 @@ export class MdapiRetrieveUtility {
 
       // Init
       this.ux.startSpinner("initialising");
-      this.init();
+      await this.init();
       this.ux.stopSpinner();
 
       // Async calls
@@ -855,10 +857,10 @@ export class MdapiRetrieveUtility {
 
       // Sync calls
       MdapiConfig.setStandardValueSets(this.config);
-      MdapiConfig.repositionSettings(this.config);
+      // MdapiConfig.repositionSettings(this.config);
 
       // Create package.xml
-      this.ux.startSpinner("create package.xml and package.csv file(s)");
+      this.ux.startSpinner("create manifest file(s)");
       this.packageFiles();
       this.ux.stopSpinner();
 
