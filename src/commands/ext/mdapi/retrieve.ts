@@ -67,7 +67,7 @@ export default class Retrieve extends SfdxCommand {
       "description": messages.getMessage("containsFiltersFlagDescription")
     }),
     "startswithfilters": flags.array({
-      "char": "w",
+      "char": "l",
       "description": messages.getMessage("startsWithFiltersFlagDescription")
     }),
     "endswithfilters": flags.array({
