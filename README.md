@@ -12,6 +12,7 @@ sfdx extensions to retrieve and compare salesforce metadata from multiple orgs
 * [Debugging your plugin](#debugging-your-plugin)
 * [More information](#more-information)
 * [Published steps](#published-steps)
+* [Known Issues](#known-issues)
 <!-- tocstop -->
 
 <!-- commands -->
@@ -62,7 +63,7 @@ EXAMPLES
   $ sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6
 ```
 
-_See code: [src/commands/ext/mdapi/changeset.ts](https://github.com/brianedwardsaunders/sfdx-ext/blob/v0.1.3/src/commands/ext/mdapi/changeset.ts)_
+_See code: [src/commands/ext/mdapi/changeset.ts](https://github.com/brianedwardsaunders/sfdx-ext/blob/v0.1.4/src/commands/ext/mdapi/changeset.ts)_
 
 ## `sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-l <array>] [-j <array>] [-m <array>] [-y <array>] [-q <array>] [-e <array>] [-o <array>] [-p <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
 
@@ -162,7 +163,7 @@ EXAMPLES
   $ sfdx ext:mdapi:retrieve --targetusername user@example.com
 ```
 
-_See code: [src/commands/ext/mdapi/retrieve.ts](https://github.com/brianedwardsaunders/sfdx-ext/blob/v0.1.3/src/commands/ext/mdapi/retrieve.ts)_
+_See code: [src/commands/ext/mdapi/retrieve.ts](https://github.com/brianedwardsaunders/sfdx-ext/blob/v0.1.4/src/commands/ext/mdapi/retrieve.ts)_
 
 ## `sfdx ext:package:sync [-s <string>] [-c] [-e] [-i] [-x] [-z] [-v] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
 
@@ -216,7 +217,7 @@ EXAMPLES
   $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com --compareonly --installonly --uninstallonly --syncpackages
 ```
 
-_See code: [src/commands/ext/package/sync.ts](https://github.com/brianedwardsaunders/sfdx-ext/blob/v0.1.3/src/commands/ext/package/sync.ts)_
+_See code: [src/commands/ext/package/sync.ts](https://github.com/brianedwardsaunders/sfdx-ext/blob/v0.1.4/src/commands/ext/package/sync.ts)_
 <!-- commandsstop -->
 <!-- debugging-your-plugin 
 # Debugging your plugin
@@ -274,4 +275,18 @@ Congrats, you are debugging!
     
     publisher email brian.edward.saunders@gmail.com 
     github brianedwardsaunders 
+```
+# Known Issues
+``` 
+This oclif CLI timeout error may occur due to the long wait CLI processing time (ext:mdapi:retrieve), and can be ignored, the process should continue to run unaffected.
+
+CLIError: timed out
+    at Object.error (..\npm\node_modules\sfdx-cli\node_modules\@oclif\core\lib\errors\index.js:28:15)
+    at ..\npm\node_modules\sfdx-cli\node_modules\@oclif\core\lib\cli-ux\index.js:25:66
+    at async flush (..\npm\node_modules\sfdx-cli\node_modules\@oclif\core\lib\cli-ux\index.js:125:9) {
+  oclif: { exit: 2 },
+  code: undefined
+}
+
+workaround if required: http://106.14.165.236/article?articleId=abf47a3ce1fb100e46c55fd04fa1bf56
 ```
