@@ -16,7 +16,7 @@ sfdx extensions to retrieve and compare salesforce metadata from multiple orgs
 
 <!-- commands -->
 * [`sfdx ext:mdapi:changeset [-s <string>] [-x] [-r <string>] [-t <string>] [-c] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-extmdapichangeset--s-string--x--r-string--t-string--c--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
-* [`sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-j <array>] [-m <array>] [-y <array>] [-q <array>] [-e <array>] [-o <array>] [-p <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-extmdapiretrieve--b--i--n--d--f--s--x--z--t--c--r-array--w-array--j-array--m-array--y-array--q-array--e-array--o-array--p-array--k-array--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
+* [`sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-l <array>] [-j <array>] [-m <array>] [-y <array>] [-q <array>] [-e <array>] [-o <array>] [-p <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-extmdapiretrieve--b--i--n--d--f--s--x--z--t--c--r-array--l-array--j-array--m-array--y-array--q-array--e-array--o-array--p-array--k-array--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
 * [`sfdx ext:package:sync [-s <string>] [-c] [-e] [-i] [-x] [-z] [-v] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-extpackagesync--s-string--c--e--i--x--z--v--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
 
 ## `sfdx ext:mdapi:changeset [-s <string>] [-x] [-r <string>] [-t <string>] [-c] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
@@ -62,15 +62,15 @@ EXAMPLES
   $ sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6
 ```
 
-_See code: [src/commands/ext/mdapi/changeset.ts](https://github.com/brianedwardsaunders/sfdx-ext/blob/v0.1.2/src/commands/ext/mdapi/changeset.ts)_
+_See code: [src/commands/ext/mdapi/changeset.ts](https://github.com/brianedwardsaunders/sfdx-ext/blob/v0.1.3/src/commands/ext/mdapi/changeset.ts)_
 
-## `sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-j <array>] [-m <array>] [-y <array>] [-q <array>] [-e <array>] [-o <array>] [-p <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
+## `sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-l <array>] [-j <array>] [-m <array>] [-y <array>] [-q <array>] [-e <array>] [-o <array>] [-p <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
 
 retrieve and refresh org metadata to local directory (i.e. retrieve all or filtered metadata from org)
 
 ```
 USAGE
-  $ sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-j <array>] [-m
+  $ sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-l <array>] [-j <array>] [-m
     <array>] [-y <array>] [-q <array>] [-e <array>] [-o <array>] [-p <array>] [-k <array>] [-u <string>] [--apiversion
     <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]
 
@@ -84,9 +84,9 @@ FLAGS
                                                                                     retrieving hidden or non-editable
                                                                                     managed files such as managed
                                                                                     ApexClasses
-  -e, --excludestartswithfilters=<value>                                            overriding exclude filters  (case
+  -e, --excludestartswithfilters=<value>                                            overriding exclude filters (case
                                                                                     sensitive) for meta components such
-                                                                                    as lwc starting with text e.g. -w
+                                                                                    as lwc starting with text e.g. -l
                                                                                     xyz
   -f, --ignorefolders                                                               flag to ignore retrieving folders
                                                                                     e.g. email, reports, dashboards and
@@ -102,13 +102,16 @@ FLAGS
                                                                                     (case sensitive and whole type
                                                                                     names) for meta types e.g.
                                                                                     CustomIndex
+  -l, --startswithfilters=<value>                                                   filters (case sensitive) for meta
+                                                                                    components such as lwc starting with
+                                                                                    text e.g. -w xyz
   -m, --matchfilters=<value>                                                        filters (case sensitive) for meta
                                                                                     components matching text e.g. -m
                                                                                     Account,"Case"
   -n, --ignorenamespaces                                                            flag to ignore retrieving namespace
                                                                                     prefixed package files (excludes all
                                                                                     namespaced metadata)
-  -o, --excludeendswithfilters=<value>                                              overriding exclude filters  (case
+  -o, --excludeendswithfilters=<value>                                              overriding exclude filters (case
                                                                                     sensitive) for meta components such
                                                                                     as custom metadata items ending with
                                                                                     with text e.g. -j __c
@@ -130,9 +133,6 @@ FLAGS
                                                                                     download limit per request
   -u, --targetusername=<value>                                                      username or alias for the target
                                                                                     org; overrides default target org
-  -w, --startswithfilters=<value>                                                   filters (case sensitive) for meta
-                                                                                    components such as lwc starting with
-                                                                                    text e.g. -w xyz
   -x, --manifestonly                                                                flag to only create
                                                                                     manifest/package.xml and doesn't
                                                                                     download metadata files
@@ -162,7 +162,7 @@ EXAMPLES
   $ sfdx ext:mdapi:retrieve --targetusername user@example.com
 ```
 
-_See code: [src/commands/ext/mdapi/retrieve.ts](https://github.com/brianedwardsaunders/sfdx-ext/blob/v0.1.2/src/commands/ext/mdapi/retrieve.ts)_
+_See code: [src/commands/ext/mdapi/retrieve.ts](https://github.com/brianedwardsaunders/sfdx-ext/blob/v0.1.3/src/commands/ext/mdapi/retrieve.ts)_
 
 ## `sfdx ext:package:sync [-s <string>] [-c] [-e] [-i] [-x] [-z] [-v] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
 
@@ -216,7 +216,7 @@ EXAMPLES
   $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com --compareonly --installonly --uninstallonly --syncpackages
 ```
 
-_See code: [src/commands/ext/package/sync.ts](https://github.com/brianedwardsaunders/sfdx-ext/blob/v0.1.2/src/commands/ext/package/sync.ts)_
+_See code: [src/commands/ext/package/sync.ts](https://github.com/brianedwardsaunders/sfdx-ext/blob/v0.1.3/src/commands/ext/package/sync.ts)_
 <!-- commandsstop -->
 <!-- debugging-your-plugin 
 # Debugging your plugin
