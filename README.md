@@ -6,27 +6,14 @@ sfdx extensions to retrieve and compare salesforce metadata from multiple orgs
 
 [![Version](https://img.shields.io/npm/v/sfdx-ext.svg)](https://npmjs.org/package/sfdx-ext)
 [![Downloads/week](https://img.shields.io/npm/dw/sfdx-ext.svg)](https://npmjs.org/package/sfdx-ext)
-[![License](https://img.shields.io/npm/l/sfdx-ext.svg)](https://github.com/brian.edward.saunders/sfdx-ext/blob/master/package.json)
+[![License](https://img.shields.io/npm/l/sfdx-ext.svg)](https://github.com/brianedwardsaunders/sfdx-ext/blob/master/package.json)
 
 <!-- toc -->
 * [Debugging your plugin](#debugging-your-plugin)
 * [More information](#more-information)
 * [Published steps](#published-steps)
 <!-- tocstop -->
-<!-- install -->
-<!-- usage -->
-```sh-session
-$ npm install -g sfdx-ext
-$ sfdx COMMAND
-running command...
-$ sfdx (--version)
-sfdx-ext/0.1.1 win32-x64 node-v16.13.0
-$ sfdx --help [COMMAND]
-USAGE
-  $ sfdx COMMAND
-...
-```
-<!-- usagestop -->
+
 <!-- commands -->
 * [`sfdx ext:mdapi:changeset [-s <string>] [-x] [-r <string>] [-t <string>] [-c] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-extmdapichangeset--s-string--x--r-string--t-string--c--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
 * [`sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-j <array>] [-m <array>] [-y <array>] [-q <array>] [-e <array>] [-o <array>] [-p <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`](#sfdx-extmdapiretrieve--b--i--n--d--f--s--x--z--t--c--r-array--w-array--j-array--m-array--y-array--q-array--e-array--o-array--p-array--k-array--u-string---apiversion-string---json---loglevel-tracedebuginfowarnerrorfataltracedebuginfowarnerrorfatal)
@@ -75,7 +62,7 @@ EXAMPLES
   $ sfdx ext:mdapi:changeset -s DevOrg -u ReleaseOrg -r dd7f8491f5e897d6b637915affb7ebac66ff4623 -t feature/Sprint6
 ```
 
-_See code: [src/commands/ext/mdapi/changeset.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.1.1/src/commands/ext/mdapi/changeset.ts)_
+_See code: [src/commands/ext/mdapi/changeset.ts](https://github.com/brianedwardsaunders/sfdx-ext/blob/v0.1.2/src/commands/ext/mdapi/changeset.ts)_
 
 ## `sfdx ext:mdapi:retrieve [-b] [-i] [-n] [-d] [-f] [-s] [-x] [-z] [-t] [-c] [-r <array>] [-w <array>] [-j <array>] [-m <array>] [-y <array>] [-q <array>] [-e <array>] [-o <array>] [-p <array>] [-k <array>] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
 
@@ -175,7 +162,7 @@ EXAMPLES
   $ sfdx ext:mdapi:retrieve --targetusername user@example.com
 ```
 
-_See code: [src/commands/ext/mdapi/retrieve.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.1.1/src/commands/ext/mdapi/retrieve.ts)_
+_See code: [src/commands/ext/mdapi/retrieve.ts](https://github.com/brianedwardsaunders/sfdx-ext/blob/v0.1.2/src/commands/ext/mdapi/retrieve.ts)_
 
 ## `sfdx ext:package:sync [-s <string>] [-c] [-e] [-i] [-x] [-z] [-v] [-u <string>] [--apiversion <string>] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`
 
@@ -229,7 +216,7 @@ EXAMPLES
   $ sfdx ext:package:sync --sourceusername user@sourceorg.com --targetusername user@targetorg.com --compareonly --installonly --uninstallonly --syncpackages
 ```
 
-_See code: [src/commands/ext/package/sync.ts](https://github.com/brian.edward.saunders/sfdx-ext/blob/v0.1.1/src/commands/ext/package/sync.ts)_
+_See code: [src/commands/ext/package/sync.ts](https://github.com/brianedwardsaunders/sfdx-ext/blob/v0.1.2/src/commands/ext/package/sync.ts)_
 <!-- commandsstop -->
 <!-- debugging-your-plugin 
 # Debugging your plugin
