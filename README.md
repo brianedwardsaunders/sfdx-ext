@@ -1,5 +1,5 @@
 
-sfdx-ext
+sfdx-ext (Note: this project is longer being maintained, please explore alternatives)
 ==========
 
 sfdx extensions to retrieve and compare salesforce metadata from multiple orgs
