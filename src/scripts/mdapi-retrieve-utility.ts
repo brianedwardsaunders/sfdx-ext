@@ -321,8 +321,11 @@ export class MdapiRetrieveUtility {
   protected async retrieveMetadataCompletePackage(): Promise<void> {
     return new Promise((resolve, reject) => {
 
-      let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackageXmlPath
-        } -r ${this.retrievedPath} -w -1 -u ${this.orgAlias}`;
+      //let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackageXmlPath
+      //  } -r ${this.retrievedPath} -w -1 -u ${this.orgAlias}`;
+
+      let retrieveCommand = `sf project retrieve start -x ${this.filePackageXmlPath
+        } -t ${this.retrievedPath} -o ${this.orgAlias}`;  
 
       MdapiCommon.command(retrieveCommand).then(
         (result: any) => {
@@ -342,8 +345,11 @@ export class MdapiRetrieveUtility {
   protected async retrieveMetadataPackage1(): Promise<void> {
     return new Promise((resolve, reject) => {
 
-      let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackage1XmlPath
-        } -r ${this.retrievedPath1} -w -1 -u ${this.orgAlias}`;
+      //let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackage1XmlPath
+      //  } -r ${this.retrievedPath1} -w -1 -u ${this.orgAlias}`;
+
+      let retrieveCommand = `sf project retrieve start -x ${this.filePackageXmlPath
+        } -t ${this.retrievedPath} -o ${this.orgAlias}`;    
 
       MdapiCommon.command(retrieveCommand).then(
         (result: any) => {
@@ -363,8 +369,11 @@ export class MdapiRetrieveUtility {
   protected async retrieveMetadataPackage2(): Promise<void> {
     return new Promise((resolve, reject) => {
 
-      let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackage2XmlPath
-        } -r ${this.retrievedPath2} -w -1 -u ${this.orgAlias}`;
+    //  let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackage2XmlPath
+    //   } -r ${this.retrievedPath2} -w -1 -u ${this.orgAlias}`;
+
+     let retrieveCommand = `sf project retrieve start -x ${this.filePackageXmlPath
+        } -t ${this.retrievedPath} -o ${this.orgAlias}`;    
 
       MdapiCommon.command(retrieveCommand).then(
         (result: any) => {
@@ -704,76 +713,102 @@ export class MdapiRetrieveUtility {
 
   protected async queryListMetadata(params: Array<Params>): Promise<void> {
 
-    return new Promise((resolve, reject) => {
+    try {
 
-      let metaQueries: Array<ListMetadataQuery> = [];
+      return new Promise((resolve, reject) => {
 
-      for (let x = 0; x < params.length; x++) {
-        let param: Params = params[x];
-        if (param.folder) {
-          metaQueries.push(
-            {
-              "type": param.metaType,
-              "folder": param.folder
-            });
-        } else {
-          metaQueries.push({ "type": param.metaType });
-        }// End else
-      }// End for
+        let metaQueries: Array<ListMetadataQuery> = [];
 
-      this.org.getConnection().metadata.list(metaQueries, this.apiVersion)
-        .then((result: Array<FileProperties>) => {
+        for (let x = 0; x < params.length; x++) {
+          let param: Params = params[x];
+          if (param.folder) {
+            metaQueries.push(
+              {
+                "type": param.metaType,
+                "folder": param.folder
+              });
+          } else {
+            metaQueries.push({ "type": param.metaType });
+          }// End else
+        }// End for
 
-          result = MdapiCommon.objectToArray(result);
+        //this.ux.log(`attempting to query ${JSON.stringify(metaQueries)}`);
 
-          for (let x = 0; x < result.length; x++) {
+        try {
 
-            let metaItem: FileProperties = result[x];
+          this.org.getConnection().metadata.list(metaQueries, this.apiVersion)
+            .then((result: Array<FileProperties>) => {
 
-            this.patchMetaItem(metaItem);
+              result = MdapiCommon.objectToArray(result);
 
-            if (metaItem.manageableState === MdapiConfig.deleted ||
-              metaItem.manageableState === MdapiConfig.deprecated) {
+              for (let x = 0; x < result.length; x++) {
 
-              this.ux.log(`ignoring ${JSON.stringify(metaItem)}`);
-              continue;
+                let metaItem: FileProperties = result[x];
 
-            }// End if
+                let validType = this.patchMetaItem(metaItem);
 
-            if (!MdapiConfig.ignoreInstalled(this.settings, metaItem) &&
-              !MdapiConfig.ignoreNamespaces(this.settings, metaItem) &&
-              !MdapiConfig.ignoreHiddenOrNonEditable(this.settings, metaItem)) {
+                if (!validType) {
+                  continue;
+                }
 
-              //meta item name filters check
-              if (!this.isMetaItemInExcludeFilters(metaItem) && this.isMetaItemInIncludeFilters(metaItem)) {
-                this.config.metadataObjectMembersLookup[metaItem.type].push(metaItem);
-              }
+                if (metaItem.manageableState === MdapiConfig.deleted ||
+                  metaItem.manageableState === MdapiConfig.deprecated) {
 
-            }// End if
+                  this.ux.log(`ignoring ${JSON.stringify(metaItem)}`);
+                  continue;
 
-          }// End for
+                }// End if
 
+                if (!MdapiConfig.ignoreInstalled(this.settings, metaItem) &&
+                  !MdapiConfig.ignoreNamespaces(this.settings, metaItem) &&
+                  !MdapiConfig.ignoreHiddenOrNonEditable(this.settings, metaItem)) {
+
+                  //meta item name filters check
+                  if (!this.isMetaItemInExcludeFilters(metaItem) && this.isMetaItemInIncludeFilters(metaItem)) {
+                    this.config.metadataObjectMembersLookup[metaItem.type].push(metaItem);
+                  }
+
+                }// End if
+
+              }// End for
+
+              resolve();
+
+            }, (error: any) => {
+              this.ux.error(`error retrieving ${JSON.stringify(params)} so will ignore`);
+              this.ux.error(error);
+              resolve();
+            });// End promise
+
+        } catch (exception) {
+          this.ux.error(exception);
+          this.ux.error(`critical query exception retrieving ${JSON.stringify(params)} so will ignore`);
           resolve();
-
-        }, (error: any) => {
-          this.ux.error(error);
-          reject();
-        });// End promise
-    });
+        }
+      });
+    } catch (ex) {
+      this.ux.error(`critical promise exception retrieving ${JSON.stringify(params)} so will ignore`);
+      return new Promise((resolve, reject) => { resolve(); })
+    }
   }// End method
 
-  protected patchMetaItem(metaItem: FileProperties): void {
-    if (!metaItem.type) {
+  protected patchMetaItem(metaItem: FileProperties): boolean {
+    if (!metaItem.type || metaItem.type === "") {
       if (metaItem.fileName.startsWith(MdapiConfig.globalValueSetTranslations)) {
         metaItem.type = MdapiConfig.GlobalValueSetTranslation;
+        return true;
       }
       else if (metaItem.fileName.startsWith(MdapiConfig.standardValueSetTranslations)) {
         metaItem.type = MdapiConfig.StandardValueSetTranslation;
+        return true;
       }
       else {
-        throw "Unexpected no type value for metadata item: " + JSON.stringify(metaItem);
+        this.ux.warn("Unexpected no type value for metadata item: " + JSON.stringify(metaItem));
+        return false;
       }
     }// End if
+
+    return true;
   }
 
   protected async listMetadataBatch(metaTypes: Array<string>): Promise<void> {
