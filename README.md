@@ -1,5 +1,6 @@
+sfdx-ext is @deprecated consider using https://github.com/dxatscale/sfpowerscripts
 
-sfdx-ext
+sfdx-ext (Note: this project is no longer being maintained, expect breaking sfdc api release updates, please explore alternative options)
 ==========
 
 sfdx extensions to retrieve and compare salesforce metadata from multiple orgs
