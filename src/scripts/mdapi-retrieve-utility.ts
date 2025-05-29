@@ -74,19 +74,27 @@ export class MdapiRetrieveUtility {
 
   protected retrievedPath2: string = (this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackaged2Folder);
 
+  protected retrievedPath3: string = (this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackaged3Folder);
+
   protected zipFilePath1: string = (this.retrievedPath1 + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
 
   protected zipFilePath2: string = (this.retrievedPath2 + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
 
+  protected zipFilePath3: string = (this.retrievedPath3 + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip);
+
   protected targetDirectoryUnpackaged1: string = (this.retrievedPath1 + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedFolder);
 
   protected targetDirectoryUnpackaged2: string = (this.retrievedPath2 + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedFolder);
+
+  protected targetDirectoryUnpackaged3: string = (this.retrievedPath3 + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedFolder);
 
   protected targetDirectorySource: string = (this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
 
   protected targetDirectorySource1: string = (this.retrievedPath1 + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
 
   protected targetDirectorySource2: string = (this.retrievedPath2 + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
+
+  protected targetDirectorySource3: string = (this.retrievedPath3 + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder);
 
   protected targetDirectorySourcePackageXml: string = (this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.srcFolder + MdapiCommon.PATH_SEP + MdapiConfig.packageXml);
 
@@ -99,6 +107,8 @@ export class MdapiRetrieveUtility {
   protected filePackage1XmlPath = (this.manifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.package1Xml);
 
   protected filePackage2XmlPath = (this.manifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.package2Xml);
+
+  protected filePackage3XmlPath = (this.manifestDirectory + MdapiCommon.PATH_SEP + MdapiConfig.package3Xml);
 
   protected config: IConfig;
 
@@ -124,9 +134,11 @@ export class MdapiRetrieveUtility {
       backupProjectFile: string = backupOrgFolder + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip,
       backupProjectFile1: string = backupOrgFolder + MdapiCommon.PATH_SEP + MdapiConfig.unpackaged1Zip,
       backupProjectFile2: string = backupOrgFolder + MdapiCommon.PATH_SEP + MdapiConfig.unpackaged2Zip,
+      backupProjectFile3: string = backupOrgFolder + MdapiCommon.PATH_SEP + MdapiConfig.unpackaged3Zip,
       sourceProjectFile: string = this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip,
       sourceProjectFile1: string = this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackaged1Folder + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip,
-      sourceProjectFile2: string = this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackaged2Folder + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip;
+      sourceProjectFile2: string = this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackaged2Folder + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip,
+      sourceProjectFile3: string = this.retrievedPath + MdapiCommon.PATH_SEP + MdapiConfig.unpackaged3Folder + MdapiCommon.PATH_SEP + MdapiConfig.unpackagedZip;
 
     if (!this.ignoreBackup) {
 
@@ -159,6 +171,7 @@ export class MdapiRetrieveUtility {
 
       } else {
 
+        // package 1
         this.ux.log(`backing up from ${sourceProjectFile1} to ${backupProjectFile1}`);
         copyFileSync(
           sourceProjectFile1,
@@ -166,12 +179,21 @@ export class MdapiRetrieveUtility {
         );
         this.ux.log(`backup finished to file ${backupProjectFile1}`);
 
+        // package 2
         this.ux.log(`backing up from ${sourceProjectFile2} to ${backupProjectFile2}`);
         copyFileSync(
           sourceProjectFile2,
           backupProjectFile2
         );
         this.ux.log(`backup finished to file ${backupProjectFile2}`);
+
+        // package 3
+        this.ux.log(`backing up from ${sourceProjectFile3} to ${backupProjectFile3}`);
+        copyFileSync(
+          sourceProjectFile3,
+          backupProjectFile3
+        );
+        this.ux.log(`backup finished to file ${backupProjectFile3}`);
       }
 
     }// End if
@@ -187,6 +209,8 @@ export class MdapiRetrieveUtility {
       removeSync(this.retrievedPath1);
 
       removeSync(this.retrievedPath2);
+
+      removeSync(this.retrievedPath3);
     }
 
 
@@ -306,14 +330,15 @@ export class MdapiRetrieveUtility {
     await this.setupRetrieveDirectory();
 
     if (this.splitMode === false) {
-      // return this.retrieveMetadataCompletePackage();
+
       await this.retrieveMetadataCompletePackage();
     }
     else {
       await this.retrieveMetadataPackage1();
 
-      // return this.retrieveMetadataPackage2();
       await this.retrieveMetadataPackage2();
+
+      await this.retrieveMetadataPackage3();
     }
 
   }// End method
@@ -324,10 +349,16 @@ export class MdapiRetrieveUtility {
       //let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackageXmlPath
       //  } -r ${this.retrievedPath} -w -1 -u ${this.orgAlias}`;
 
-      let retrieveCommand = `sf project retrieve start -x ${this.filePackageXmlPath
-        } -t ${this.retrievedPath} -o ${this.orgAlias}`;  
+      //let retrieveCommand = `sf project retrieve start -x ${this.filePackageXmlPath
+      //  } -t ${this.retrievedPath} -o ${this.orgAlias}`;
 
-      MdapiCommon.command(retrieveCommand).then(
+      console.log(`sf project retrieve start -x ${this.filePackageXmlPath} -t ${this.retrievedPath} -o ${this.orgAlias}`); 
+
+      let retrieveCommand = 'sf';
+      let args = ['project', 'retrieve', 'start', '-x', this.filePackageXmlPath, '-t', this.retrievedPath, '-o', this.orgAlias];
+
+      //MdapiCommon.command(retrieveCommand).then(
+      MdapiCommon.spawn(retrieveCommand, args, this.ux).then(
         (result: any) => {
           this.ux.log(result);
           resolve();
@@ -348,10 +379,16 @@ export class MdapiRetrieveUtility {
       //let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackage1XmlPath
       //  } -r ${this.retrievedPath1} -w -1 -u ${this.orgAlias}`;
 
-      let retrieveCommand = `sf project retrieve start -x ${this.filePackageXmlPath
-        } -t ${this.retrievedPath} -o ${this.orgAlias}`;    
+      //let retrieveCommand = `sf project retrieve start -x ${this.filePackageXmlPath
+      //  } -t ${this.retrievedPath} -o ${this.orgAlias}`;    
 
-      MdapiCommon.command(retrieveCommand).then(
+      console.log(`sf project retrieve start -x ${this.filePackage1XmlPath} -t ${this.retrievedPath1} -o ${this.orgAlias}`); 
+
+      let retrieveCommand = 'sf';
+      let args = ['project', 'retrieve', 'start', '-x', this.filePackage1XmlPath, '-t', this.retrievedPath1, '-o', this.orgAlias];
+
+      // MdapiCommon.command(retrieveCommand).then(  
+      MdapiCommon.spawn(retrieveCommand, args, this.ux).then(
         (result: any) => {
           this.ux.log(result);
           resolve();
@@ -369,13 +406,40 @@ export class MdapiRetrieveUtility {
   protected async retrieveMetadataPackage2(): Promise<void> {
     return new Promise((resolve, reject) => {
 
-    //  let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackage2XmlPath
-    //   } -r ${this.retrievedPath2} -w -1 -u ${this.orgAlias}`;
+      //  let retrieveCommand = `sfdx force:mdapi:retrieve -s -k ${this.filePackage2XmlPath
+      //   } -r ${this.retrievedPath2} -w -1 -u ${this.orgAlias}`;
 
-     let retrieveCommand = `sf project retrieve start -x ${this.filePackageXmlPath
-        } -t ${this.retrievedPath} -o ${this.orgAlias}`;    
+      console.log(`sf project retrieve start -x ${this.filePackage2XmlPath} -t ${this.retrievedPath2} -o ${this.orgAlias}`); 
 
-      MdapiCommon.command(retrieveCommand).then(
+      let retrieveCommand = 'sf';
+      let args = ['project', 'retrieve', 'start', '-x', this.filePackage2XmlPath, '-t', this.retrievedPath2, '-o', this.orgAlias];
+
+      //MdapiCommon.command(retrieveCommand).then(
+      MdapiCommon.spawn(retrieveCommand, args, this.ux).then(
+        (result: any) => {
+          this.ux.log(result);
+          resolve();
+        },
+        (error: any) => {
+          this.ux.error(error);
+          reject(error);
+        }
+      );
+
+    }); // End promise
+
+  }// End method
+
+  protected async retrieveMetadataPackage3(): Promise<void> {
+    return new Promise((resolve, reject) => {
+
+      console.log(`sf project retrieve start -x ${this.filePackage3XmlPath} -t ${this.retrievedPath3} -o ${this.orgAlias}`); 
+
+      let retrieveCommand = 'sf';
+      let args = ['project', 'retrieve', 'start', '-x', this.filePackage3XmlPath, '-t', this.retrievedPath3, '-o', this.orgAlias];
+
+      //MdapiCommon.command(retrieveCommand).then(
+      MdapiCommon.spawn(retrieveCommand, args, this.ux).then(
         (result: any) => {
           this.ux.log(result);
           resolve();
@@ -419,6 +483,12 @@ export class MdapiRetrieveUtility {
         this.config,
         this.settings,
         this.filePackage2XmlPath
+      );
+
+      MdapiConfig.createPackageFile(
+        this.config,
+        this.settings,
+        this.filePackage3XmlPath
       );
     }// End if
 
@@ -486,6 +556,7 @@ export class MdapiRetrieveUtility {
     }// End if
     else {
 
+      // unpackage 1
       await MdapiConfig.unzipUnpackaged(
         this.zipFilePath1,
         this.targetDirectoryUnpackaged1
@@ -498,6 +569,7 @@ export class MdapiRetrieveUtility {
 
       copySync(this.targetDirectorySource1, this.targetDirectorySource);
 
+      // unpackage 2
       await MdapiConfig.unzipUnpackaged(
         this.zipFilePath2,
         this.targetDirectoryUnpackaged2
@@ -510,6 +582,20 @@ export class MdapiRetrieveUtility {
 
       copySync(this.targetDirectorySource2, this.targetDirectorySource);
 
+      // unpackage 3
+      await MdapiConfig.unzipUnpackaged(
+        this.zipFilePath3,
+        this.targetDirectoryUnpackaged3
+      );
+
+      await rename(
+        this.targetDirectoryUnpackaged3,
+        this.targetDirectorySource3
+      );
+
+      copySync(this.targetDirectorySource3, this.targetDirectorySource);
+
+      // clean up
       removeSync(this.targetDirectorySourcePackageXml);
 
       copyFileSync(this.filePackageXmlPath, this.targetDirectorySourcePackageXml);
@@ -788,7 +874,7 @@ export class MdapiRetrieveUtility {
       });
     } catch (ex) {
       this.ux.error(`critical promise exception retrieving ${JSON.stringify(params)} so will ignore`);
-      return new Promise((resolve, reject) => { resolve(); })
+      return new Promise((resolve) => { resolve(); })
     }
   }// End method
 

@@ -211,6 +211,8 @@ export class MdapiConfig {
 
     public static unpackaged2Folder = "unpackaged2";
 
+    public static unpackaged3Folder = "unpackaged3";
+
     public static srcFolder = "src";
 
     public static manifestFolder = "manifest";
@@ -221,6 +223,8 @@ export class MdapiConfig {
 
     public static unpackaged2Zip = "unpackaged2.zip";
 
+    public static unpackaged3Zip = "unpackaged3.zip";
+
     public static packageXml = "package.xml";
 
     public static diffCsv = "package.csv";
@@ -228,6 +232,8 @@ export class MdapiConfig {
     public static package1Xml = "package1.xml";
 
     public static package2Xml = "package2.xml";
+
+    public static package3Xml = "package3.xml";
 
     public static packageManifest = "package.manifest";
 
@@ -279,6 +285,10 @@ export class MdapiConfig {
 
     public static DashboardFolder = "DashboardFolder";
 
+    public static ExternalDataConnector = "ExternalDataConnector";
+
+    public static ExternalDataSrcDescriptor = "ExternalDataSrcDescriptor";
+
     public static OrgPreferenceSettings = "OrgPreferenceSettings";
 
     public static SearchSettings = "SearchSettings";
@@ -303,6 +313,8 @@ export class MdapiConfig {
     public static Translation = "Translation";
 
     public static CustomPermission = "CustomPermission";
+
+    public static CustomMetadata = "CustomMetadata";
 
     public static CustomSetting = "CustomSetting";
 
@@ -589,6 +601,10 @@ export class MdapiConfig {
         MdapiConfig.HomePageComponent
     ];
 
+    public static package2MetaTypes = [
+        MdapiConfig.CustomMetadata
+    ]
+
     public static package1MetaTypes = [
         MdapiConfig.ApexClass,
         MdapiConfig.ApexComponent,
@@ -672,7 +688,10 @@ export class MdapiConfig {
     };
 
     // Unsupported both sfdx and mdapi as at 46.0
-    public static unsupportedMetadataTypes = [MdapiConfig.ManagedTopic]; // Cannot query listmetadata (error invalid parameter value) with api 46.0
+    public static unsupportedMetadataTypes = [
+        MdapiConfig.ManagedTopic,
+        MdapiConfig.ExternalDataConnector,
+        MdapiConfig.ExternalDataSrcDescriptor]; // Cannot query listmetadata (error invalid parameter value) with api 46.0
 
     // https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/standardvalueset_names.htm
     public static standardValueSets: Array<string> = [
@@ -772,7 +791,8 @@ export class MdapiConfig {
         "audience",
         "bots",
         "managedContentTypes",
-        "managedTopics"
+        "managedTopics",
+        "externalDataSrcDescriptors"
     ];
 
     // This must match above directory
@@ -781,7 +801,8 @@ export class MdapiConfig {
         "Audience",
         "Bot",
         "ManagedContentType",
-        "ManagedTopic"
+        "ManagedTopic",
+        "ExternalDataSrcDescriptor"
     ];
 
     // Exclude from diff compare
@@ -1067,6 +1088,24 @@ export class MdapiConfig {
             // console.error(metaType + ' ' + package1MetaType + ' ' + package1MetaType === metaType);
 
             if (package1MetaType === metaType) {
+
+                return true;
+
+            }// End if
+
+        }// End for
+
+        return false;
+
+    }// End method
+
+    public static isPackage2MetaType(metaType: string): boolean {
+
+        for (let x = 0; x < MdapiConfig.package2MetaTypes.length; x++) {
+
+            let package2MetaType: string = MdapiConfig.package2MetaTypes[x];
+
+            if (package2MetaType === metaType) {
 
                 return true;
 
@@ -1497,7 +1536,15 @@ export class MdapiConfig {
                 }
             }
             else if (packageXmlPath.endsWith(this.package2Xml)) {
+                if (MdapiConfig.isPackage2MetaType(metaType) === false) {
+                    continue;
+                }
+            }
+            else if (packageXmlPath.endsWith(this.package3Xml)) {
                 if (MdapiConfig.isPackage1MetaType(metaType) === true) {
+                    continue;
+                }
+                else if (MdapiConfig.isPackage2MetaType(metaType) === true) {
                     continue;
                 }
             }

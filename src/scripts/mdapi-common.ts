@@ -4,10 +4,11 @@
  * @date 2019-07-10
  */
 
-import {exec} from "child_process";
-import {readFileSync, writeFileSync} from "fs-extra";
-import {json2xml, xml2json} from "xml-js";
+import { exec, spawn } from "child_process";
+import { readFileSync, writeFileSync } from "fs-extra";
+import { json2xml, xml2json } from "xml-js";
 import path = require("path");
+import { UX } from "@salesforce/command";
 
 export class MdapiCommon {
 
@@ -43,14 +44,16 @@ export class MdapiCommon {
 
     public static FOUR_SPACE = "    ";
 
-    public static bufferOptions: object = {"maxBuffer": 10 * 1024 * 1024};
+    public static bufferOptions: object = { maxBuffer: 10 * 1024 * 1024 };
 
-    public static convertOptions: object = {"compact": true,
-        "spaces": 4};
+    public static convertOptions: object = {
+        "compact": true,
+        "spaces": 4
+    };
 
     public static jsonSpaces = 2;
 
-    public static command (cmd: string): Promise<any> {
+    public static command(cmd: string): Promise<any> {
 
         return new Promise((resolve, reject) => {
 
@@ -78,7 +81,43 @@ export class MdapiCommon {
 
     }// End method
 
-    public static hashCode (input: string): number {
+    public static spawn(cmd: string, args: any[], ux: UX): Promise<any> {
+
+        return new Promise((resolve, reject) => {
+
+            const child = spawn(cmd, args, { shell: true });
+
+            child.stdout.on('data', (data) => {
+                ux.setSpinnerStatus(data);
+                //console.debug(`stdout: ${data}`);
+            });
+
+            child.stderr.on('data', (data) => {
+                ux.error(data);
+                //console.error(`stderr: ${data}`);
+            });
+
+            child.on('close', (code) => {
+                if (code !== 0) {
+                    ux.error(`sf process exited with code ${code}`);
+                    reject(code);
+                } else {
+                    ux.setSpinnerStatus('sf process completed successfully');
+                    resolve(code);
+                }
+            });
+
+            child.on('error', (err) => {
+                ux.error(`Failed to start sf process: ${err}`);
+                reject(err);
+            });
+
+
+        });// End promise
+
+    }// End method
+
+    public static hashCode(input: string): number {
 
         let hash = 0;
 
@@ -100,7 +139,7 @@ export class MdapiCommon {
 
     }// End method
 
-    public static objectToArray<T> (objectOrArray: T | Array<T>): Array<T> {
+    public static objectToArray<T>(objectOrArray: T | Array<T>): Array<T> {
 
         let returned: Array<T> = [];
 
@@ -119,7 +158,7 @@ export class MdapiCommon {
 
     }// End method
 
-    public static fileToJson<T> (filePath: string): T {
+    public static fileToJson<T>(filePath: string): T {
 
         return JSON.parse(readFileSync(
             filePath,
@@ -128,7 +167,7 @@ export class MdapiCommon {
 
     }// End method
 
-    public static xmlFileToJson<T> (filePath: string): T {
+    public static xmlFileToJson<T>(filePath: string): T {
 
         let returned = null;
 
@@ -149,7 +188,7 @@ export class MdapiCommon {
 
     }// End method
 
-    public static jsonToXmlFile (jsonObject: object, filePath: string): void {
+    public static jsonToXmlFile(jsonObject: object, filePath: string): void {
 
         writeFileSync(
             filePath,
@@ -161,7 +200,7 @@ export class MdapiCommon {
 
     }// End method
 
-    public static jsonToFile (jsonObject: object, filePath: string): void {
+    public static jsonToFile(jsonObject: object, filePath: string): void {
 
         writeFileSync(
             filePath,
@@ -175,7 +214,7 @@ export class MdapiCommon {
 
     }// End method
 
-    public static isolateLeafNode (filePath: string, pathSeperator?: string): string {
+    public static isolateLeafNode(filePath: string, pathSeperator?: string): string {
 
         if (!pathSeperator) {
 
@@ -188,7 +227,7 @@ export class MdapiCommon {
 
     }// End method
 
-    public static join (segments: Array<string>, joinChar: string): string {
+    public static join(segments: Array<string>, joinChar: string): string {
 
         let returned: string = MdapiCommon.BLANK;
 
